@@ -184,12 +184,12 @@ paths:
       security: []
       responses:
         '201': { $ref: '#/components/responses/Session' }
+        '404': { $ref: '#/components/responses/Error' }
         '409':
           description: Trial already used
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}:
     parameters:

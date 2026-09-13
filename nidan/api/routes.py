@@ -23,6 +23,7 @@ import uuid
 
 from flask import (
     Blueprint,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -31,6 +32,7 @@ from flask import (
     url_for,
 )
 
+from nidan.api import trial
 from nidan.domain.assessment.bias import detect_all_biases
 from nidan.domain.assessment.clinical import evaluate_clinical
 from nidan.domain.assessment.topics import extract_topics
@@ -75,20 +77,41 @@ _GROUPED_EXAMINATIONS = _group_by(MASTER_EXAMINATIONS)
 
 def _visitor_id() -> str:
     """
-    A stable id for this browser, in the signed cookie.
+    A stable id for this browser, in the `anonymous_id` cookie.
 
-    Every consultation in the prototype is an anonymous one: there is no login
-    until T-014. That is not a workaround — `PRD` FR-2 makes the first case a
-    trial anyone can take without an account, and T-015 adds the step that
-    claims it into a real account at signup. So this uses the trial path the
-    repository layer already built and tested (`ADR-0016`), rather than running
-    the whole app with Row-Level Security bypassed for convenience.
+    Every consultation in the prototype is an anonymous one. That is not a
+    workaround: `PRD` FR-2 makes the first case a trial anyone can take without
+    an account, and T-015 added the step that claims it into a real account at
+    signup.
+
+    It reads the same cookie the `/v1` trial endpoint sets, so a consultation
+    taken here is claimable in exactly the same way. It does **not** enforce
+    one-trial-per-browser — that limit belongs to `POST /v1/trial/sessions`,
+    the contract a real client uses. These routes are a development surface
+    with a deletion date (T-030), and the limit protects revenue rather than
+    data; applying it here would cost a cookie-clear per case while authoring
+    content and buy nothing.
     """
-    visitor = session.get("visitor_id")
-    if not visitor:
-        visitor = str(uuid.uuid4())
-        session["visitor_id"] = visitor
-    return visitor
+    existing = trial.visitor_id()
+    if existing:
+        return existing
+
+    # New visitor. The cookie is attached on the way out, once there is a
+    # response to attach it to.
+    issued = getattr(g, "_issued_visitor_id", None)
+    if issued is None:
+        issued = trial.new_visitor_id()
+        g._issued_visitor_id = issued
+    return issued
+
+
+@bp.after_request
+def _persist_visitor_cookie(response):
+    """Set the trial cookie for a visitor who arrived without one."""
+    issued = getattr(g, "_issued_visitor_id", None)
+    if issued is not None:
+        trial.set_trial_cookie(response, issued)
+    return response
 
 
 def _scope():

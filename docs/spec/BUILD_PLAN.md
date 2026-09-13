@@ -327,7 +327,7 @@ Accept   1. JWT verified against JWKS, cached 10 min
          5. Backend never handles a password
 ```
 
-**T-015 · Anonymous trial sessions**
+**T-015 · Anonymous trial sessions** — ✅ **DONE** (2026-09-13)
 ```
 Phase    1            Depends  T-013,T-014    Est  1.5 d    Owner  V
 Files    nidan/api/trial.py
