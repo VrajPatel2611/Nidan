@@ -89,6 +89,11 @@ workers and why killing it mid-consultation loses nothing. (`ADR-0003` ·
 the transaction. A connection obtained any other way runs with RLS exempt, and
 nothing about it looks wrong. (`ADR-0016` · `tests/test_db_access.py`)
 
+**Backfilled events are marked and must be excluded from timing analysis.**
+The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
+their timestamps are synthetic because the JSON never recorded the interleaving.
+Any query computing think-time must filter them out. (`DATA_MODEL` §9.3)
+
 **Never change a detector, a threshold or the lexicon without reading the
 golden diff.** `tests/test_golden_assessment.py` pins the engine's output for
 all 16 pilot sessions. When it fails, regenerate with
@@ -167,7 +172,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 540 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 555 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -176,11 +181,12 @@ python analyze_sessions.py sessions # paired statistics over session JSON
 python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
+python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 21 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 165 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 180 schema, repository and route tests, real Postgres
 ```
 
 ---

@@ -17,7 +17,7 @@ Students interact with an AI-powered virtual patient via a chat interface. The s
   - *Anchoring* — fixating on the first or most obvious diagnosis
   - *Premature closure* — concluding before a thorough workup
   - *Confirmation bias* — only seeking evidence that supports one hypothesis
-- **Generates Socratic feedback** via Gemini 2.5 Flash that coaches *how* to reason, not just what the right answer was
+- **Generates Socratic feedback** via Llama 3.3 70B (Groq) that coaches *how* to reason, not just what the right answer was
 - **Shows a full scorecard** of every examination and investigation — what was essential and done ✓, what was essential and missed ○, what was appropriate, what was low-value ⚠, and what was irrelevant
 
 ### The Universal Panel Design
@@ -45,7 +45,7 @@ Cases 2 and 5 are lab-required — the diagnosis **cannot** be made from history
 | Layer | Technology |
 |-------|-----------|
 | Backend | Python 3.11 + Flask |
-| AI (patient voice + feedback) | Google Gemini 2.5 Flash via `google-genai` library |
+| AI (patient voice + feedback) | Llama 3.3 70B via Groq (`ADR-0011`) |
 | Bias detection | Rule-based engine (no LLM) |
 | Frontend | Vanilla HTML / CSS / JavaScript — no frameworks |
 | Session storage | Server-side dict (no database needed) |
@@ -55,10 +55,10 @@ Cases 2 and 5 are lab-required — the diagnosis **cannot** be made from history
 ## Prerequisites
 
 - **Python 3.11** (3.10+ likely works; 3.12+ untested)
-- **A Gemini API key** — free at [aistudio.google.com](https://aistudio.google.com/app/apikey)
+- **A Groq API key** — free at [console.groq.com](https://console.groq.com/keys)
 - **Git** (to clone the repo)
 
-> The free Gemini API tier has rate limits. If you see a "patient is taking a moment" message, wait a few seconds and retry — the app handles this automatically.
+> The free Groq API tier has rate limits. If you see a "patient is taking a moment" message, wait a few seconds and retry — the app handles this automatically.
 
 ---
 
@@ -191,7 +191,7 @@ Open your browser at **http://localhost:5000**
 
 ---
 
-## Getting a Gemini API Key
+## Getting a Groq API Key
 
 1. Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
 2. Sign in with a Google account
@@ -204,35 +204,52 @@ The free tier is sufficient for development and small-scale evaluation sessions.
 
 ## Project Structure
 
+Every top-level directory is one of three things. The distinction matters
+because **only one of them ships**.
+
+| | Directory | Ships? |
+|---|---|---|
+| **Product** | `nidan/` · `migrations/` | `nidan/` is the application; `migrations/` is the schema's source of truth |
+| **Research** | `sessions/` · `report/` · `docs/detector_validation.md` | The pilot record and the paper. Never deployed — but they are **test inputs**, not spare files: `tests/test_golden_assessment.py` replays the 16 pilot sessions on every push |
+| **Process** | `docs/` · `tests/` · `scripts/` · `docker/` | Specification, build log, tests and tooling |
+
+**The deployed artefact is the container image, and it contains only `nidan/`.**
+The Dockerfile copies `pyproject.toml`, `README.md` and `nidan/`, and nothing
+else — no pilot data, no paper, no specs, no tests. So the separation between
+product and research already exists at the boundary that decides what runs in
+production; the repository is not what ships.
+
 ```
-bias-aware-vp-simulator/
-│
-├── app.py                   Flask app — all URL routes
-├── cases.py                 5 clinical case definitions
-│                            + MASTER_INVESTIGATIONS (86 tests)
-│                            + MASTER_EXAMINATIONS   (27 systems)
-├── session_tracker.py       Tracks questions asked, topics covered
-├── bias_detector.py         Rule-based cognitive bias detection
-├── clinical_evaluator.py    Diagnosis grading + exam/investigation scoring
-├── feedback_generator.py    Socratic feedback via Gemini API
-│
-├── templates/
-│   ├── index.html           Case selection home page
-│   ├── pre_case.html        Pre-consultation questionnaire (year, confidence)
-│   ├── chat.html            Main consultation interface (3 tabs)
-│   └── feedback.html        Post-consultation feedback & scorecard
-│
-├── static/
-│   ├── style.css            All styling (no external CSS frameworks)
-│   └── chat.js              Tab switching, chat, exam, investigation logic
-│
-├── sessions/                JSON logs of completed sessions (research data)
-├── docs/                    Design documents, sprint plan, references
-│
-├── requirements.txt         Python dependencies (pinned versions)
-├── .env.example             Template for environment variables
-└── README.md                This file
+nidan/                       ── PRODUCT ──────────────────────────────
+  domain/                    pure logic — no Flask, no LLM, no I/O
+    content/cases.py           the 5 cases + master exam/investigation lists
+    assessment/bias.py         the three detectors — the core IP
+    assessment/engine.py       assess(events, case, engine) — pure, replayable
+    selection.py               which case, and the monthly allowance
+    session.py                 session state, and replay() from the event log
+  infra/                     everything that touches the outside world
+    db/repositories/           the only place SQL is written
+    auth/                      JWT verification against Supabase's JWKS
+    llm/gateway.py             the single call site for the model
+  api/                       routes.py (prototype) · v1.py (JSON API) · auth.py
+  web/                       templates and static assets
+
+migrations/versions/         ── PRODUCT ── 21 hand-written Alembic migrations
+
+sessions/                    ── RESEARCH ── 16 real pilot sessions (JSON)
+report/                      ── RESEARCH ── the paper (LaTeX + PDF)
+docs/detector_validation.md  ── RESEARCH ── generated by validate_detectors.py
+
+docs/spec/                   ── PROCESS ── the build contract + 16 ADRs
+docs/build-log/              ── PROCESS ── what was actually built, per task
+docs/process/                ── PROCESS ── commands, setup, working agreements
+tests/                       ── PROCESS ── 540 tests
+scripts/                     ── PROCESS ── generators and one-off tooling
+docker/                      ── PROCESS ── container support files
 ```
+
+`docs/PROJECT_MAP.md` annotates every file in the repository. Start there if you
+are looking for something specific.
 
 ---
 
@@ -256,7 +273,7 @@ bias-aware-vp-simulator/
 5. Submit your diagnosis → feedback page loads automatically
 
 6. Review your feedback
-   → Tutor feedback (Socratic, Gemini-generated)
+   → Tutor feedback (Socratic, model-generated)
    → History coverage grid (topics hit / missed)
    → Examination scorecard (essential ✓/○ · relevant · not needed)
    → Investigation scorecard (key ✓/○ · appropriate · low-value ⚠ · not needed)

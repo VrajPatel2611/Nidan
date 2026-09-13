@@ -314,6 +314,24 @@ docker compose exec db psql -U nidan -d nidan
 A psql prompt inside the container. `\dt` lists tables, `\d sessions`
 describes one, `\q` quits.
 
+```bash
+python scripts/backfill_pilot.py --dry-run
+python scripts/backfill_pilot.py
+```
+
+Import the 16 pilot sessions into the schema (T-018). Run-once but idempotent —
+every id is derived from the source data, so a second run updates the same rows
+rather than creating a second copy of your pilot.
+
+Run it **locally and in staging**. Whether the pilot belongs in the production
+database is a privacy decision about real participants' data, not an engineering
+one.
+
+The imported results are the pilot's own numbers, stored under their own engine
+version `pilot-2026-07` — never recomputed. Today's engine disagrees with one of
+them, and that disagreement is the point: see
+`docs/build-log/T-018-pilot-data-backfill.md`.
+
 ### Reading data as the application sees it
 
 The application never issues a bare query. Everything goes through
