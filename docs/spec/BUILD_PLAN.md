@@ -53,7 +53,33 @@ This is the working document. Tasks are executed in dependency order; each carri
 
 **Estimates assume two developers with AI assistance.** They are the *implementation* estimate only — they exclude clinical content authoring (`PRD` D-2), which runs in parallel and is not engineering work.
 
-## 1.2 Task format
+## 1.2 How tasks are numbered
+
+**The tens digit of a task id is its phase.** T-016 is Phase 1, task 6.
+
+| Phase | Block | Used |
+|---|---|---|
+| 0 · Foundation | T-00x | T-001 … T-007 |
+| 1 · Persistence and accounts | T-01x | T-010 … T-018 |
+| 2 · Admin console P0 | T-02x | T-020 … T-023 |
+| 3 · API and web app | T-03x | T-030 … T-037 |
+| 4 · Commercial readiness | T-04x | T-040 … T-045 |
+
+So the gaps are deliberate: there is no T-008, T-009 or T-019. Each block stops
+when the phase runs out of tasks, and the spare numbers are room to insert one
+later without renumbering everything after it.
+
+**Phase 0 is numbered 0 because it ships nothing a user can see** — package
+structure, tests, CI, containers, configuration, logging. It is the work before
+the work. Phase 1 is the first phase that adds capability.
+
+**The section numbers in this document are not phase numbers.** Section 4
+contains Phase 0, because three sections come first. The headings put the phase
+after the name for that reason — `# 4. Foundation — Phase 0` rather than
+`# 4. Phase 0 — Foundation`, which read as though 4 and 0 meant the same kind of
+thing.
+
+## 1.3 Task format
 
 ```
 T-nnn · Title
@@ -141,7 +167,7 @@ Three synchronisation points. Everything else is independent.
 > current paths throughout. The record of what was actually built, under the old
 > name, is in `docs/build-log/`.
 
-# 4. Phase 0 — Foundation
+# 4. Foundation — Phase 0 · T-001 … T-007
 
 **Goal:** existing behaviour under test, reproducible build, CI enforcing the research claim.
 **Effort:** 8 d · **Blocks:** everything
@@ -250,7 +276,7 @@ Done     nidan/infra/telemetry/. JSON to stdout, contextvar correlation ids,
 
 ---
 
-# 5. Phase 1 — Persistence and accounts
+# 5. Persistence and accounts — Phase 1 · T-010 … T-018
 
 **Goal:** no data loss on restart; multiple workers safe; accounts real.
 **Effort:** 16 d
@@ -375,7 +401,7 @@ Accept   1. 16 sessions imported with 8 profiles keyed on research_pid
 
 ---
 
-# 6. Phase 2 — Admin console P0
+# 6. Admin console P0 — Phase 2 · T-020 … T-023
 
 **Goal:** clinicians can review cases without reading code.
 **Effort:** 11 d · **This is the milestone that matters most.**
@@ -433,7 +459,7 @@ Note     Completing this unblocks your two clinician reviewers. Pull it as early
 
 ---
 
-# 7. Phase 3 — API and web app
+# 7. API and web app — Phase 3 · T-030 … T-037
 
 **Goal:** a real product a user can use.
 **Effort:** 22 d
@@ -531,7 +557,7 @@ Accept   1. Paginated history; session detail reuses the feedback layout read-on
 
 ---
 
-# 8. Phase 4 — Commercial readiness
+# 8. Commercial readiness — Phase 4 · T-040 … T-045
 
 **Goal:** can take money and can be launched safely.
 **Effort:** 17 d
@@ -605,7 +631,7 @@ Accept   1. Deployed to Render: staging then production, migrations on release
 
 ---
 
-# 9. Phases 5–7 — post-launch
+# 9. Post-launch — Phases 5–7
 
 Summarised. Expanded when the phase begins.
 

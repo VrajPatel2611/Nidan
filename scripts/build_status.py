@@ -46,14 +46,18 @@ def parse_tasks() -> list[dict]:
     # `[^\n]*` on the suffix matters: with re.S a `.` would swallow newlines and
     # swallow prose that merely mentions a task id.
     pattern = re.compile(
-        r"^# \d+\. (?P<phase>Phase [^\n]+)$"
+        # Phase headings read "# 4. Foundation — Phase 0 · T-001 … T-007":
+        # the name first, so the section number and the phase number are never
+        # adjacent. Both halves are captured and recombined below, so STATUS.md
+        # still reads "Phase 0 — Foundation".
+        r"^# \d+\. (?P<phase_title>[^\n—]+) — (?P<phase>Phases? [^·\n]+?)(?: ·[^\n]*)?$"
         r"|^\*\*(?P<id>T-\d+)\s*·\s*(?P<title>[^*]+?)\*\*(?P<suffix>[^\n]*)\n```\n(?P<body>.*?)\n```",
         re.M | re.S,
     )
 
     for m in pattern.finditer(text):
         if m.group("phase"):
-            phase_name = m.group("phase").strip()
+            phase_name = f'{m.group("phase").strip()} — {m.group("phase_title").strip()}'
             continue
 
         body = m.group("body")
