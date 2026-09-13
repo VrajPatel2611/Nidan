@@ -974,10 +974,15 @@ Notion ran on `notion.so` for years.
 
 **Secure the domains before the name appears publicly.**
 
-> The rename is planned but **not yet executed** — see
-> `docs/process/RENAME_PLAN.md`. "Nidan" appears 259 times across 22 documents
-> and is also the Python package identifier, so it is done deliberately in one
-> change rather than allowed to leak.
+> **The rename is complete.** Done in two deliberate phases rather than allowed
+> to leak — documents first (`488ddcf`), then the Python package `vpsim` →
+> `nidan` (`be04ed7`). See `docs/process/RENAME_PLAN.md`.
+>
+> The plan estimated 259 occurrences across 22 documents. The real figure was
+> **48 across 15 files**: the original count was case-insensitive and had swept
+> in the package identifier. The plan records the correction, because an
+> estimate that was wrong by 5× is worth keeping next to the one that replaced
+> it.
 
 ---
 

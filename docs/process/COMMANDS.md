@@ -333,6 +333,23 @@ version `pilot-2026-07` — never recomputed. Today's engine disagrees with one 
 them, and that disagreement is the point: see
 `docs/build-log/T-018-pilot-data-backfill.md`.
 
+```bash
+pip install -e ".[docs]"
+python scripts/build_docx.py
+python scripts/build_docx.py PRD BUILD_PLAN     # just those two
+```
+
+Regenerate the `.docx` copies of the documentation. **The Markdown is the source
+of truth** — these exist because they are what gets shared with people who do
+not read a repository: a mentor, a clinical reviewer, an examiner.
+
+Run it after changing any document. Before this script they were produced by
+hand, one at a time, which is why seven build logs had none and most of the rest
+had drifted from the Markdown they were made from.
+
+`python-docx` is an optional extra, not a dev dependency: CI has no reason to
+install it, and a `.docx` is never a build artefact.
+
 ### Reading data as the application sees it
 
 The application never issues a bare query. Everything goes through
