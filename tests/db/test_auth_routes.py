@@ -189,16 +189,18 @@ def test_an_unknown_field_is_refused(client, authority, account):
     assert r.get_json()["error"]["code"] == "validation_failed"
 
 
-def test_claiming_a_trial_says_it_is_not_available_yet(client, authority, account):
+def test_an_unknown_anonymous_id_does_not_block_signup(client, authority, account):
     """
-    T-015 owns the 30-day claim window. Accepting the field and silently
-    claiming nothing would be worse than refusing: the learner would be told
-    their trial was saved, and it would not be.
+    T-014 refused this outright; T-015 implements claiming, and an identifier
+    we have never seen is not a reason to refuse an account. A client that
+    always sends its cookie must not be blocked from signing up because the
+    cookie is stale — the claim tests live in test_trial.py.
     """
     account()
     r = client.post("/v1/me", headers=_auth(authority.token()),
-                    json={"anonymous_id": "visitor-1"})
-    assert r.status_code == 422
+                    json={"anonymous_id": "never-seen-this-one"})
+    assert r.status_code == 201
+    assert "claimed_session_ids" not in r.get_json()
 
 
 # ── tier gating ──────────────────────────────────────────────────────

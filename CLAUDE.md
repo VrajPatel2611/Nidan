@@ -109,6 +109,7 @@ nidan/
     db/actor.py           who is asking — decides the DB role and auth.uid()
     db/engine.py          ⚠️ the only connection pool; private to infra/db
     db/repositories/      the only place SQL is written (ADR-0016)
+      trial.py              claiming a trial into an account (one UPDATE)
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF
@@ -117,6 +118,7 @@ nidan/
   api/routes.py         Flask blueprint "web" — the prototype
   api/v1.py             the JSON API at /v1 (ADR-0006)
   api/auth.py           @require_auth · @require_tier('pro')
+  api/trial.py          the anonymous trial and its httpOnly cookie
   web/                  templates and static assets
   app.py                create_app() factory · __main__.py runs it
 
@@ -148,7 +150,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 468 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 487 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -160,7 +162,7 @@ python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 21 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 121 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 140 schema, repository and route tests, real Postgres
 ```
 
 ---

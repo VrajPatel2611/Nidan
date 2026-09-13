@@ -46,6 +46,7 @@ A-bias-aware-vp-simulator/
 │   │   │       ├── sessions.py       consultations, scoped by RLS
 │   │   │       ├── events.py ★       the append-only log, with the retry
 │   │   │       ├── feedback.py       stored prose (nothing else is stored)
+│   │   │       ├── trial.py ★        claiming, in one UPDATE
 │   │   │       ├── cases.py          published content, read-only
 │   │   │       └── anonymous.py ⚠    the one path with RLS OFF
 │   │   ├── telemetry/            JSON logs, redaction, Sentry
@@ -55,17 +56,19 @@ A-bias-aware-vp-simulator/
 │   ├── api/routes.py       Flask blueprint — the prototype
 │   ├── api/v1.py           the JSON API at /v1 (T-014)
 │   ├── api/auth.py ★       @require_auth · @require_tier('pro')
+│   ├── api/trial.py        the anonymous trial (PRD FR-2)
 │   ├── web/                templates and static files
 │   ├── config.py           typed settings, validated at boot
 │   └── app.py              create_app() · __main__.py runs it
 │
-├── tests/ ★                468 tests
+├── tests/ ★                487 tests
 │   ├── conftest.py               fixtures + the no-network guard
 │   ├── fakes/llm.py              the fake model
 │   ├── domain/                   unit + property tests
 │   ├── db/                       real Postgres in a container
 │   │   ├── test_routes.py ★        a consultation, end to end
 │   │   ├── test_auth_routes.py ★   the authenticated API
+│   │   ├── test_trial.py ★         the trial, and claiming it
 │   │   ├── test_event_concurrency.py ★ 10 parallel appends → seq 1..10
 │   │   ├── test_constraints.py     CHECK constraints and indexes
 │   │   ├── test_triggers.py        append-only, publication gate

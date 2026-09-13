@@ -153,14 +153,22 @@ def test_a_consultation_survives_losing_the_process(client, live_db):
     client.post("/chat", json={"message": "Does it burn after meals?"})
     client.post("/examine", json={"system": "vitals"})
 
-    cookie = client.get_cookie("session")
-    assert cookie is not None
+    # BOTH cookies. Since T-015 the browser carries a signed Flask session
+    # (which session it is on) and the `anonymous_id` trial cookie (whose
+    # consultation it is). Copying only the first was enough until the visitor
+    # id moved out of the Flask session, and the test failed the moment it did
+    # — correctly, because a browser that kept only one of them would be a
+    # browser that had lost its trial.
+    carried = {name: client.get_cookie(name)
+               for name in ("session", "anonymous_id")}
+    assert all(c is not None for c in carried.values()), carried
 
     # The process dies.
     engine_mod.dispose_engine()
 
     reborn = _app().test_client()
-    reborn.set_cookie("session", cookie.value)
+    for name, cookie in carried.items():
+        reborn.set_cookie(name, cookie.value)
 
     # And the consultation continues where it left off.
     r = reborn.post("/chat", json={"message": "and does anything relieve it?"})
