@@ -86,6 +86,18 @@ class Settings(BaseSettings):
         description="Version tag for Sentry. Defaults to the package version.",
     )
 
+    # ── commercial limits (T-017) ────────────────────────────────────
+    FREE_TIER_SESSIONS_PER_MONTH: int = Field(
+        default=3, ge=0, le=1000,
+        description="Cases a free user may start per calendar month, in their "
+                    "own timezone (PRD FR-10.1, decided 11 Sep 2026). "
+                    "CONFIGURED, NOT SCHEMA — changing the number must never "
+                    "need a migration, because it is a pricing decision and "
+                    "pricing decisions change faster than schemas. Pro is "
+                    "unlimited. Every started session counts, including "
+                    "abandoned ones (PRD FR-3 edge cases).",
+    )
+
     # ── authentication (T-014) ───────────────────────────────────────
     SUPABASE_URL: str = Field(
         default="",

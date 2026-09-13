@@ -44,9 +44,19 @@ from nidan.infra.db.repositories import AuthenticatedUser, repo_scope
 ACCESS_TOKEN_COOKIE = "sb-access-token"
 
 
-def error(code: str, message: str, status: int):
-    """One error envelope, shaped as `API_CONTRACT` §2.6 and openapi.yaml."""
-    return jsonify({"error": {"code": code, "message": message}}), status
+def error(code: str, message: str, status: int,
+          details: dict | None = None):
+    """
+    One error envelope, shaped as `API_CONTRACT` §2.6 and openapi.yaml.
+
+    `details` carries the machine-readable part of a refusal — `resets_at` on a
+    monthly limit, the id of the session already in progress. A block with no
+    date is a dead end, and a client cannot compute one.
+    """
+    body: dict = {"error": {"code": code, "message": message}}
+    if details:
+        body["error"]["details"] = details
+    return jsonify(body), status
 
 
 def bearer_token() -> str:

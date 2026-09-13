@@ -56,6 +56,11 @@ stored questions matched all 16 sessions exactly.
 
 ## Rules that are easy to break by accident
 
+**Never show the remaining allowance during a consultation either.** It belongs
+on the dashboard, before starting (`PRD` FR-10.2). `GET /me` carries it; no
+session payload does. Same reason as below — a visible counter teaches the
+counter.
+
 **Never show assessment state during a consultation.** No coverage meter, no
 question counter, no topic hints, no completeness nudge before submitting. A
 visible metric teaches the metric, not the skill. (`PRD` P2 · contract tests CT-1, CT-2)
@@ -107,6 +112,7 @@ nidan/
     assessment/thresholds.py  the constants, as data (engine_versions)
     assessment/clinical.py  diagnosis and coverage scoring
     assessment/topics.py    TOPIC_KEYWORDS + extract_topics
+    selection.py          which case, and how much of the month is left
     session.py            session state — create, update, and replay(events)
     events.py             the 8 event types and their payload shapes
     feedback.py           feedback prompt construction (prose only, no marking)
@@ -120,6 +126,7 @@ nidan/
     db/repositories/      the only place SQL is written (ADR-0016)
       trial.py              claiming a trial into an account (one UPDATE)
       results.py            session_results + engine_versions
+      selection.py          candidates, allowance count, case history
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF
@@ -160,7 +167,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 502 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 540 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -173,7 +180,7 @@ python scripts/build_golden.py     # regenerate the golden assessment record
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 21 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 149 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 165 schema, repository and route tests, real Postgres
 ```
 
 ---

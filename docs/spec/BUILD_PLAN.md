@@ -351,7 +351,7 @@ Accept   1. assess(events, case_content, engine_version) is a pure function
 Tests    Golden-file test over the 16 pilot sessions asserting stored == recomputed
 ```
 
-**T-017 · Free-tier allowance and case selection**
+**T-017 · Free-tier allowance and case selection** — ✅ **DONE** (2026-09-13)
 ```
 Phase    1            Depends  T-014          Est  1.5 d    Owner  V
 Files    nidan/domain/selection.py
