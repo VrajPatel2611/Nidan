@@ -11,6 +11,31 @@ project. Everything else is supporting material, history, or generated output.
 
 ---
 
+## 0 · Product, research, process
+
+Every top-level directory is one of three things, and **only one of them
+ships**:
+
+| | Directory | |
+|---|---|---|
+| **Product** | `nidan/` · `migrations/` | the application and the schema |
+| **Research** | `sessions/` · `report/` · `docs/detector_validation.md` | the pilot record and the paper |
+| **Process** | `docs/` · `tests/` · `scripts/` · `docker/` | specification, build log, tests, tooling |
+
+**The deployed artefact is the container image, and it contains only `nidan/`.**
+The Dockerfile copies `pyproject.toml`, `README.md` and `nidan/` — no pilot
+data, no paper, no specs, no tests. The separation between product and research
+therefore already exists at the boundary that decides what runs; the repository
+is not what ships.
+
+**The research files are test inputs, not spare files.** `sessions/*.json` is
+read on every push by `tests/test_golden_assessment.py`, which replays all 16
+pilot sessions and fails if the engine stops reproducing them. Removing them
+from the repository would delete the test that protects the published claim.
+`analyze_sessions.py` and the detector validation read the same data.
+
+---
+
 ## 1 · The tree
 
 ```
@@ -66,7 +91,7 @@ A-bias-aware-vp-simulator/
 │   ├── config.py           typed settings, validated at boot
 │   └── app.py              create_app() · __main__.py runs it
 │
-├── tests/ ★                540 tests
+├── tests/ ★                555 tests
 │   ├── conftest.py               fixtures + the no-network guard
 │   ├── fakes/llm.py              the fake model
 │   ├── domain/                   unit + property tests
@@ -76,6 +101,7 @@ A-bias-aware-vp-simulator/
 │   │   ├── test_trial.py ★         the trial, and claiming it
 │   │   ├── test_engine.py ★        results stored with their engine
 │   │   ├── test_allowance.py       selection, limits, reservation
+│   │   ├── test_backfill.py ★      the pilot import, and its fidelity
 │   │   ├── test_event_concurrency.py ★ 10 parallel appends → seq 1..10
 │   │   ├── test_constraints.py     CHECK constraints and indexes
 │   │   ├── test_triggers.py        append-only, publication gate
@@ -98,6 +124,7 @@ A-bias-aware-vp-simulator/
 ├── report/main.tex         the IEEE research paper (LaTeX source)
 ├── sessions/               16 real pilot sessions (JSON)
 ├── scripts/build_status.py regenerates the status tracker
+├── scripts/backfill_pilot.py the pilot import (run-once, idempotent)
 │
 ├── validate_detectors.py ★ the 94% gate — research tooling, not the product
 ├── analyze_sessions.py     McNemar + Wilcoxon over session JSON

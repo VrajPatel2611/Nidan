@@ -44,6 +44,21 @@ EVENT_TYPES: tuple[str, ...] = (
 # Refusing unknown keys is the point of validating at all. A typo'd key in a
 # JSONB column is accepted silently, survives every test, and is found when a
 # replay months later cannot see the field it expects.
+# Allowed on every event type, never required.
+#
+# `provenance` marks an event that was not produced by a live consultation.
+# `DATA_MODEL` §9.3 requires it on the 16 pilot sessions imported by T-018:
+# their JSON preserved questions, examinations and investigations as separate
+# blocks but not their interleaving, so the synthesised log is block-ordered and
+# its timestamps are invented.
+#
+#     ⚠️ Backfilled events must be excluded from any timing analysis.
+#
+# Widening the contract here rather than letting the backfill skip validation:
+# a script that bypasses the validator is a script that can write malformed
+# events into an append-only table.
+_UNIVERSAL_OPTIONAL: frozenset[str] = frozenset({"provenance"})
+
 _SHAPES: dict[str, tuple[frozenset[str], frozenset[str]]] = {
     #                      required                          optional
     "question":        (frozenset({"text", "char_count"}), frozenset()),
@@ -89,6 +104,7 @@ def validate_payload(event_type: str, payload: Mapping[str, Any]) -> None:
             f"unknown event type {event_type!r}; the enum has {list(EVENT_TYPES)}")
 
     required, optional = _SHAPES[event_type]
+    optional = optional | _UNIVERSAL_OPTIONAL
     keys = set(payload)
 
     missing = required - keys

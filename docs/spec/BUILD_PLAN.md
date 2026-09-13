@@ -362,7 +362,7 @@ Accept   1. Random published case the user has not completed; falls back to leas
          4. Reserved case does not reroll on refresh
 ```
 
-**T-018 · Pilot data backfill**
+**T-018 · Pilot data backfill** — ✅ **DONE** (2026-09-13)
 ```
 Phase    1            Depends  T-016          Est  1 d      Owner  V
 Files    scripts/backfill_pilot.py
