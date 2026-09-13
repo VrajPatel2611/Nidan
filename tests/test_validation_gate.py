@@ -74,11 +74,17 @@ def test_fails_when_a_detector_is_degraded(tmp_path):
                                       "docs", "sessions", "*.egg-info"),
     )
 
-    bias = work / "nidan" / "domain" / "assessment" / "bias.py"
-    source = bias.read_text(encoding="utf-8")
-    assert "if concentration > 0.60:" in source, "rule A1 has moved — update this test"
-    bias.write_text(source.replace("if concentration > 0.60:",
-                                   "if concentration > 0.99:"), encoding="utf-8")
+    # T-016 moved the thresholds out of bias.py and into data, so the
+    # degradation is applied where the number now lives. That is a better
+    # mutation point than the old one: it breaks the detector the same way a
+    # bad calibration would, rather than the way a bad edit would.
+    thresholds = work / "nidan" / "domain" / "assessment" / "thresholds.py"
+    source = thresholds.read_text(encoding="utf-8")
+    assert "anchoring_concentration=0.60" in source, (
+        "the pilot anchoring threshold has moved — update this test")
+    thresholds.write_text(
+        source.replace("anchoring_concentration=0.60",
+                       "anchoring_concentration=0.99"), encoding="utf-8")
 
     r = _run(cwd=work)
     assert r.returncode != 0, (
@@ -104,11 +110,17 @@ def test_the_failure_message_says_not_to_lower_the_threshold(tmp_path):
                                       ".pytest_cache", ".mypy_cache", "report",
                                       "docs", "sessions", "*.egg-info"),
     )
-    bias = work / "nidan" / "domain" / "assessment" / "bias.py"
-    bias.write_text(
-        bias.read_text(encoding="utf-8").replace("if concentration > 0.60:",
-                                                 "if concentration > 0.99:"),
-        encoding="utf-8")
+    # Same degradation as the test above, applied where T-016 moved the
+    # threshold to. This test silently stopped degrading anything when the
+    # constant left bias.py — it passed on the unmutated copy, which would
+    # have been a green build proving nothing.
+    thresholds = work / "nidan" / "domain" / "assessment" / "thresholds.py"
+    source = thresholds.read_text(encoding="utf-8")
+    assert "anchoring_concentration=0.60" in source, (
+        "the pilot anchoring threshold has moved — update this test")
+    thresholds.write_text(
+        source.replace("anchoring_concentration=0.60",
+                       "anchoring_concentration=0.99"), encoding="utf-8")
 
     stderr = _run(cwd=work).stderr
     assert "Do not" in stderr and "lower the threshold" in stderr

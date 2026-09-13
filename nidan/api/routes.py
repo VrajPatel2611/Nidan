@@ -35,6 +35,7 @@ from flask import (
 from nidan.api import trial
 from nidan.domain.assessment.bias import detect_all_biases
 from nidan.domain.assessment.clinical import evaluate_clinical
+from nidan.domain.assessment.engine import assess
 from nidan.domain.assessment.topics import extract_topics
 from nidan.domain.content.cases import (
     CASE_SLUGS,
@@ -475,13 +476,24 @@ def conclude():
     if not first_submission:
         return jsonify({"status": "ok"})
 
-    bias_results = detect_all_biases(state, case)
-    clinical_eval = evaluate_clinical(state, case)
+    # Assessed from the event log, under the engine version in force, and
+    # stored with its id (T-016). The feedback screen still recomputes
+    # everything it renders — this row is the durable analytical record, for
+    # progress trends, research export and threshold calibration.
+    with _scope() as db:
+        engine = db.engines.current()
+        events = db.events.all_for(session_id)
+
+    result = assess(events, case, engine)
     feedback = generate_feedback_with_source(
-        bias_results, clinical_eval, state, case)
+        result.bias_detail, result.clinical_eval, state, case)
 
     with _scope() as db:
+        if engine is not None:
+            db.results.save(session_id, result)
         db.feedback.save(session_id, feedback.lines, generator=feedback.generator)
+
+    bias_results, clinical_eval = result.bias_detail, result.clinical_eval
 
     # The research JSON export, unchanged. It is the pilot's artefact and the
     # input to analyze_sessions.py; the event log does not replace it yet.

@@ -24,6 +24,8 @@ A-bias-aware-vp-simulator/
 │   │   ├── content/cases.py      5 clinical cases, 27 exams, 86 investigations
 │   │   ├── assessment/
 │   │   │   ├── bias.py ★         the three detectors — the core IP
+│   │   │   ├── engine.py ★       assess() — pure, replayable
+│   │   │   ├── thresholds.py     the constants, as data
 │   │   │   ├── clinical.py       diagnosis verdicts, workup coverage
 │   │   │   └── topics.py         TOPIC_KEYWORDS, extract_topics()
 │   │   ├── events.py             the 8 event types and payload shapes
@@ -47,6 +49,7 @@ A-bias-aware-vp-simulator/
 │   │   │       ├── events.py ★       the append-only log, with the retry
 │   │   │       ├── feedback.py       stored prose (nothing else is stored)
 │   │   │       ├── trial.py ★        claiming, in one UPDATE
+│   │   │       ├── results.py        session_results + engine_versions
 │   │   │       ├── cases.py          published content, read-only
 │   │   │       └── anonymous.py ⚠    the one path with RLS OFF
 │   │   ├── telemetry/            JSON logs, redaction, Sentry
@@ -61,7 +64,7 @@ A-bias-aware-vp-simulator/
 │   ├── config.py           typed settings, validated at boot
 │   └── app.py              create_app() · __main__.py runs it
 │
-├── tests/ ★                487 tests
+├── tests/ ★                502 tests
 │   ├── conftest.py               fixtures + the no-network guard
 │   ├── fakes/llm.py              the fake model
 │   ├── domain/                   unit + property tests
@@ -69,6 +72,7 @@ A-bias-aware-vp-simulator/
 │   │   ├── test_routes.py ★        a consultation, end to end
 │   │   ├── test_auth_routes.py ★   the authenticated API
 │   │   ├── test_trial.py ★         the trial, and claiming it
+│   │   ├── test_engine.py ★        results stored with their engine
 │   │   ├── test_event_concurrency.py ★ 10 parallel appends → seq 1..10
 │   │   ├── test_constraints.py     CHECK constraints and indexes
 │   │   ├── test_triggers.py        append-only, publication gate
@@ -78,6 +82,8 @@ A-bias-aware-vp-simulator/
 │   │   └── test_anonymous_scope.py ★ the path where RLS cannot help
 │   ├── domain/test_replay.py ★   derived state is reproducible
 │   ├── test_auth.py ★            tokens, without Supabase or Docker
+│   ├── test_golden_assessment.py ★★ the 16 pilot sessions, pinned
+│   ├── golden/                   the committed assessment record
 │   ├── test_case_invariants.py   C-1 … C-9 on the case content
 │   ├── test_llm_never_marks.py ★ proves property P1
 │   ├── test_layering.py          proves domain/ stays pure

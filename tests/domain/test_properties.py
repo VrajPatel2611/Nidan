@@ -122,11 +122,22 @@ def test_every_detector_returns_the_full_contract(case_id, qs, tp, dx):
     s = _session(case_id, qs, tp, dx)
     for detector in DETECTORS:
         r = detector(s, case)
-        assert set(r) == {"detected", "score", "reason", "evidence"}
+        # `rule_fired` and `counters` joined the contract in T-016
+        # (DATA_MODEL §8.5). counters is what lets a recomputation mismatch be
+        # localised to a specific intermediate value rather than merely
+        # observed as a different score.
+        assert set(r) == {"detected", "score", "rule_fired", "reason",
+                          "evidence", "counters"}
         assert isinstance(r["detected"], bool)
         assert isinstance(r["score"], (int, float))
         assert isinstance(r["reason"], str) and r["reason"]
         assert isinstance(r["evidence"], list)
+        assert isinstance(r["counters"], dict) and r["counters"]
+        # None when nothing fired, and a rule name exactly when it did: a
+        # detection with no rule attached cannot be explained to a learner or
+        # replayed under different thresholds.
+        assert (r["rule_fired"] is None) is (not r["detected"])
+        assert all(isinstance(v, (int, float)) for v in r["counters"].values())
 
 
 @pytest.mark.parametrize("case_id", CASE_IDS)

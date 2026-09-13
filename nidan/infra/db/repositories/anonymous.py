@@ -40,6 +40,10 @@ from nidan.infra.db.actor import AnonymousVisitor
 from nidan.infra.db.repositories.base import Repository, _transaction
 from nidan.infra.db.repositories.events import EventRepository
 from nidan.infra.db.repositories.feedback import FeedbackRepository
+from nidan.infra.db.repositories.results import (
+    EngineVersionRepository,
+    ResultRepository,
+)
 
 _COLUMNS = """
     id, anonymous_id, case_version_id, sequence_index, status, confidence_pre,
@@ -157,6 +161,15 @@ class AnonymousFeedbackRepository(FeedbackRepository):
         return {"anonymous_id": _visitor_id(self._actor)}
 
 
+class AnonymousResultRepository(ResultRepository):
+    """Trial results. As with events and feedback, RLS cannot help here."""
+
+    _OWNERSHIP = "AND s.anonymous_id = :anonymous_id"
+
+    def _ownership_params(self) -> dict[str, object]:
+        return {"anonymous_id": _visitor_id(self._actor)}
+
+
 class AnonymousRepositories:
     """Exactly what a trial visitor may touch: their sessions, and published cases."""
 
@@ -168,6 +181,10 @@ class AnonymousRepositories:
         self.sessions = AnonymousSessionRepository(conn, actor)
         self.events = AnonymousEventRepository(conn, actor)
         self.feedback = AnonymousFeedbackRepository(conn, actor)
+        self.results = AnonymousResultRepository(conn, actor)
+        # Read-only, and not scoped to a visitor: an engine version
+        # is shared configuration, not anyone's data.
+        self.engines = EngineVersionRepository(conn, actor)
         # Safe under a bypassing role because every query in CaseRepository
         # filters `status = 'published'` itself rather than trusting the policy.
         self.cases = CaseRepository(conn, actor)

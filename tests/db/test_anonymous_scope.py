@@ -88,21 +88,27 @@ def test_a_trial_session_has_no_user_and_a_learners_has_no_anonymous_id(
     assert stored["anonymous_id"] == "visitor-a"
 
 
-def test_the_trial_scope_reaches_nothing_but_sessions_and_cases(app_db):
+def test_the_trial_scope_reaches_nothing_but_its_own_consultation(app_db):
     """
     Isolation as a property of the object, not of the reviewer's attention. A
-    visitor has no profile, no results, no subscription and no progress, so
-    there is nothing for a mistake in a request handler to reach.
+    visitor has no profile, no subscription and no progress, so there is
+    nothing for a mistake in a request handler to reach.
+
+    `results` joined the list in T-016 — a trial is a complete case including
+    feedback (`PRD` FR-2.2), so it is assessed like any other consultation, and
+    the assessment is scoped to the visitor exactly as their events are. It is
+    listed here as a decision rather than arriving with a refactor.
     """
     with anonymous_scope("visitor-a") as db:
         assert not hasattr(db, "profiles")
-        assert not hasattr(db, "results")
         assert not hasattr(db, "subscriptions")
+        assert not hasattr(db, "progress")
         # An allow-list, not a snapshot. It failed when T-013 added `events`,
         # which is the point: anything new a trial visitor can reach should be
         # a decision someone made, not something that arrived with a refactor.
         assert sorted(k for k in vars(db) if not k.startswith("_")) == [
-            "actor", "cases", "conn", "events", "feedback", "sessions"]
+            "actor", "cases", "conn", "engines", "events", "feedback",
+            "results", "sessions"]
 
 
 def test_a_visitor_cannot_open_the_general_repositories(app_db):

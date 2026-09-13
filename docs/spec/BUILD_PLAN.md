@@ -338,7 +338,7 @@ Accept   1. POST /trial/sessions creates a session with anonymous_id, sets httpO
          4. owner_is_exclusive constraint never violated
 ```
 
-**T-016 · Assessment from events** ⭐
+**T-016 · Assessment from events** ⭐ — ✅ **DONE** (2026-09-13)
 ```
 Phase    1            Depends  T-013          Est  2 d      Owner  V
 Files    nidan/domain/assessment/engine.py
