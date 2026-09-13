@@ -114,3 +114,14 @@ know this codebase, and are reading because something broke.
 | `docs/spec/TEST_STRATEGY.md` | what kinds of test we run and what each one can and cannot catch |
 | `docs/spec/adr/` | why a decision was made — check before re-arguing one |
 | `CLAUDE.md` | the short version of all of the above |
+
+---
+
+## Phase summaries
+
+`PHASE-1.md` covers T-010 … T-018 as a whole: what the phase delivered, the
+defects it found, what it taught, and the state entering the next one. Written
+the day the phase closed, which is the only reason it is worth having — a
+retrospective assembled later is reconstructed rather than observed.
+
+There is no Phase 0 summary, for that reason.

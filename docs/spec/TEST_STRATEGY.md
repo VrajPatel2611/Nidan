@@ -452,18 +452,35 @@ last time. Both are useful while fixing.
 
 Stated plainly, because unlisted gaps are the dangerous kind.
 
+**Every gap this section listed when it was written has since been closed.** The
+original seven are kept below the line, with what closed them, because a list
+that only ever grows teaches nothing about whether the plan worked.
+
+### Open now
+
 | Gap | Risk while it is open | Closed by |
 |---|---|---|
-| **No unit tests on the detectors themselves.** `validate_detectors.py` measures them end to end but nothing tests a single scoring rule in isolation, so a failure says *the number moved*, not *which rule broke*. | Medium — the aggregate number is protected | **T-002** |
-| **No test that the LLM is never on the marking path (P1).** Enforced by code review and the `groq` check in `test_layering.py`. Nothing proves a *score* was not derived from model output. | **High** — this is property 1 | **T-002** |
-| **No lexicon disjointness test (P7).** Anchor keywords overlapping contradictory clues is the bug that cost 14% sensitivity. It can recur today. | **High** — it has happened once | **T-003** |
-| **Contract tests CT-1 … CT-9 not written.** Including CT-1/CT-2 (no assessment state during consultation) and CT-5 (no bias vocabulary in user-facing text). These are product promises with no automated check. | Medium — enforced by review only | **T-004** |
-| **No CI.** Every check above is run by hand. A check that depends on someone remembering is not a gate. | **High** | **T-004** |
-| **No test of the LLM failure path.** `infra/feedback.py` falls back to rule-based feedback when the model is down. That path is now testable and untested. | Medium | **T-002** |
 | **No frontend tests.** No template renders correctly, no JavaScript behaves. | Low today, high after T-030 | T-030 |
+| **No load or concurrency testing above the single-session level.** T-013 proves 10 parallel appends to one session; nothing exercises many sessions at once, or the connection pool under real traffic. | Low until launch | T-044 |
+| **Nothing tests the admin console**, because it does not exist. | None yet | T-020–T-023 |
+| **Stripe webhooks are untested** — idempotency, duplicate delivery, out-of-order arrival. `PRD` FR-10.4 requires all three. | High at launch | T-041 |
+| **The sixteen backfilled results have no `counters` or `rule_fired`.** They predate `DATA_MODEL` §8.5, so any reader assuming the current shape breaks on exactly the oldest rows. Nothing checks that assumption. | Low — documented in the T-018 build log | when a reader needs them |
+| **Persona leakage is measured, not tested.** `TECH_SPEC` §5.3 rates it the largest residual risk; there is no automated check that the patient never volunteers the diagnosis. | **High** — it is the largest residual risk | T-040 |
 
-The two marked **High** and closed by T-002/T-003 are the reason those tasks sit
-immediately after T-001 in Phase 0 rather than later.
+### Closed since this was written
+
+| Gap | Closed by | How |
+|---|---|---|
+| No unit tests on the detectors themselves | T-002 | Per-rule tests; a failure now names the rule |
+| No test that the LLM is never on the marking path (P1) | T-002 | `tests/test_llm_never_marks.py` |
+| No lexicon disjointness test (P7) | T-003 | Invariants C-1…C-9, run in CI |
+| Contract tests CT-1 … CT-9 not written | T-004 | Written, and extended in T-015/T-017 for the trial and allowance payloads |
+| No CI | T-004 | Eight jobs, branch protection by ruleset |
+| No test of the LLM failure path | T-002 | The fallback is asserted, and T-014 added the `generator` column that records when it fired |
+| **Assessment could not be replayed** (not listed originally) | T-016 | The golden record over all 16 pilot sessions |
+
+The two originally marked **High** were closed by T-002 and T-003, which is why
+those tasks sat immediately after T-001 rather than later. The plan held.
 
 ---
 

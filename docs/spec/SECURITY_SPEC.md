@@ -137,7 +137,7 @@ not an implementation detail.
 | SQL injection | ORM with parameterised queries; **plus RLS as a second line** — an injected query still cannot read another user's rows | `DATA_MODEL` §10.1 ✅ |
 | XSS → session theft | httpOnly cookies mean XSS cannot exfiltrate the session; React escapes by default; CSP | ⚠️ **CSP not specified — §5.3** |
 | Known CVE in a dependency | Automated dependency scanning | ❌ **not specified — §5.2** |
-| Leaked secret in the repository | `gitleaks` in CI | `BUILD_PLAN` T-006 ✅ planned |
+| Leaked secret in the repository | `gitleaks` in CI | `BUILD_PLAN` T-006 ✅ **done** |
 | Forged Stripe webhook granting `pro` | Stripe signature verification | `API_CONTRACT` `/v1/webhooks/stripe` ✅ |
 
 ### T6 · Us — accident, not malice
@@ -146,7 +146,7 @@ not an implementation detail.
 
 | Attempt | Defence | Status |
 |---|---|---|
-| Secret committed to git | `gitleaks` in CI | T-006 ✅ planned |
+| Secret committed to git | `gitleaks` in CI | T-006 ✅ **done** |
 | Production database queried by hand, data pasted somewhere | Access via migrations and admin console; direct access logged | ⚠️ partial |
 | Admin account compromised | MFA on admin accounts | ❌ **not specified — §5.5** |
 | PII written to logs | Structured logging, `send_default_pii=False`, never raw question text at INFO | `TECH_SPEC` §10 ✅ |
@@ -521,7 +521,7 @@ accidental.
 | **No professional security review** | Cost. Mitigated by delegating auth and payments, and by defence in depth | First institutional customer, or first outside funding |
 | **Persona leakage is unsolved** | Hard problem; `TECH_SPEC` §5.3 rates it the largest residual risk | **T-040 — before any published claim relies on post-pilot data** |
 | **Account sharing is not prevented** | Not preventable at this price point | Sharing measurably affects revenue |
-| **Session store is in process memory** | Prototype state; blocker B1 | **T-013** |
+| ~~**Session store is in process memory**~~ | ~~Prototype state; blocker B1~~ | ✅ **Closed by T-013.** Session state is an append-only event log; the app runs on 2 gunicorn workers and survives a restart mid-consultation |
 
 ---
 
