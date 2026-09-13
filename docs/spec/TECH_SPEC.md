@@ -362,7 +362,11 @@ Full screen specification in `UX_SPEC` §12. Architecture notes only here.
 
 ## 6.1 Why it matters more than it sounds
 
-Clinical content currently lives in 2 421 lines of Python. That means only a programmer can change a case, clinicians cannot review without reading code, every content fix is a deploy, and a keyword typo is a production incident.
+Clinical content lives in 2 421 lines of Python, and that is still where the application reads it from. T-011 copied the five cases into `cases` / `case_versions` as version 1, **status draft** — so the content is now in a table a case editor can reach, but nothing edits it and nothing reads it at runtime.
+
+The consequence is unchanged until the editor exists: only a programmer can change a case, clinicians cannot review without reading code, every content fix is a deploy, and a keyword typo is a production incident.
+
+It is also now a hard block rather than an inconvenience. The seeded versions are drafts on purpose (`DATA_MODEL` §9.2), the publication gate refuses to publish without an approving clinical review, and case selection (T-017) filters on `status = 'published'` — so **selection correctly finds nothing until T-023 exists**. Four tasks have hit that wall.
 
 **A content platform separates content from code.** The admin console is how clinical content gets managed by the people qualified to manage it.
 

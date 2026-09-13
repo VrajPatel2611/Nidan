@@ -4,8 +4,18 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** research prototype (validated, published paper). Full build
-specification written. Implementation of the platform **has not started**.
+**Current state:** Phases 0 and 1 complete — 16 of 34 tasks, 26 days of 83.
+The research is published and validated; the platform now has a schema, a
+repository layer with tenant scoping, event-sourced sessions, authentication,
+anonymous trials, a replayable assessment engine, the free-tier allowance, and
+the 16 pilot sessions imported into it.
+
+**Next: Phase 2 — the admin console.** `BUILD_PLAN` calls it the milestone that
+matters most, and its goal is one sentence: *clinicians can review cases without
+reading code.* **T-023 is the gate** — until it exists no case can be published,
+case selection has nothing to select, and the two clinician reviewers cannot
+look at a case at all. Content authoring, which `BUILD_PLAN` §11.1 rates the
+real critical path, starts there.
 
 ---
 
@@ -27,6 +37,7 @@ read only those sections.
 | Writing or running tests | `docs/spec/TEST_STRATEGY.md` §3–5, then §9 |
 | Auth, permissions, secrets, anything security | `docs/spec/SECURITY_SPEC.md` §3–4, then §8 |
 | Which tasks are done | `docs/build-log/STATUS.md` — generated, see below |
+| What a whole phase delivered, and what it taught | `docs/build-log/PHASE-1.md` |
 | What was done on a finished task | `docs/build-log/T-xxx-*.md` |
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |

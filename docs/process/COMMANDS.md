@@ -60,7 +60,8 @@ suite passes without one — only the patient's replies need it.
 pytest
 ```
 
-293 tests, about 8 seconds. If they pass, the install is good.
+555 tests, about 30 seconds — most of that is the database suite starting a
+container. If they pass, the install is good.
 
 ---
 
@@ -109,7 +110,7 @@ surprised.
 
 | Command | What it checks | Time |
 |---|---|---|
-| `pytest` | all 293 tests, plus the ≥90% coverage gate on `domain/` | ~8 s |
+| `pytest` | all 555 tests, plus the ≥90% coverage gate on `domain/` | ~30 s |
 | `ruff check .` | style and common mistakes | <1 s |
 | `ruff check . --fix` | the same, fixing what it can | <1 s |
 | `mypy nidan/domain --strict` | types, on the domain layer only | ~5 s |
@@ -267,7 +268,7 @@ Rebuild from scratch. For when you suspect a stale layer.
 ## 6a · The database
 
 Added by T-010 (schema) and T-012 (the repository layer). The schema lives in
-`migrations/versions/` as 20 hand-written Alembic migrations — those files are
+`migrations/versions/` as 21 hand-written Alembic migrations — those files are
 the source of truth, not any Python model.
 
 ```bash
@@ -302,7 +303,7 @@ Which revision the database is on, and the full list.
 pytest tests/db -q --no-cov
 ```
 
-81 tests against a real PostgreSQL 16 started in a container — constraints,
+180 tests against a real PostgreSQL 16 started in a container — constraints,
 triggers, RLS policies, the seeded content, and the repository layer. Slower
 than the rest of the suite because it starts a container and runs 20
 migrations; skips rather than fails when Docker is not running.

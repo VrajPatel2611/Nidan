@@ -194,7 +194,7 @@ Open `.env` in VS Code and paste your Groq key into `GROQ_API_KEY=`.
 `.env.example` is the committed template and never holds a real value.
 
 **You can skip the key for now.** The app starts, the case list works, and all
-293 tests pass without one. Only the patient's replies need it.
+The suite passes without one. Only the patient's replies need it.
 
 ---
 
