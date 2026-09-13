@@ -29,12 +29,25 @@ class DetectorResult(TypedDict):
     `evidence` carries the learner's own questions (or the topics they missed).
     It is not optional: property P2 requires that a flag can always be traced
     back to what the learner actually did (ADR-0004).
+
+    `rule_fired` and `counters` were added in T-016 (`DATA_MODEL` §8.5).
+    `counters` holds the intermediate values a score was computed from, and it
+    is the addition that makes replay verifiable: a recomputation mismatch can
+    be localised to a specific counter rather than merely observed as a
+    different number. `rule_fired` records which of the two OR-ed rules
+    triggered, which the threshold-impact preview needs.
+
+    Both are required, not optional. A detector that omitted them would produce
+    a result that cannot be explained or replayed — and it would do so
+    silently, since nothing downstream would raise.
     """
 
     detected: bool
     score: float
+    rule_fired: str | None
     reason: str
     evidence: list[str]
+    counters: dict[str, float]
 
 
 # {"anchoring": DetectorResult, "premature_closure": ..., "confirmation_bias": ...}

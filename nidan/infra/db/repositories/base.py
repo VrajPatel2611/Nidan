@@ -125,6 +125,10 @@ class Repositories:
         from nidan.infra.db.repositories.events import EventRepository
         from nidan.infra.db.repositories.feedback import FeedbackRepository
         from nidan.infra.db.repositories.profiles import ProfileRepository
+        from nidan.infra.db.repositories.results import (
+            EngineVersionRepository,
+            ResultRepository,
+        )
         from nidan.infra.db.repositories.sessions import SessionRepository
 
         self.conn = conn
@@ -133,6 +137,8 @@ class Repositories:
         self.sessions = SessionRepository(conn, actor)
         self.events = EventRepository(conn, actor)
         self.feedback = FeedbackRepository(conn, actor)
+        self.results = ResultRepository(conn, actor)
+        self.engines = EngineVersionRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
 
 

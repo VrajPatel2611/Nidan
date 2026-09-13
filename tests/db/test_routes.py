@@ -225,8 +225,20 @@ def test_the_feedback_page_stores_prose_and_recomputes_everything_else(
         client, live_db):
     """
     ADR-0003 and ADR-0005 together: the model's words are stored because they
-    cannot be recomputed; every number is recomputed because it can be, and a
-    stored score is a cache that can silently disagree with its own log.
+    cannot be recomputed; every number the learner reads is recomputed because
+    it can be.
+
+    **This test asserted `session_results` was empty until T-016.** That was
+    right while nothing wrote it, and the reasoning behind it still holds — a
+    stored score is a cache of a conclusion, and a cache can disagree with its
+    own log. What changed is that the row now carries the `engine_version_id`
+    that produced it, which is what makes a past score interpretable at all
+    (DATA_MODEL §6.4), and the golden-file test in tests/db/test_engine.py
+    fails if a recomputation ever stops matching. So the assertion becomes
+    "nothing is stored WITHOUT an engine version", not "nothing is stored".
+
+    The feedback screen still recomputes everything it renders. The row is the
+    durable analytical record — progress trends, research export, calibration.
     """
     _start(client)
     client.post("/chat", json={"message": "does the pain burn after meals"})
@@ -238,9 +250,15 @@ def test_the_feedback_page_stores_prose_and_recomputes_everything_else(
     assert stored["lines"], "the prose must be stored"
     assert stored["generator"] in ("llm", "rule_fallback")
 
-    # No score, flag or verdict is stored anywhere.
     with live_db.connect() as c:
-        assert c.execute(sa.text("SELECT count(*) FROM session_results")).scalar() == 0
+        result = c.execute(sa.text(
+            "SELECT engine_version_id, diagnosis_verdict, bias_detail "
+            "FROM session_results")).mappings().one()
+    assert result["engine_version_id"] is not None, (
+        "a score whose thresholds are unknown cannot be interpreted later")
+    assert result["diagnosis_verdict"] in ("correct", "partial", "anchored", "other")
+    # DATA_MODEL §8.5: counters are what make a mismatch localisable.
+    assert all("counters" in d for d in result["bias_detail"].values())
 
     assert client.get("/feedback").status_code == 200
 

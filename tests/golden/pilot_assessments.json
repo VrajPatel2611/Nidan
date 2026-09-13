@@ -1,0 +1,879 @@
+{
+  "P01_case_1_seq1_20260731_105344.json": {
+    "case_id": "case_1",
+    "coverage_pct": 37.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 5,
+          "m": 1,
+          "q": 6
+        },
+        "rule_fired": "A1"
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 1
+        },
+        "rule_fired": "C2"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.375,
+          "q": 6,
+          "q_min": 7
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "anchored",
+    "examination_count": 7,
+    "investigation_count": 2,
+    "key_investigations_done": 2,
+    "key_investigations_total": 4,
+    "question_count": 6,
+    "scalars": {
+      "anchoring_detected": true,
+      "anchoring_score": 0.83,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 0.83,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.62
+    },
+    "topics_hit": [
+      "pain_character",
+      "medications",
+      "family_history"
+    ],
+    "topics_missed": [
+      "meal_relationship",
+      "radiation",
+      "associated_symptoms",
+      "duration_pattern",
+      "relieving_factors"
+    ]
+  },
+  "P01_case_2_seq2_20260731_105810.json": {
+    "case_id": "case_2",
+    "coverage_pct": 100.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 0,
+          "m": 4,
+          "q": 8
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 4
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 1.0,
+          "q": 8,
+          "q_min": 8
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 9,
+    "investigation_count": 2,
+    "key_investigations_done": 2,
+    "key_investigations_total": 8,
+    "question_count": 8,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "pain_character",
+      "associated_symptoms",
+      "medications",
+      "travel_history",
+      "leg_symptoms",
+      "family_history",
+      "duration_pattern",
+      "relieving_factors"
+    ],
+    "topics_missed": []
+  },
+  "P02_case_1_seq1_20260731_110021.json": {
+    "case_id": "case_1",
+    "coverage_pct": 37.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 6,
+          "m": 0,
+          "q": 6
+        },
+        "rule_fired": "A1"
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 0
+        },
+        "rule_fired": "C1"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.375,
+          "q": 6,
+          "q_min": 7
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "anchored",
+    "examination_count": 7,
+    "investigation_count": 4,
+    "key_investigations_done": 3,
+    "key_investigations_total": 4,
+    "question_count": 6,
+    "scalars": {
+      "anchoring_detected": true,
+      "anchoring_score": 1.0,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 1.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.62
+    },
+    "topics_hit": [
+      "pain_character",
+      "medications",
+      "family_history"
+    ],
+    "topics_missed": [
+      "meal_relationship",
+      "radiation",
+      "associated_symptoms",
+      "duration_pattern",
+      "relieving_factors"
+    ]
+  },
+  "P02_case_2_seq2_20260731_111722.json": {
+    "case_id": "case_2",
+    "coverage_pct": 87.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 2,
+          "m": 5,
+          "q": 9
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 6
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.875,
+          "q": 9,
+          "q_min": 8
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 9,
+    "investigation_count": 3,
+    "key_investigations_done": 3,
+    "key_investigations_total": 8,
+    "question_count": 9,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "pain_character",
+      "associated_symptoms",
+      "medications",
+      "travel_history",
+      "leg_symptoms",
+      "family_history",
+      "relieving_factors"
+    ],
+    "topics_missed": [
+      "duration_pattern"
+    ]
+  },
+  "P03_case_1_seq1_20260731_111942.json": {
+    "case_id": "case_1",
+    "coverage_pct": 25.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 0,
+          "m": 0,
+          "q": 5
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 0
+        },
+        "rule_fired": "C2"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.25,
+          "q": 5,
+          "q_min": 7
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "other",
+    "examination_count": 6,
+    "investigation_count": 2,
+    "key_investigations_done": 0,
+    "key_investigations_total": 4,
+    "question_count": 5,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 1.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.75
+    },
+    "topics_hit": [
+      "pain_character",
+      "associated_symptoms"
+    ],
+    "topics_missed": [
+      "meal_relationship",
+      "radiation",
+      "medications",
+      "family_history",
+      "duration_pattern",
+      "relieving_factors"
+    ]
+  },
+  "P03_case_2_seq2_20260731_112224.json": {
+    "case_id": "case_2",
+    "coverage_pct": 75.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 0,
+          "m": 0,
+          "q": 9
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 0
+        },
+        "rule_fired": "C1"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.75,
+          "q": 9,
+          "q_min": 8
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "anchored",
+    "examination_count": 9,
+    "investigation_count": 4,
+    "key_investigations_done": 1,
+    "key_investigations_total": 8,
+    "question_count": 9,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 1.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "pain_character",
+      "associated_symptoms",
+      "medications",
+      "family_history",
+      "duration_pattern",
+      "relieving_factors"
+    ],
+    "topics_missed": [
+      "travel_history",
+      "leg_symptoms"
+    ]
+  },
+  "P04_case_1_seq1_20260731_112519.json": {
+    "case_id": "case_1",
+    "coverage_pct": 75.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 1,
+          "m": 4,
+          "q": 7
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 3
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.75,
+          "q": 7,
+          "q_min": 7
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 7,
+    "investigation_count": 4,
+    "key_investigations_done": 3,
+    "key_investigations_total": 4,
+    "question_count": 7,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "pain_character",
+      "meal_relationship",
+      "radiation",
+      "associated_symptoms",
+      "medications",
+      "relieving_factors"
+    ],
+    "topics_missed": [
+      "family_history",
+      "duration_pattern"
+    ]
+  },
+  "P04_case_2_seq2_20260731_112827.json": {
+    "case_id": "case_2",
+    "coverage_pct": 37.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 1,
+          "m": 0,
+          "q": 9
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 0
+        },
+        "rule_fired": "C2"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.375,
+          "q": 9,
+          "q_min": 8
+        },
+        "rule_fired": "P2"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 11,
+    "investigation_count": 3,
+    "key_investigations_done": 0,
+    "key_investigations_total": 8,
+    "question_count": 9,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 1.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.62
+    },
+    "topics_hit": [
+      "associated_symptoms",
+      "leg_symptoms",
+      "duration_pattern"
+    ],
+    "topics_missed": [
+      "pain_character",
+      "medications",
+      "travel_history",
+      "family_history",
+      "relieving_factors"
+    ]
+  },
+  "P05_case_2_seq1_20260731_113453.json": {
+    "case_id": "case_2",
+    "coverage_pct": 75.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 3,
+          "m": 1,
+          "q": 6
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 1
+        },
+        "rule_fired": "C2"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.75,
+          "q": 6,
+          "q_min": 8
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 6,
+    "investigation_count": 2,
+    "key_investigations_done": 1,
+    "key_investigations_total": 8,
+    "question_count": 6,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 0.83,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.25
+    },
+    "topics_hit": [
+      "pain_character",
+      "associated_symptoms",
+      "travel_history",
+      "leg_symptoms",
+      "duration_pattern",
+      "relieving_factors"
+    ],
+    "topics_missed": [
+      "medications",
+      "family_history"
+    ]
+  },
+  "P05_case_4_seq2_20260731_113749.json": {
+    "case_id": "case_4",
+    "coverage_pct": 100.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 0,
+          "m": 6,
+          "q": 10
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 5
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 1.0,
+          "q": 10,
+          "q_min": 8
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 5,
+    "investigation_count": 2,
+    "key_investigations_done": 2,
+    "key_investigations_total": 4,
+    "question_count": 10,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "mood_vs_physical",
+      "weight_change_pattern",
+      "temperature_tolerance",
+      "bowel_habits",
+      "hair_skin_changes",
+      "family_thyroid_history",
+      "menstrual_changes",
+      "energy_time_pattern"
+    ],
+    "topics_missed": []
+  },
+  "P06_case_1_seq2_20260731_114230.json": {
+    "case_id": "case_1",
+    "coverage_pct": 100.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 1,
+          "m": 6,
+          "q": 10
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 5
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 1.0,
+          "q": 10,
+          "q_min": 7
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 5,
+    "investigation_count": 0,
+    "key_investigations_done": 0,
+    "key_investigations_total": 4,
+    "question_count": 10,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "pain_character",
+      "meal_relationship",
+      "radiation",
+      "associated_symptoms",
+      "medications",
+      "family_history",
+      "duration_pattern",
+      "relieving_factors"
+    ],
+    "topics_missed": []
+  },
+  "P06_case_3_seq1_20260731_114048.json": {
+    "case_id": "case_3",
+    "coverage_pct": 50.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 4,
+          "m": 2,
+          "q": 9
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 2
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.5,
+          "q": 9,
+          "q_min": 8
+        },
+        "rule_fired": "P2"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 9,
+    "investigation_count": 1,
+    "key_investigations_done": 1,
+    "key_investigations_total": 5,
+    "question_count": 9,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.5
+    },
+    "topics_hit": [
+      "onset_timing",
+      "baseline_cognition",
+      "urinary_symptoms",
+      "focal_neuro_signs"
+    ],
+    "topics_missed": [
+      "fever",
+      "medications",
+      "recent_illness",
+      "hydration"
+    ]
+  },
+  "P07_case_2_seq1_20260731_114622.json": {
+    "case_id": "case_2",
+    "coverage_pct": 25.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 4,
+          "m": 2,
+          "q": 7
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 2
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.25,
+          "q": 7,
+          "q_min": 8
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 3,
+    "investigation_count": 3,
+    "key_investigations_done": 2,
+    "key_investigations_total": 8,
+    "question_count": 7,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.75
+    },
+    "topics_hit": [
+      "associated_symptoms",
+      "travel_history"
+    ],
+    "topics_missed": [
+      "pain_character",
+      "medications",
+      "leg_symptoms",
+      "family_history",
+      "duration_pattern",
+      "relieving_factors"
+    ]
+  },
+  "P07_case_5_seq2_20260731_114806.json": {
+    "case_id": "case_5",
+    "coverage_pct": 62.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 1,
+          "m": 3,
+          "q": 10
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 6
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.625,
+          "q": 10,
+          "q_min": 8
+        },
+        "rule_fired": null
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 4,
+    "investigation_count": 0,
+    "key_investigations_done": 0,
+    "key_investigations_total": 7,
+    "question_count": 10,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": false,
+      "premature_closure_score": 0.0
+    },
+    "topics_hit": [
+      "thirst_polyuria",
+      "weight_history",
+      "duration_pattern",
+      "associated_symptoms",
+      "family_history"
+    ],
+    "topics_missed": [
+      "pain_character",
+      "medications",
+      "recent_illness"
+    ]
+  },
+  "P08_case_1_seq1_20260731_115105.json": {
+    "case_id": "case_1",
+    "coverage_pct": 37.5,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 5,
+          "m": 1,
+          "q": 6
+        },
+        "rule_fired": "A1"
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 1
+        },
+        "rule_fired": "C2"
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.375,
+          "q": 6,
+          "q_min": 7
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 7,
+    "investigation_count": 3,
+    "key_investigations_done": 3,
+    "key_investigations_total": 4,
+    "question_count": 6,
+    "scalars": {
+      "anchoring_detected": true,
+      "anchoring_score": 0.83,
+      "confirmation_bias_detected": true,
+      "confirmation_bias_score": 0.83,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.62
+    },
+    "topics_hit": [
+      "pain_character",
+      "medications",
+      "family_history"
+    ],
+    "topics_missed": [
+      "meal_relationship",
+      "radiation",
+      "associated_symptoms",
+      "duration_pattern",
+      "relieving_factors"
+    ]
+  },
+  "P08_case_2_seq2_20260731_115352.json": {
+    "case_id": "case_2",
+    "coverage_pct": 75.0,
+    "detail": {
+      "anchoring": {
+        "counters": {
+          "a": 2,
+          "m": 5,
+          "q": 7
+        },
+        "rule_fired": null
+      },
+      "confirmation_bias": {
+        "counters": {
+          "K": 6,
+          "k": 6
+        },
+        "rule_fired": null
+      },
+      "premature_closure": {
+        "counters": {
+          "coverage": 0.75,
+          "q": 7,
+          "q_min": 8
+        },
+        "rule_fired": "P1"
+      }
+    },
+    "diagnosis_verdict": "correct",
+    "examination_count": 10,
+    "investigation_count": 4,
+    "key_investigations_done": 3,
+    "key_investigations_total": 8,
+    "question_count": 7,
+    "scalars": {
+      "anchoring_detected": false,
+      "anchoring_score": 0.0,
+      "confirmation_bias_detected": false,
+      "confirmation_bias_score": 0.0,
+      "premature_closure_detected": true,
+      "premature_closure_score": 0.12
+    },
+    "topics_hit": [
+      "associated_symptoms",
+      "medications",
+      "travel_history",
+      "leg_symptoms",
+      "family_history",
+      "relieving_factors"
+    ],
+    "topics_missed": [
+      "pain_character",
+      "duration_pattern"
+    ]
+  }
+}

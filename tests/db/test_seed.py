@@ -83,42 +83,72 @@ class TestEngineVersion:
             "SELECT version FROM engine_versions WHERE is_current")).scalar()
         assert v == "1.0.0"
 
-    def test_thresholds_match_the_constants_the_detectors_actually_use(self, db):
+    def test_the_seeded_thresholds_are_exactly_the_pilot_values(self, db):
         """
-        The drift guard, and the reason this file exists.
+        The drift guard, rewritten in T-016.
 
-        `engine_versions.thresholds` records what a stored score *means*. Change
-        0.60 in bias.py without changing this row and every historical result
-        silently becomes uninterpretable — the number is still there, but what
-        it was measured against is now a lie.
+        It used to read `bias.py` as text and assert the source still contained
+        `"concentration > 0.60"` — because until T-016 the detectors used
+        constants and nothing linked them to this row. The comment said so:
+        *"Until T-016 makes the engine read these values, this test is the only
+        thing holding the two together."*
 
-        Until T-016 makes the engine read these values, this test is the only
-        thing holding the two together.
+        The engine reads them now, so the comparison can be what it always
+        wanted to be: the stored document against the object the code falls
+        back to, **by value**. A grep could only tell you a string was still
+        present; this fails if any number changes, including one the source
+        formats differently.
+
+        `Thresholds.PILOT` is the fallback used where no database exists — the
+        detector tests, the validation harness, the prototype. Anything that
+        writes a `session_results` row passes a version loaded from this table.
+        Those two must describe the same engine or a stored score means
+        something other than what it says.
         """
-        import inspect
-
-        from nidan.domain.assessment import bias
+        from nidan.domain.assessment.thresholds import PILOT, Thresholds
 
         stored = db.execute(sa.text(
             "SELECT thresholds FROM engine_versions WHERE is_current")).scalar()
         if isinstance(stored, str):
             stored = json.loads(stored)
 
-        source = inspect.getsource(bias)
-        checks = [
-            (stored["anchoring"]["concentration"], "concentration > 0.60"),
-            (stored["anchoring"]["a2_min_anchor"], "anchor_question_count >= 3"),
-            (stored["anchoring"]["a2_score"], "score_A2 = 0.85"),
-            (stored["premature_closure"]["coverage"], "coverage_ratio < 0.60"),
-            (stored["confirmation_bias"]["clue_ratio"], "exploration_ratio < 0.25"),
-            (stored["confirmation_bias"]["c1_score"], "score_C1 = 0.90"),
-        ]
-        for value, fragment in checks:
-            assert fragment in source, (
-                f"bias.py no longer contains {fragment!r}. The stored threshold "
-                f"{value} may no longer describe what the detector does — update "
-                f"engine_versions with a NEW version rather than editing the row."
-            )
+        assert Thresholds.from_row(stored) == PILOT, (
+            "engine_versions and Thresholds.PILOT disagree. Do not edit the "
+            "row: insert a NEW engine version, or every historical result "
+            "silently starts meaning something else."
+        )
+
+    def test_the_current_engine_can_assess_a_session(self, db):
+        """
+        The stored document must be a usable engine, not merely well-formed
+        JSON. A row that parses but cannot drive the detectors would be found
+        at the end of somebody's consultation.
+        """
+        from nidan.domain.assessment.engine import assess
+        from nidan.domain.assessment.thresholds import Thresholds
+        from nidan.domain.content.cases import get_case
+        from nidan.domain.events import Event
+
+        row = db.execute(sa.text(
+            "SELECT id, version, detector_version, lexicon_version, "
+            "encoder_model, thresholds FROM engine_versions WHERE is_current"
+        )).mappings().one()
+        stored = row["thresholds"]
+        if isinstance(stored, str):
+            stored = json.loads(stored)
+
+        from nidan.domain.assessment.engine import EngineVersion
+
+        engine = EngineVersion(
+            id=row["id"], version=row["version"],
+            detector_version=row["detector_version"],
+            lexicon_version=row["lexicon_version"],
+            encoder_model=row["encoder_model"],
+            thresholds=Thresholds.from_row(stored))
+
+        result = assess([Event(1, "diagnosis", {"text": "GERD"})],
+                        get_case("case_1"), engine)
+        assert result.engine_version.id == row["id"]
 
 
 class TestSeededCases:

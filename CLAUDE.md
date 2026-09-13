@@ -84,6 +84,13 @@ workers and why killing it mid-consultation loses nothing. (`ADR-0003` ·
 the transaction. A connection obtained any other way runs with RLS exempt, and
 nothing about it looks wrong. (`ADR-0016` · `tests/test_db_access.py`)
 
+**Never change a detector, a threshold or the lexicon without reading the
+golden diff.** `tests/test_golden_assessment.py` pins the engine's output for
+all 16 pilot sessions. When it fails, regenerate with
+`python scripts/build_golden.py`, read which learners' results moved, and commit
+the diff with the change. Regenerating to make a red build green throws away the
+only record of what moved.
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -96,6 +103,8 @@ nidan/
   domain/               pure logic — no Flask, no Groq, no I/O
     content/cases.py      the 5 clinical cases + master exam/investigation lists
     assessment/bias.py    the three detectors  ← the core IP
+    assessment/engine.py  assess(events, case, engine) — pure, replayable
+    assessment/thresholds.py  the constants, as data (engine_versions)
     assessment/clinical.py  diagnosis and coverage scoring
     assessment/topics.py    TOPIC_KEYWORDS + extract_topics
     session.py            session state — create, update, and replay(events)
@@ -110,6 +119,7 @@ nidan/
     db/engine.py          ⚠️ the only connection pool; private to infra/db
     db/repositories/      the only place SQL is written (ADR-0016)
       trial.py              claiming a trial into an account (one UPDATE)
+      results.py            session_results + engine_versions
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF
@@ -150,7 +160,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 487 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 502 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -158,11 +168,12 @@ python validate_detectors.py       # detector validation — must report >= 94%
 python analyze_sessions.py sessions # paired statistics over session JSON
 python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
+python scripts/build_golden.py     # regenerate the golden assessment record
 
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 21 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 140 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 149 schema, repository and route tests, real Postgres
 ```
 
 ---

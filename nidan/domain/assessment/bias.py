@@ -14,10 +14,27 @@ Each detector returns a dict:
   {detected: bool, score: float 0-1, reason: str, evidence: list}
 """
 
+from nidan.domain.assessment.thresholds import PILOT, Thresholds
 from nidan.domain.types import BiasResults, Case, DetectorResult, Session
 
 
-def detect_all_biases(session: Session, case_config: Case) -> BiasResults:
+def _rule_fired(*rules: tuple[str, bool]) -> str | None:
+    """
+    The name of the first rule that fired, or None.
+
+    First rather than all of them: `DATA_MODEL` §8.5 stores a single
+    `rule_fired`, and the rules are OR-ed, so the earlier one is the stronger
+    claim — A1 measures concentration across every question, where A2 fires on
+    breadth alone.
+    """
+    for name, fired in rules:
+        if fired:
+            return name
+    return None
+
+
+def detect_all_biases(session: Session, case_config: Case, *,
+                      thresholds: Thresholds = PILOT) -> BiasResults:
     """
     Main entry point. Runs all three bias detectors and returns combined
     results. This is the only function app.py calls from this module.
@@ -28,19 +45,31 @@ def detect_all_biases(session: Session, case_config: Case) -> BiasResults:
 
     Returns:
         dict: {
-            "anchoring": {detected, score, reason, evidence},
-            "premature_closure": {detected, score, reason, evidence},
-            "confirmation_bias": {detected, score, reason, evidence}
+            "anchoring":         {detected, score, rule_fired, reason,
+                                  evidence, counters},
+            "premature_closure": {detected, score, rule_fired, reason,
+                                  evidence, counters},
+            "confirmation_bias": {detected, score, rule_fired, reason,
+                                  evidence, counters}
         }
+
+    `thresholds` defaults to the pilot values so the detector tests and the
+    validation harness need no database. Anything that WRITES a result passes
+    the engine version loaded from `engine_versions` (T-016) — see
+    `domain/assessment/engine.py`.
     """
     return {
-        "anchoring": detect_anchoring(session, case_config),
-        "premature_closure": detect_premature_closure(session, case_config),
-        "confirmation_bias": detect_confirmation_bias(session, case_config),
+        "anchoring": detect_anchoring(
+            session, case_config, thresholds=thresholds),
+        "premature_closure": detect_premature_closure(
+            session, case_config, thresholds=thresholds),
+        "confirmation_bias": detect_confirmation_bias(
+            session, case_config, thresholds=thresholds),
     }
 
 
-def detect_anchoring(session: Session, case_config: Case) -> DetectorResult:
+def detect_anchoring(session: Session, case_config: Case, *,
+                     thresholds: Thresholds = PILOT) -> DetectorResult:
     """
     Checks if user over-focused on the anchor topic without
     exploring alternative explanations.
@@ -83,21 +112,22 @@ def detect_anchoring(session: Session, case_config: Case) -> DetectorResult:
                 alternative_question_count += 1
                 break  # count each question once
 
-    # Rule A1: topic concentration > 60%
+    # Rule A1: topic concentration above the configured share
     detected_A1 = False
     score_A1 = 0.0
-    if total_questions >= 4:
+    if total_questions >= thresholds.anchoring_min_questions:
         concentration = anchor_question_count / total_questions
-        if concentration > 0.60:
+        if concentration > thresholds.anchoring_concentration:
             detected_A1 = True
             score_A1 = round(concentration, 2)
 
-    # Rule A2: 3+ anchor questions with zero alternative exploration
+    # Rule A2: enough anchor questions with zero alternative exploration
     detected_A2 = False
     score_A2 = 0.0
-    if anchor_question_count >= 3 and alternative_question_count == 0:
+    if (anchor_question_count >= thresholds.anchoring_a2_min_anchor
+            and alternative_question_count == 0):
         detected_A2 = True
-        score_A2 = 0.85
+        score_A2 = thresholds.anchoring_a2_score
 
     detected = detected_A1 or detected_A2
     score = max(score_A1, score_A2)
@@ -115,12 +145,25 @@ def detect_anchoring(session: Session, case_config: Case) -> DetectorResult:
     return {
         "detected": detected,
         "score": score,
+        # Which of the two OR-ed rules fired, for the threshold-impact preview
+        # (DATA_MODEL §8.5). A1 wins the label when both fire, because it is
+        # the rule whose score is not flat.
+        "rule_fired": _rule_fired(("A1", detected_A1), ("A2", detected_A2)),
         "reason": reason,
         "evidence": anchor_evidence[:3],  # max 3 examples to keep output concise
+        # The intermediate values, so a recomputation mismatch can be localised
+        # to a counter rather than merely observed as a different score
+        # (DATA_MODEL §8.5).
+        "counters": {
+            "q": total_questions,
+            "a": anchor_question_count,
+            "m": alternative_question_count,
+        },
     }
 
 
-def detect_premature_closure(session: Session, case_config: Case) -> DetectorResult:
+def detect_premature_closure(session: Session, case_config: Case, *,
+                             thresholds: Thresholds = PILOT) -> DetectorResult:
     """
     Checks if user concluded before conducting a thorough workup.
 
@@ -147,7 +190,7 @@ def detect_premature_closure(session: Session, case_config: Case) -> DetectorRes
         detected_P1 = True
         score_P1 = max(
             round(1.0 - (question_count / minimum_questions), 2),
-            0.1   # minimum score of 0.1 if detected
+            thresholds.premature_score_floor,
         )
 
     # Rule P2: too few required topics covered
@@ -157,7 +200,7 @@ def detect_premature_closure(session: Session, case_config: Case) -> DetectorRes
 
     detected_P2 = False
     score_P2 = 0.0
-    if coverage_ratio < 0.60:
+    if coverage_ratio < thresholds.premature_coverage:
         detected_P2 = True
         score_P2 = round(1.0 - coverage_ratio, 2)
 
@@ -192,8 +235,14 @@ def detect_premature_closure(session: Session, case_config: Case) -> DetectorRes
     return {
         "detected": detected,
         "score": score,
+        "rule_fired": _rule_fired(("P1", detected_P1), ("P2", detected_P2)),
         "reason": reason,
         "evidence": missed_display,
+        "counters": {
+            "q": question_count,
+            "q_min": minimum_questions,
+            "coverage": round(coverage_ratio, 3),
+        },
     }
 
 
@@ -215,7 +264,8 @@ def clue_keywords(clue: list[str] | tuple[str, ...] | str) -> list[str]:
     return [w for w in clue.lower().split() if len(w) > 4]
 
 
-def detect_confirmation_bias(session: Session, case_config: Case) -> DetectorResult:
+def detect_confirmation_bias(session: Session, case_config: Case, *,
+                             thresholds: Thresholds = PILOT) -> DetectorResult:
     """
     Checks if user only sought confirming evidence for their
     initial assumption and never explored contradictory information.
@@ -277,14 +327,15 @@ def detect_confirmation_bias(session: Session, case_config: Case) -> DetectorRes
 
     if diagnosis_matches_anchor and clues_explored == 0:
         detected_C1 = True
-        score_C1 = 0.90
+        score_C1 = thresholds.confirmation_c1_score
 
     # Rule C2: less than 25% of contradictory clues explored
     detected_C2 = False
     score_C2 = 0.0
     if total_clues > 0:
         exploration_ratio = clues_explored / total_clues
-        if exploration_ratio < 0.25 and len(all_questions) >= 5:
+        if (exploration_ratio < thresholds.confirmation_clue_ratio
+                and len(all_questions) >= thresholds.confirmation_min_questions):
             detected_C2 = True
             score_C2 = round(1.0 - exploration_ratio, 2)
 
@@ -304,8 +355,10 @@ def detect_confirmation_bias(session: Session, case_config: Case) -> DetectorRes
     return {
         "detected": detected,
         "score": score,
+        "rule_fired": _rule_fired(("C1", detected_C1), ("C2", detected_C2)),
         "reason": reason,
         "evidence": [
             f"Only {clues_explored}/{total_clues} contradictory areas explored"
         ],
+        "counters": {"k": clues_explored, "K": total_clues},
     }
