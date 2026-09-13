@@ -13,6 +13,18 @@ clock cannot be replayed, only re-run.
 from datetime import UTC, datetime
 
 
+def utc_now() -> datetime:
+    """
+    Current UTC time, as an aware datetime.
+
+    Aware, never naive: the allowance's month boundary is computed in the
+    learner's own timezone (T-017), and a naive datetime cannot be converted
+    into one. `datetime.utcnow()` returns exactly that naive value, which is
+    why it is deprecated and why nothing here uses it.
+    """
+    return datetime.now(UTC)
+
+
 def utc_now_iso() -> str:
     """
     Current UTC time as an ISO 8601 string.

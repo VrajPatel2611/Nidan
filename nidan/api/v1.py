@@ -20,6 +20,9 @@ from flask import Blueprint, jsonify, make_response, request
 
 from nidan.api.auth import current_actor, current_user_id, error, require_auth
 from nidan.api.trial import clear_trial_cookie, start_trial, visitor_id
+from nidan.config import settings
+from nidan.domain.selection import allowance_for, choose_case, month_start
+from nidan.infra.clock import utc_now
 from nidan.infra.db.actor import ServiceActor
 from nidan.infra.db.repositories import repo_scope
 from nidan.infra.db.repositories.trial import CLAIM_WINDOW_DAYS, TrialRepository
@@ -35,7 +38,13 @@ _WRITABLE = frozenset({
 })
 
 
-def _profile_json(row: Mapping[str, Any]) -> dict[str, Any]:
+# Distinguishes "not asked for" from "unlimited", which are both None-ish and
+# mean different things: POST /me omits the field, GET /me returns null for Pro.
+_UNSET = object()
+
+
+def _profile_json(row: Mapping[str, Any],
+                  remaining: Any = _UNSET) -> dict[str, Any]:
     """
     A profile as the contract describes it (`openapi.yaml` → `Profile`).
 
@@ -44,11 +53,15 @@ def _profile_json(row: Mapping[str, Any]) -> dict[str, Any]:
     unlinkable — ends up in a response next to an email, which is exactly what
     `DATA_MODEL` §4.1 says must never happen.
 
-    `sessions_remaining_this_month` is absent until T-017 owns the allowance.
-    It is free-tier only and belongs on the dashboard, NEVER in a consultation
-    (`PRD` P2).
+    `sessions_remaining_this_month` is free-tier only and belongs on the
+    dashboard, **never in a consultation** (`PRD` FR-10.2, P2). It is returned
+    by `GET /me`, which a consultation never calls; no session payload carries
+    it. A visible counter during a case teaches the counter.
+
+    It is None for Pro — unlimited, expressed as absence rather than as a large
+    number, so no client renders "999,997 remaining".
     """
-    return {
+    body = {
         "id": str(row["id"]),
         "display_name": row["display_name"],
         "professional_role": row["professional_role"],
@@ -59,6 +72,9 @@ def _profile_json(row: Mapping[str, Any]) -> dict[str, Any]:
         "consent_research": row["consent_research"],
         "onboarded_at": row["onboarded_at"].isoformat() if row["onboarded_at"] else None,
     }
+    if remaining is not _UNSET:
+        body["sessions_remaining_this_month"] = remaining
+    return body
 
 
 @bp.post("/me")
@@ -168,12 +184,93 @@ def _refuse_unclaimable_trial(anonymous_id: str):
 @require_auth
 def read_profile():
     """The authenticated user's profile."""
+    now = utc_now()
     with repo_scope(current_actor()) as db:
         row = db.profiles.get()
+        if row is None:
+            return error("not_found",
+                         "No profile yet. Create one with POST /me.", 404)
+        allowance = allowance_for(
+            row["subscription_tier"],
+            db.selection.sessions_started_since(month_start(now, row["timezone"])),
+            now=now, timezone_name=row["timezone"],
+            free_limit=settings.FREE_TIER_SESSIONS_PER_MONTH)
 
-    if row is None:
-        return error("not_found", "No profile yet. Create one with POST /me.", 404)
-    return jsonify(_profile_json(row)), 200
+    return jsonify(_profile_json(row, allowance.remaining)), 200
+
+
+@bp.post("/sessions")
+@require_auth
+def start_session():
+    """
+    `POST /v1/sessions` — start a consultation (`PRD` FR-3, FR-10.1).
+
+    The server picks the case. The learner does not choose, and the response
+    carries nothing that would tell them what is being tested (FR-3.4).
+    """
+    body = request.get_json(silent=True) or {}
+    confidence = body.get("confidence_pre")
+    if confidence is not None and confidence not in (1, 2, 3, 4, 5):
+        return error("validation_failed",
+                     "confidence_pre must be between 1 and 5.", 422)
+
+    now = utc_now()
+
+    with repo_scope(current_actor()) as db:
+        profile = db.profiles.get()
+        if profile is None:
+            return error("not_found", "Complete your profile to continue.", 404)
+
+        # A started case is reserved (FR-3.5). The session row IS the
+        # reservation: it pins a case_version_id, so refreshing cannot reroll
+        # it. FR-3's edge cases want resume-or-abandon, which is the client's
+        # decision, so this reports the conflict rather than resolving it.
+        active = db.sessions.active()
+        if active is not None:
+            return error("session_already_active",
+                         "You already have a consultation in progress.", 409,
+                         details={"session_id": str(active["id"])})
+
+        allowance = allowance_for(
+            profile["subscription_tier"],
+            db.selection.sessions_started_since(
+                month_start(now, profile["timezone"])),
+            now=now, timezone_name=profile["timezone"],
+            free_limit=settings.FREE_TIER_SESSIONS_PER_MONTH)
+
+        # Blocked at case start, never mid-consultation (PRD FR-10 edge cases).
+        if allowance.exhausted:
+            return error(
+                "monthly_limit_reached",
+                f"You have used all {allowance.limit} of this month's cases. "
+                f"Sessions you started and did not finish count too.",
+                403,
+                details={"resets_at": allowance.resets_at.isoformat(),
+                         "limit": allowance.limit, "used": allowance.used})
+
+        selection = choose_case(db.selection.candidates())
+        if selection is None:
+            # FR-3 edge case: "No published cases available | Friendly error;
+            # alert raised to admin." Expected until T-023 publishes the five
+            # seeded cases, which are drafts pending clinical review.
+            return error("no_cases_available",
+                         "No cases are available right now. We have been "
+                         "notified.", 503)
+
+        row = db.sessions.create(selection.case_version_id,
+                                 confidence_pre=confidence)
+
+    return jsonify({
+        "id": str(row["id"]),
+        "status": row["status"],
+        "started_at": row["started_at"].isoformat(),
+        # FR-3.2: a repeat must be marked, or the learner reads their own
+        # memory of the answer as clinical reasoning.
+        "is_repeat": selection.is_repeat,
+        "transcript": [],
+        "examinations_performed": [],
+        "investigations_ordered": [],
+    }), 201
 
 
 @bp.post("/trial/sessions")

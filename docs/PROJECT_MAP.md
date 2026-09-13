@@ -30,6 +30,7 @@ A-bias-aware-vp-simulator/
 │   │   │   └── topics.py         TOPIC_KEYWORDS, extract_topics()
 │   │   ├── events.py             the 8 event types and payload shapes
 │   │   ├── feedback_view.py      the feedback screen, recomputed
+│   │   ├── selection.py          which case · monthly allowance
 │   │   ├── session.py            session state + replay(events) ★
 │   │   ├── feedback.py           feedback prompt building (no marking)
 │   │   └── types.py              shared type aliases
@@ -50,6 +51,7 @@ A-bias-aware-vp-simulator/
 │   │   │       ├── feedback.py       stored prose (nothing else is stored)
 │   │   │       ├── trial.py ★        claiming, in one UPDATE
 │   │   │       ├── results.py        session_results + engine_versions
+│   │   │       ├── selection.py      candidates · allowance · history
 │   │   │       ├── cases.py          published content, read-only
 │   │   │       └── anonymous.py ⚠    the one path with RLS OFF
 │   │   ├── telemetry/            JSON logs, redaction, Sentry
@@ -64,7 +66,7 @@ A-bias-aware-vp-simulator/
 │   ├── config.py           typed settings, validated at boot
 │   └── app.py              create_app() · __main__.py runs it
 │
-├── tests/ ★                502 tests
+├── tests/ ★                540 tests
 │   ├── conftest.py               fixtures + the no-network guard
 │   ├── fakes/llm.py              the fake model
 │   ├── domain/                   unit + property tests
@@ -73,6 +75,7 @@ A-bias-aware-vp-simulator/
 │   │   ├── test_auth_routes.py ★   the authenticated API
 │   │   ├── test_trial.py ★         the trial, and claiming it
 │   │   ├── test_engine.py ★        results stored with their engine
+│   │   ├── test_allowance.py       selection, limits, reservation
 │   │   ├── test_event_concurrency.py ★ 10 parallel appends → seq 1..10
 │   │   ├── test_constraints.py     CHECK constraints and indexes
 │   │   ├── test_triggers.py        append-only, publication gate

@@ -129,6 +129,7 @@ class Repositories:
             EngineVersionRepository,
             ResultRepository,
         )
+        from nidan.infra.db.repositories.selection import SelectionRepository
         from nidan.infra.db.repositories.sessions import SessionRepository
 
         self.conn = conn
@@ -139,6 +140,7 @@ class Repositories:
         self.feedback = FeedbackRepository(conn, actor)
         self.results = ResultRepository(conn, actor)
         self.engines = EngineVersionRepository(conn, actor)
+        self.selection = SelectionRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
 
 
