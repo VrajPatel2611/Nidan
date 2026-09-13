@@ -7,7 +7,7 @@
 | **Tasks complete** | **16 of 34** (47%) |
 | **Effort** | 26 d done · 57 d remaining |
 | **Branch** | `docs/phase-1-consistency` |
-| **Last commit** | `c5c802a docs: bring the specification up to date with Phases 0 and 1` |
+| **Last commit** | `84bcac4 Merge remote-tracking branch 'origin/docs/phase-1-consistency' into docs/phase-1-consistency` |
 
 Estimates are engineering effort only. They do not include the clinical content authoring that `BUILD_PLAN` §11.1 rates the real critical path — see the last section.
 
