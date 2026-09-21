@@ -172,3 +172,70 @@ def require_tier(tier: str) -> Callable:
             return view(*args, **kwargs)
         return wrapper
     return decorator
+
+# Privilege levels on `profiles.platform_role` (migration 022). Admin implies
+# every reviewer permission; reviewer does not imply admin.
+ADMIN_ROLES = ("admin",)
+REVIEWER_ROLES = ("admin", "reviewer")
+
+
+def _not_found():
+    """
+    The admin console's refusal.
+
+    **404, never 403** (`UX_SPEC` §12.1, `API_CONTRACT` §2.7). A 403 says "this
+    exists and you may not have it", which tells someone probing that there is
+    an admin console to attack. A 404 says nothing at all.
+
+    Deliberately identical to the response for a URL that does not exist, and
+    deliberately identical for "not signed in" and "signed in without
+    privilege" — a difference between those two is the same leak in a quieter
+    form, because it confirms the console exists to anyone with any account.
+    """
+    return error("not_found", "Not found.", 404)
+
+
+def require_role(*allowed: str) -> Callable:
+    """
+    A valid JWT and a sufficient `platform_role`, or 404.
+
+    The role is read from the profile, not from the token — same reasoning as
+    `require_tier`: a JWT is issued at sign-in and lives about an hour, so a
+    revoked admin would keep their access for the rest of it. Revocation that
+    does not take effect until the token expires is not revocation.
+    """
+    def decorator(view: Callable) -> Callable:
+        @functools.wraps(view)
+        def wrapper(*args, **kwargs):
+            # Note: no distinct branch for "no token". Every failure here
+            # returns the same 404, including an expired one — the admin
+            # console does not tell an anonymous visitor that it exists, and
+            # that outweighs the refresh-and-retry convenience `token_expired`
+            # buys on the learner-facing API.
+            if _authenticate() is not None:
+                return _not_found()
+
+            with repo_scope(current_actor()) as db:
+                profile = db.profiles.get()
+
+            if profile is None or profile["platform_role"] not in allowed:
+                return _not_found()
+            return view(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def require_admin(view: Callable) -> Callable:
+    """Admin only. Everything else gets a 404."""
+    return require_role(*ADMIN_ROLES)(view)
+
+
+def require_reviewer(view: Callable) -> Callable:
+    """
+    Admins and clinical reviewers.
+
+    Reviewers reach the console because T-023 has them opening a case version
+    in Playtest to assess it. They are not admins: the case editor and the
+    operational screens stay closed to them.
+    """
+    return require_role(*REVIEWER_ROLES)(view)

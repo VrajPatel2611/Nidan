@@ -26,7 +26,8 @@ class ProfileRepository(Repository):
         row = self._conn.execute(sa.text("""
             SELECT id, display_name, professional_role, year_of_training,
                    country, timezone, research_pid, subscription_tier,
-                   subscription_ends, onboarded_at, consent_research
+                   subscription_ends, onboarded_at, consent_research,
+                   platform_role
             FROM profiles
         """)).mappings().first()
         return row
