@@ -34,9 +34,23 @@ def pilot_files() -> list[pathlib.Path]:
     `sessions/` also accumulates files written by the test suite and by local
     runs; only the committed ones are the research record.
     """
-    listed = subprocess.run(
+    result = subprocess.run(
         ["git", "ls-files", "sessions/"], cwd=REPO,
-        capture_output=True, text=True, check=True).stdout.split()
+        capture_output=True, text=True, check=False)
+
+    # `check=False` plus an explicit message, because `check=True` raises a
+    # CalledProcessError naming only the exit code -- and the failure is
+    # usually git itself rather than anything about this project. On macOS an
+    # unaccepted Xcode licence makes every git invocation exit 69, which
+    # surfaces here as five failing assessment tests and sends the reader
+    # looking at the engine.
+    if result.returncode != 0:
+        raise AssertionError(
+            f"`git ls-files sessions/` failed (exit {result.returncode}). These "
+            f"tests read the committed pilot sessions through git, so git has "
+            f"to work.\n\n{result.stderr.strip()}")
+
+    listed = result.stdout.split()
     files = sorted(REPO / f for f in listed if f.endswith(".json"))
 
     # Fail here, saying what is wrong, rather than deep inside a JSON parse.
