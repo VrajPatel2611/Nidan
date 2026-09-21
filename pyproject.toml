@@ -38,6 +38,9 @@ dev = [
 ]
 # Runtime-only extras for the container image (T-004 Dockerfile).
 prod = ["gunicorn>=22"]
+# Document generation only — `python scripts/build_docx.py`. Deliberately NOT in
+# `dev`: CI has no reason to install it, and a .docx is never a build artefact.
+docs = ["python-docx>=1.1"]
 
 [project.scripts]
 nidan = "nidan.__main__:main"
