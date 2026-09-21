@@ -46,11 +46,22 @@ def test_every_specified_table_exists(db):
     assert not extra, f"tables created but not in DATA_MODEL: {sorted(extra)}"
 
 
-def test_all_six_enum_types_exist(db):
+def test_every_declared_enum_type_exists_and_no_others(db):
+    """
+    An enum is part of the contract (`DATA_MODEL` §3), so adding one is a
+    deliberate act and this test is where it gets declared. It was named
+    `test_all_six_enum_types_exist` until T-020 added a seventh — the failure
+    is the point, not an inconvenience.
+    """
     enums = set(db.execute(sa.text(
         "SELECT typname FROM pg_type WHERE typtype='e'")).scalars())
-    assert enums == {"professional_role", "subscription_tier", "case_status",
-                     "case_origin", "session_status", "event_type"}
+    assert enums == {
+        # migration 003
+        "professional_role", "subscription_tier", "case_status",
+        "case_origin", "session_status", "event_type",
+        # migration 022 — who may reach the admin console (UX_SPEC §12.1)
+        "platform_role",
+    }
 
 
 def test_the_head_revision_matches_the_latest_migration_file(db):

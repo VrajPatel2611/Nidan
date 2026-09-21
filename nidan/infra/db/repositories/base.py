@@ -121,6 +121,7 @@ class Repositories:
     """
 
     def __init__(self, conn: Connection, actor: Actor) -> None:
+        from nidan.infra.db.repositories.audit import AuditRepository
         from nidan.infra.db.repositories.cases import CaseRepository
         from nidan.infra.db.repositories.events import EventRepository
         from nidan.infra.db.repositories.feedback import FeedbackRepository
@@ -141,6 +142,7 @@ class Repositories:
         self.results = ResultRepository(conn, actor)
         self.engines = EngineVersionRepository(conn, actor)
         self.selection = SelectionRepository(conn, actor)
+        self.audit = AuditRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
 
 

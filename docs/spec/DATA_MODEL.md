@@ -232,6 +232,12 @@ CREATE TYPE professional_role AS ENUM
 
 CREATE TYPE subscription_tier AS ENUM ('free','pro');
 
+-- Platform privilege (T-020). Distinct from professional_role: a physician is
+-- not an admin. An enum rather than a boolean because clinical_reviews
+-- .reviewer_id already implies a second privileged kind — T-023 has reviewers
+-- opening a case version in Playtest, so they reach the console too.
+CREATE TYPE platform_role AS ENUM ('user','reviewer','admin');
+
 CREATE TABLE profiles (
     id                  UUID PRIMARY KEY
                         REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -247,6 +253,7 @@ CREATE TABLE profiles (
     research_pid        TEXT NOT NULL UNIQUE
                         DEFAULT ('U' || upper(substr(replace(gen_random_uuid()::text,'-',''),1,10))),
 
+    platform_role       platform_role NOT NULL DEFAULT 'user',
     subscription_tier   subscription_tier NOT NULL DEFAULT 'free',
     subscription_ends   TIMESTAMPTZ,
 
@@ -270,6 +277,12 @@ CREATE TABLE profiles (
 );
 
 CREATE INDEX ON profiles (subscription_tier) WHERE deleted_at IS NULL;
+
+-- Partial: almost every row is 'user', so an index over them would be a scan
+-- of the table wearing an index's clothes. The only question asked of this
+-- column is "who is privileged".
+CREATE INDEX profiles_privileged ON profiles (platform_role)
+    WHERE platform_role <> 'user';
 CREATE INDEX ON profiles (last_active_at DESC) WHERE deleted_at IS NULL;
 ```
 
