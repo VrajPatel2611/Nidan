@@ -382,13 +382,14 @@ Accept   1. 16 sessions imported with 8 profiles keyed on research_pid
 
 ---
 
-**T-020 · Admin shell and auth**
+**T-020 · Admin shell and auth** — ✅ **DONE** (2026-09-21)
 ```
 Phase    2            Depends  T-014          Est  1 d      Owner  Y
 Files    nidan/web/admin/
 Spec     UX_SPEC §12 · ADR-0006
 Accept   1. Jinja + HTMX shell, admin-only, desktop-only
          2. Every admin action writes to audit_log
+Done     Jinja+HTMX shell in nidan/web/admin/, @require_admin, @require_reviewer, 022_platform_role, AuditRepository
 ```
 
 **T-021 · Case editor** ⭐

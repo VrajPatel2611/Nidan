@@ -172,3 +172,46 @@ def require_tier(tier: str) -> Callable:
             return view(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def require_admin(view: Callable) -> Callable:
+    """
+    A valid JWT and platform_role = 'admin', or 404.
+
+    404, NEVER 403. A non-admin must not learn that an admin console exists
+    (API_CONTRACT §2.7, UX_SPEC §12.1).
+    """
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        failure = _authenticate()
+        if failure is not None:
+            return error("not_found", "Not found", 404)
+
+        with repo_scope(current_actor()) as db:
+            profile = db.profiles.get()
+
+        if profile is None or profile.get("platform_role") != "admin":
+            return error("not_found", "Not found", 404)
+
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def require_reviewer(view: Callable) -> Callable:
+    """
+    A valid JWT and platform_role IN ('admin', 'reviewer'), or 404.
+    """
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        failure = _authenticate()
+        if failure is not None:
+            return error("not_found", "Not found", 404)
+
+        with repo_scope(current_actor()) as db:
+            profile = db.profiles.get()
+
+        if profile is None or profile.get("platform_role") not in ("admin", "reviewer"):
+            return error("not_found", "Not found", 404)
+
+        return view(*args, **kwargs)
+    return wrapper
