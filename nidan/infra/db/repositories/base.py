@@ -86,9 +86,12 @@ def assume(conn: Connection, actor: Actor) -> None:
     """
     role = actor.db_role
     # SET ROLE accepts no bind parameter, so the name is interpolated. This
-    # check -- against a frozenset of two literals defined in actor.py -- is
+    # check -- against a frozenset of three literals defined in actor.py -- is
     # what keeps that from being an injection point. It can only fail if
-    # someone invents a fourth actor, which is exactly when it should.
+    # someone invents an actor without declaring its role there, which is
+    # exactly when it should. `db_role` is a ClassVar rather than a field, so
+    # it cannot be supplied per instance and this check cannot be walked past
+    # by constructing an actor with a role of one's choosing.
     if role not in ALLOWED_ROLES:
         raise ValueError(f"refusing to SET ROLE to an unknown role: {role!r}")
     conn.exec_driver_sql(f"SET LOCAL ROLE {role}")

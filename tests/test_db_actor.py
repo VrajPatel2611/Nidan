@@ -20,6 +20,7 @@ import pytest
 from nidan.infra.db import engine as engine_mod
 from nidan.infra.db.actor import (
     ALLOWED_ROLES,
+    AdminUser,
     AnonymousVisitor,
     AuthenticatedUser,
     ServiceActor,
@@ -30,9 +31,40 @@ from nidan.infra.db.repositories.base import assume
 
 def test_each_actor_maps_to_its_role() -> None:
     assert AuthenticatedUser(uuid.uuid4()).db_role == "nidan_app"
+    assert AdminUser(uuid.uuid4()).db_role == "nidan_admin"
     assert AnonymousVisitor("v1").db_role == "nidan_service"
     assert ServiceActor("the nightly session expiry sweep").db_role == "nidan_service"
-    assert ALLOWED_ROLES == {"nidan_app", "nidan_service"}
+    assert ALLOWED_ROLES == {"nidan_app", "nidan_service", "nidan_admin"}
+
+
+def test_an_admin_is_an_authenticated_user() -> None:
+    """
+    The subclassing is load-bearing, not tidiness.
+
+    `base.assume()` sets `request.jwt.claim.sub` for an `AuthenticatedUser`, and
+    `Repository._user_id()` returns one for the same test. Both are asking "is
+    there a person behind this transaction", and `audit_log.actor_id` is the
+    answer. An `AdminUser` that failed this check would write audit rows with no
+    actor, which is the thing `UX_SPEC` §12 exists to prevent.
+    """
+    admin = AdminUser(uuid.uuid4())
+    assert isinstance(admin, AuthenticatedUser)
+    assert admin.user_id is not None
+
+
+def test_a_role_cannot_be_chosen_per_instance() -> None:
+    """
+    `db_role` is a ClassVar, so it is not a constructor argument.
+
+    It used to be annotated `Final`, which dataclasses treat as an ordinary
+    field with a default — `AuthenticatedUser(uid, "postgres")` was accepted and
+    built an actor claiming a superuser role. `assume()`'s ALLOWED_ROLES check
+    still refused it at the SET ROLE, so nothing was reachable; but the guard
+    reads as "the role comes from the type", and until now it did not.
+    """
+    with pytest.raises(TypeError):
+        AuthenticatedUser(uuid.uuid4(), "postgres")     # type: ignore[call-arg]
+    assert "db_role" not in {f.name for f in dataclasses.fields(AuthenticatedUser)}
 
 
 def test_a_user_id_must_be_a_uuid() -> None:
