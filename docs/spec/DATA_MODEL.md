@@ -1188,7 +1188,19 @@ CREATE POLICY own_case_history ON user_case_history
 -- Published content is world-readable; only admins write
 CREATE POLICY read_published_cases ON case_versions
   FOR SELECT USING (status = 'published');
+
+-- The case editor (T-021). Permissive and OR-ed with the policy above, so
+-- what every other role can see is unchanged.
+CREATE POLICY admin_manages_case_versions ON case_versions
+  FOR ALL TO nidan_admin
+  USING (true) WITH CHECK (true);
 ```
+
+**`case_versions` carried exactly one policy until T-021, and it was a `SELECT`
+policy.** For a role RLS applies to that meant drafts were invisible and no
+write of any kind was permitted — correct for a learner, and the entire job of
+a case editor. `admin_manages_case_versions` (migration 023) opens it to
+`nidan_admin` and to nothing else.
 
 **Enabling RLS without writing a policy denies everything.** The last four
 policies above were missing from this section until T-013, which meant
@@ -1200,6 +1212,14 @@ guarded as a property of the schema by
 cannot repeat it quietly.
 
 **Anonymous trial sessions bypass RLS by necessity** — there is no `auth.uid()`. They are served through a service-role connection with an explicit `anonymous_id` filter in the query, and that code path is short, isolated, and separately tested.
+
+**The admin console does not bypass it.** `nidan_admin` is `NOBYPASSRLS`, like
+`nidan_app` and unlike `nidan_service`. A bypassing role would have been shorter
+to write and would have switched the safety net off for every statement an
+administrator's request makes, including the ones touching `profiles` and
+`sessions` that have nothing to do with authoring. The policy above opens one
+table; the other eight protect an admin's request the same way they protect a
+learner's.
 
 ## 10.2 Deletion and erasure
 

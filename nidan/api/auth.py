@@ -36,7 +36,7 @@ from nidan.infra.auth.tokens import (
     TokenMissing,
     verify,
 )
-from nidan.infra.db.repositories import AuthenticatedUser, repo_scope
+from nidan.infra.db.repositories import AdminUser, AuthenticatedUser, repo_scope
 
 # Where the Supabase SDK puts the access token when the client stores it in a
 # cookie (SECURITY_SPEC L2). Checked after the header, so a request may always
@@ -220,9 +220,38 @@ def require_role(*allowed: str) -> Callable:
 
             if profile is None or profile["platform_role"] not in allowed:
                 return _not_found()
+
+            # Stashed so `current_admin()` does not have to re-read the
+            # profile, and — more to the point — so it cannot be called from a
+            # route that never checked one. The privilege and the scope that
+            # depends on it are then established by the same decorator.
+            g.platform_role = profile["platform_role"]
             return view(*args, **kwargs)
         return wrapper
     return decorator
+
+
+def current_admin() -> AdminUser:
+    """
+    The actor for a scope that writes clinical content. `@require_admin` only.
+
+    `AdminUser` runs as `nidan_admin`, the role migration 023 grants INSERT and
+    UPDATE on `cases` and `case_versions`. `current_actor()` deliberately keeps
+    returning an ordinary `AuthenticatedUser` even for an administrator: the
+    elevated role is for the console's own writes, and a route that only reads
+    should not silently acquire the privilege to author content.
+
+    So the choice is made per route, by which function it calls — not per
+    person. An admin browsing the learner-facing app is `nidan_app` like
+    everyone else.
+    """
+    role = getattr(g, "platform_role", None)
+    if role not in ADMIN_ROLES:
+        raise RuntimeError(
+            "current_admin() outside an admin route — the handler is missing "
+            "@require_admin, and without it nothing has verified the privilege "
+            "this scope is about to run with")
+    return AdminUser(current_user_id())
 
 
 def require_admin(view: Callable) -> Callable:
