@@ -63,6 +63,8 @@ def create_app(config: dict | None = None) -> Flask:
     _register_health_endpoints(app)
 
     app.register_blueprint(web_bp)
+    from nidan.web.admin import bp as admin_bp
+    app.register_blueprint(admin_bp)
     # The JSON API (T-014). Mounted at /v1 to match openapi.yaml's
     # servers block; the prototype's server-rendered routes keep the
     # root until T-030 replaces them.

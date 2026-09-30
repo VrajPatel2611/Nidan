@@ -1,0 +1,29 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Clinical Review Queue — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Clinical Review Queue</h1>
+</div>
+
+<div class="card">
+  <div class="card-title">Assigned to Me (2)</div>
+  <div style="display: flex; flex-direction: column; gap: 16px;">
+    <div style="background: #0f172a; padding: 16px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="font-size: 16px; color: #f8fafc;">The Confused Elderly Man · v1</strong>
+        <p style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">UTI/delirium · trap: stroke &nbsp;·&nbsp; assigned 2 days ago</p>
+      </div>
+      <button class="btn-admin">Open in Playtest</button>
+    </div>
+    <div style="background: #0f172a; padding: 16px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center;">
+      <div>
+        <strong style="font-size: 16px; color: #f8fafc;">The Tired Teacher · v2</strong>
+        <p style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">Hypothyroidism · trap: depression &nbsp;·&nbsp; assigned 5 hours ago</p>
+      </div>
+      <button class="btn-admin">Open in Playtest</button>
+    </div>
+  </div>
+</div>
+{% endblock %}

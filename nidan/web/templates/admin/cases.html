@@ -1,0 +1,59 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Case Bank — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Case Bank</h1>
+  <button class="btn-admin">+ New case</button>
+</div>
+
+<div class="card">
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Status</th>
+        <th>Review</th>
+        <th>Attempts</th>
+        <th>Trap Rate</th>
+        <th>Mean Coverage</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>The Chest Pain Trap</td>
+        <td><span style="color:#4ade80;">published</span></td>
+        <td>✓ Dr A</td>
+        <td>412</td>
+        <td>61%</td>
+        <td>58%</td>
+      </tr>
+      <tr>
+        <td>Breathless & Worried</td>
+        <td><span style="color:#4ade80;">published</span></td>
+        <td>✓ Dr B</td>
+        <td>388</td>
+        <td>54%</td>
+        <td>62%</td>
+      </tr>
+      <tr>
+        <td>Confused Elderly Man</td>
+        <td><span style="color:#fbbf24;">in_review</span></td>
+        <td>pending</td>
+        <td>0</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Tired Teacher</td>
+        <td><span style="color:#94a3b8;">draft</span></td>
+        <td>—</td>
+        <td>0</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}

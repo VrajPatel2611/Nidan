@@ -144,6 +144,7 @@ class Repositories:
         self.selection = SelectionRepository(conn, actor)
         self.audit = AuditRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
+        self.audit = AuditRepository(conn, actor)
 
 
 @contextmanager
