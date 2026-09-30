@@ -41,6 +41,7 @@ read only those sections.
 | What was done on a finished task | `docs/build-log/T-xxx-*.md` |
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 22 migrations |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 
 `docs/design/` holds **superseded** v1/v2 design docs. Historical only — do not
@@ -95,6 +96,12 @@ nothing that survives a request — which is why the app runs on 2 gunicorn
 workers and why killing it mid-consultation loses nothing. (`ADR-0003` ·
 `tests/db/test_routes.py`)
 
+**The admin console refuses with 404, never 403.** A 403 tells someone probing
+that an admin console exists. Every refusal — no token, expired token, signed in
+without privilege — returns an identical 404 body, because a difference between
+them is the same leak in a quieter form. (`UX_SPEC` §12.1 ·
+`tests/db/test_admin_access.py`)
+
 **Never open a database connection outside `infra/db`.** Every query runs inside
 `repo_scope(actor)`, which assumes a non-superuser role and sets `auth.uid()` for
 the transaction. A connection obtained any other way runs with RLS exempt, and
@@ -143,6 +150,7 @@ nidan/
       trial.py              claiming a trial into an account (one UPDATE)
       results.py            session_results + engine_versions
       selection.py          candidates, allowance count, case history
+      audit.py              every admin action, append-only
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF
@@ -150,7 +158,7 @@ nidan/
     feedback.py           calls the gateway with domain-built prompts
   api/routes.py         Flask blueprint "web" — the prototype
   api/v1.py             the JSON API at /v1 (ADR-0006)
-  api/auth.py           @require_auth · @require_tier('pro')
+  api/auth.py           @require_auth · @require_tier('pro') · @require_admin
   api/trial.py          the anonymous trial and its httpOnly cookie
   web/                  templates and static assets
   app.py                create_app() factory · __main__.py runs it
@@ -159,7 +167,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    21 hand-written Alembic migrations ← the schema's source of truth
+migrations/versions/    22 hand-written Alembic migrations ← the schema's source of truth
 docs/build-log/         what was actually built, one doc per finished task
 docs/spec/              the build contract — 6 docs + adr/  ← the source of truth
 docs/design/            superseded design docs (historical)
@@ -183,7 +191,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 555 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 572 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -193,11 +201,13 @@ python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
+pip install -e ".[docs]"           # once, for the .docx generator
+python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 21 migrations
+alembic upgrade head               # apply all 22 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 180 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 197 schema, repository and route tests, real Postgres
 ```
 
 ---
@@ -208,7 +218,9 @@ pytest tests/db -q --no-cov        # 180 schema, repository and route tests, rea
 - **Database**: `snake_case`, plural tables, `TIMESTAMPTZ` always, UUID PKs for
   domain entities, `BIGSERIAL` for append-only logs
 - **Docs**: `DATA_MODEL.md` and `openapi.yaml` change in the **same commit** as the
-  code. ADRs are **never edited** — supersede with a new record.
+  code. ADRs are **never edited** — supersede with a new record. **The Markdown
+  is the source of truth**; the `.docx` copies are generated by
+  `scripts/build_docx.py` and must never be edited by hand.
 - **Spelling**: British English in user-facing copy and docs
 
 ---

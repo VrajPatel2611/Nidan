@@ -142,6 +142,7 @@ class Repositories:
         self.results = ResultRepository(conn, actor)
         self.engines = EngineVersionRepository(conn, actor)
         self.selection = SelectionRepository(conn, actor)
+        self.audit = AuditRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
         self.audit = AuditRepository(conn, actor)
 
