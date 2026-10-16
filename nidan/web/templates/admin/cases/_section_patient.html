@@ -1,0 +1,36 @@
+<div id="section-patient" class="card editor-section">
+  <div class="card-title">Patient Profile</div>
+  <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+    <div>
+      <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Patient Name</label>
+      <input type="text" name="patient_name" value="{{ content.get('patient', {}).get('name', '') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+    </div>
+    <div>
+      <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Age</label>
+      <input type="number" name="patient_age" value="{{ content.get('patient', {}).get('age', 40) }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+    </div>
+    <div>
+      <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Sex</label>
+      <select name="patient_sex" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+        <option value="male" {% if content.get('patient', {}).get('sex') == 'male' %}selected{% endif %}>Male</option>
+        <option value="female" {% if content.get('patient', {}).get('sex') == 'female' %}selected{% endif %}>Female</option>
+        <option value="other" {% if content.get('patient', {}).get('sex') == 'other' %}selected{% endif %}>Other</option>
+      </select>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Presenting Complaint</label>
+    <input type="text" name="presenting_complaint" value="{{ content.get('patient', {}).get('presenting_complaint', '') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Introductory Context</label>
+    <textarea name="introductory_text" rows="3" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">{{ content.get('patient', {}).get('introductory_text', '') }}</textarea>
+  </div>
+
+  <div>
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Opening Line</label>
+    <input type="text" name="opening_line" value="{{ content.get('patient', {}).get('opening_line', '') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+  </div>
+</div>

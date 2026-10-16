@@ -1,0 +1,37 @@
+<div id="section-exam" class="card editor-section">
+  <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+    <span>Physical Examination (All 27 Systems)</span>
+    <input type="text" id="exam-filter" placeholder="Filter systems..." onkeyup="filterExamList()" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+  </div>
+  <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">
+    Write findings for relevant systems (blank = normal finding).
+  </p>
+
+  <div id="exam-list" style="max-height: 350px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px;">
+    {% set exam_data = content.get('examination', {}) %}
+    {% for exam in master_lists.examinations %}
+      <div class="exam-row" data-key="{{ exam.key }}" data-label="{{ exam.label }}" style="margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #1e293b;">
+        <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;">
+          {{ exam.label }} (<code>{{ exam.key }}</code>) &nbsp;<span style="color: #64748b; font-weight: 400;">{{ exam.category }}</span>
+        </div>
+        <input type="text" name="exam_{{ exam.key }}" value="{{ exam_data.get(exam.key, '') }}" placeholder="Normal (or write abnormal finding)" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px;">
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+function filterExamList() {
+  const query = document.getElementById("exam-filter").value.toLowerCase();
+  const rows = document.querySelectorAll("#exam-list .exam-row");
+  rows.forEach(r => {
+    const key = r.getAttribute("data-key").toLowerCase();
+    const label = r.getAttribute("data-label").toLowerCase();
+    if (key.includes(query) || label.includes(query)) {
+      r.style.display = "";
+    } else {
+      r.style.display = "none";
+    }
+  });
+}
+</script>
