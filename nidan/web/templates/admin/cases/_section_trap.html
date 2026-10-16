@@ -1,0 +1,31 @@
+<div id="section-trap" class="card editor-section">
+  <div class="card-title">The Trap & Anchoring Keywords</div>
+  
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Anchor Topic</label>
+    <select name="anchor_topic" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+      {% for topic in master_lists.topics %}
+        <option value="{{ topic.topic_key }}" {% if content.get('anchor_topic') == topic.topic_key %}selected{% endif %}>
+          {{ topic.display_name }} ({{ topic.topic_key }})
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
+      Anchor Keywords (comma-separated tags)
+    </label>
+    <input type="text" id="anchor_keywords" name="anchor_keywords" value="{{ content.get('anchor_keywords', [])|join(', ') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+    <div style="font-size: 11px; color: #f87171; margin-top: 4px;">
+      ⚠️ C-4 Rule: Must NOT overlap any contradictory clue term!
+    </div>
+  </div>
+
+  <div>
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">
+      Alternative Hypothesis Keywords (comma-separated tags)
+    </label>
+    <input type="text" name="alternative_keywords" value="{{ content.get('alternative_hypothesis_keywords', [])|join(', ') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+  </div>
+</div>

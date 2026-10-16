@@ -8,7 +8,12 @@ from __future__ import annotations
 
 from flask import Blueprint, render_template, request
 
-from nidan.api.auth import current_actor, require_admin, require_reviewer
+from nidan.api.auth import (
+    current_actor,
+    current_admin,
+    require_admin,
+    require_reviewer,
+)
 from nidan.infra.db.repositories import repo_scope
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
@@ -40,7 +45,8 @@ def dashboard():
 @require_admin
 def case_bank():
     """Case bank view (A-02)."""
-    with repo_scope(current_actor()) as db:
+    with repo_scope(current_admin()) as db:
+        cases = db.cases.bank()
         profile = db.profiles.get()
     user_email = (profile.get("display_name") if profile else None) or "admin@nidan.internal"
 
@@ -49,6 +55,7 @@ def case_bank():
         active_nav="cases",
         active_section="case_bank",
         user_email=user_email,
+        cases=cases,
         pending_reviews=3,
     )
 

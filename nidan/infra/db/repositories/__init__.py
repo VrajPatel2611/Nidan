@@ -21,6 +21,7 @@ outside it imports the engine or writes SQL.
 
 from nidan.infra.db.actor import (
     Actor,
+    AdminUser,
     AnonymousVisitor,
     AuthenticatedUser,
     ServiceActor,
@@ -30,6 +31,8 @@ from nidan.infra.db.repositories.audit import AuditRepository
 from nidan.infra.db.repositories.base import Repositories, Repository, repo_scope
 
 __all__ = [
-    "Actor", "AuthenticatedUser", "AnonymousVisitor", "ServiceActor",
-    "repo_scope", "anonymous_scope", "Repositories", "Repository", "AuditRepository",
+    "Actor", "AuthenticatedUser", "AdminUser", "AnonymousVisitor",
+    "ServiceActor",
+    "repo_scope", "anonymous_scope", "Repositories", "Repository",
+    "AuditRepository",
 ]

@@ -1,0 +1,45 @@
+<div id="section-tests" class="card editor-section">
+  <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+    <span>Investigations & Diagnostic Tests (All 86)</span>
+    <input type="text" id="test-filter" placeholder="Filter tests..." onkeyup="filterTestList()" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+  </div>
+  <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">
+    Define results for diagnostic tests ordered by trainees. Mark at least 1 test as "key" category (C-7).
+  </p>
+
+  <div id="test-list" style="max-height: 400px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px;">
+    {% set test_data = content.get('investigations', {}) %}
+    {% for test in master_lists.investigations %}
+      {% set item = test_data.get(test.key, {}) %}
+      <div class="test-row" data-key="{{ test.key }}" data-label="{{ test.label }}" style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid #1e293b;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+          <span style="font-size: 13px; font-weight: 600; color: #38bdf8;">
+            {{ test.label }} (<code>{{ test.key }}</code>) &nbsp;<span style="color: #64748b; font-weight: 400;">{{ test.category }}</span>
+          </span>
+          <label style="font-size: 12px; color: #fbbf24; display: flex; align-items: center; gap: 4px;">
+            <input type="checkbox" name="test_key_{{ test.key }}" value="key"
+              {% if item.get('category') == 'key' %}checked{% endif %}>
+            Key Test (C-7)
+          </label>
+        </div>
+        <input type="text" name="test_result_{{ test.key }}" value="{{ item.get('result', '') }}" placeholder="Result (Normal: {{ test.normal_result or 'Normal' }})" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px;">
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+function filterTestList() {
+  const query = document.getElementById("test-filter").value.toLowerCase();
+  const rows = document.querySelectorAll("#test-list .test-row");
+  rows.forEach(r => {
+    const key = r.getAttribute("data-key").toLowerCase();
+    const label = r.getAttribute("data-label").toLowerCase();
+    if (key.includes(query) || label.includes(query)) {
+      r.style.display = "";
+    } else {
+      r.style.display = "none";
+    }
+  });
+}
+</script>

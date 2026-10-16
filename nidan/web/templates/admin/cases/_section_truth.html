@@ -1,0 +1,19 @@
+<div id="section-truth" class="card editor-section">
+  <div class="card-title">Clinical Truth & Diagnoses</div>
+  
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Correct Diagnosis</label>
+    <input type="text" name="correct_diagnosis" value="{{ content.get('correct_diagnosis', '') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+  </div>
+
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Accepted Diagnoses (comma-separated tags)</label>
+    <input type="text" name="accepted_diagnoses" value="{{ content.get('accepted_diagnoses', [])|join(', ') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+    <div style="font-size: 11px; color: #64748b; margin-top: 4px;">Must have at least 2 accepted diagnoses (C-5).</div>
+  </div>
+
+  <div>
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Partial Diagnoses (comma-separated tags)</label>
+    <input type="text" name="partial_diagnoses" value="{{ content.get('partial_diagnoses', [])|join(', ') }}" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+  </div>
+</div>
