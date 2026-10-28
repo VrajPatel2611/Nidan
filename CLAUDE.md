@@ -4,11 +4,12 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0 and 1 complete — 16 of 34 tasks, 26 days of 83.
-The research is published and validated; the platform now has a schema, a
-repository layer with tenant scoping, event-sourced sessions, authentication,
-anonymous trials, a replayable assessment engine, the free-tier allowance, and
-the 16 pilot sessions imported into it.
+**Current state:** Phases 0 and 1 complete, Phase 2 is 3 of 4 — **19 of 34
+tasks, 36 days of 83.** The research is published and validated; the platform
+now has a schema, a repository layer with tenant scoping, event-sourced
+sessions, authentication, anonymous trials, a replayable assessment engine, the
+free-tier allowance, the 16 pilot sessions imported into it, the case editor,
+Playtest, and the clinical-review backend.
 
 **Next: Phase 2 — the admin console.** `BUILD_PLAN` calls it the milestone that
 matters most, and its goal is one sentence: *clinicians can review cases without
@@ -28,7 +29,7 @@ read only those sections.
 |---|---|
 | Anything at all | This file, then `docs/PROJECT_MAP.md` |
 | What is every file in here? | `docs/PROJECT_MAP.md` — the full tree, annotated |
-| Why was X chosen? | `docs/spec/adr/` — 16 one-page records. **Check here before re-arguing a decision** |
+| Why was X chosen? | `docs/spec/adr/` — 17 one-page records. **Check here before re-arguing a decision** |
 | Building a feature | `docs/spec/BUILD_PLAN.md` → find the task → read only its `Spec` refs |
 | Schema / migration | `docs/spec/DATA_MODEL.md` — the relevant table section only |
 | An endpoint | `docs/spec/API_CONTRACT.md` §4–9 + `openapi.yaml` |
@@ -205,7 +206,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 653 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 654 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -260,12 +261,15 @@ units are not a barrier. When authoring cases 6–10, follow that pattern: SI
 units, annotated with meaning and normal range. Add a US equivalent only where
 a value has no annotation to carry it — blood gases are the one such case.
 
-**One question remains open:**
+**S-4 Supabase region** — settled 28 Oct 2026, `ADR-0017`: **Central EU
+(Frankfurt), `eu-central-1`.** Keeping the data in the EEA removes the GDPR
+Chapter V transfer obligation for EU users rather than satisfying it, and the
+obligation is one-directional — no non-EU user is constrained by the choice.
+The cost is 120–150 ms of latency from India, which the LLM call dwarfs. **A
+Supabase project cannot change region**; moving means a new project and a
+migration.
 
-- **Supabase region** (`SECURITY_SPEC` S-4) — one database, one jurisdiction,
-  GDPR consequences. Settle before launch
-
-Neither blocks T-010: the schema does not encode a price, a limit or a region.
+**No ⟨DECIDE⟩ items remain open.**
 
 ---
 

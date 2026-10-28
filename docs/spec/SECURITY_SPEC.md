@@ -532,7 +532,7 @@ accidental.
 | S-1 | **ADR: what an institution may see.** Aggregate-only with a group-size floor. T3 — product-defining | V | Any institutional feature |
 | S-2 | Email enumeration on sign-in and reset — specify behaviour | V | Launch |
 | S-3 | MFA policy for admin accounts | V | First non-founder admin |
-| S-4 | Data residency / Supabase region ⟨DECIDE⟩ — **now harder: D-7 chose a global launch, so UK/EU users bring GDPR transfer obligations wherever the single database sits** | V | Launch |
+| S-4 | ~~Data residency / Supabase region ⟨DECIDE⟩~~ | V | ✅ **Closed 28 Oct 2026 by `ADR-0017`.** Central EU (Frankfurt), `eu-central-1`. Keeping the data in the EEA removes the Chapter V transfer obligation for EU users rather than satisfying it; the obligation is one-directional, so no non-EU user is constrained by the choice. Cost is 120–150 ms latency from India |
 | S-5 | CSP finalised against the real frontend | V | T-030 |
 | S-6 | Incident contacts filled in | V | Launch |
 | S-7 | Privacy policy, terms, cookie notice | V | Launch |
