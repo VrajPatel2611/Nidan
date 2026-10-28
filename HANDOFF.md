@@ -124,15 +124,59 @@ project's files, and switching to it would look like the whole repo vanished.
   a finished brief is one more document that can be picked up by mistake, which
   is exactly what went wrong on T-020. What was built is in the build logs.
 
-- [ ] **Y-4** (2026-10-28, from Vraj) · **Signing in to `/admin` locally — V-5
-  answered.** Steps below in the Notes section. The two `.env` values are
-  **sent privately**, not here.
+- [ ] **Y-4** (2026-10-28, from Vraj) · **Signing in to `/admin` locally — now
+  documented and verified.** Read `docs/process/LOCAL_ADMIN_ACCESS.md` on
+  `main`, not the Notes section below, which is superseded. I took a real
+  Supabase token through to a 200 on `/admin` today, and the doc is what
+  actually worked rather than what should have.
+
+  The Supabase project exists: **`Nidan`, `eu-central-1` (Frankfurt)**, decided
+  in `ADR-0017`. `SUPABASE_URL` is public and is in the doc; the **anon key** is
+  **sent privately**, and you only need it for the one `curl` that mints a
+  token. The `service_role` key is never used — do not put it in `.env`.
+
+  **Three things will bite you, and all three look like a permissions problem**,
+  because `UX_SPEC` §12.1 makes every admin refusal an identical 404:
+
+  1. **Your local database is at 021.** `platform_role` arrived in 022, and that
+     is the column `require_role` reads, so `/admin` cannot work at any token
+     until you run `alembic upgrade head`. Note the host port is **5433**, not
+     5432 — compose remaps it.
+  2. **Rebuild the image, do not restart it.** `docker compose up -d --build
+     app`. A stale image serves older code: mine predated T-014 and had no
+     `nidan.infra.auth` at all.
+  3. **Tick "Auto Confirm User"** when you create your account in the Supabase
+     dashboard, or the token request fails with `email_not_confirmed`.
+
+  Give yourself `platform_role = 'reviewer'` once as well as `'admin'`. That is
+  the role the review queue is actually for, and `current_reviewer()` is what
+  those routes must open their scope with — see Y-2.
+
+- [ ] **Y-5** (2026-10-28, from Vraj) · **Pull `main` before you start T-023:
+  the admin console was broken in Docker and you would have hit it.**
+  `pyproject.toml` declared `web/templates/*.html`, which does not recurse, so
+  an installed build shipped 4 of 25 templates and 2 of 4 JavaScript files.
+  Everything under `admin/` was missing — **your case editor and Playtest
+  included**. It showed up as a 500 on `/admin` reading `TemplateNotFound:
+  admin/dashboard.html`, which points at the template rather than at the
+  pattern that failed to collect it.
+
+  Nothing caught it because `pip install -e .` resolves templates from the
+  source tree: the suite passed and local runs worked. Only a packaged build
+  failed. Fixed with recursive globs, and `tests/test_packaging.py` now asserts
+  every asset is collected. **If you add a new template subdirectory, that test
+  is what will tell you.**
 
 ---
 
 ## Notes
 
-### Signing in to `/admin` on a local machine (answers V-5)
+### ~~Signing in to `/admin` on a local machine (answers V-5)~~
+
+> **Superseded 2026-10-28** by `docs/process/LOCAL_ADMIN_ACCESS.md` on
+> `main`, which is verified end to end. Kept for the record; the steps
+> below are untested and omit the migration, the rebuild and the 5433
+> port. Follow the doc.
 
 The console has no login page of its own: `ADR-0002` says Supabase issues
 credentials and the backend only verifies them, so a local sign-in means getting
@@ -204,6 +248,14 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-10-28** · **S-4 settled — `ADR-0017`, data residency in the EU
+  (Frankfurt), `eu-central-1`.** The last open ⟨DECIDE⟩ item. Supabase project
+  `Nidan` created. Keeping the data in the EEA removes the GDPR Chapter V
+  transfer obligation for EU users rather than satisfying it, and the obligation
+  is one-directional. Also fixed two things found while verifying it: compose
+  never passed `SUPABASE_URL` to the app, and package-data shipped 4 of 25
+  templates. 685 tests. Branch `docs/adr-0017-data-residency`.
 
 - **2026-10-28** · **T-022 playtest merged** (PR #24) and a T-021 form fix
   (PR #27). Phase 2 is 3 of 4 tasks done; **T-023 is all that remains**, and it
