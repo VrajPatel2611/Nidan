@@ -41,6 +41,7 @@ read only those sections.
 | What was done on a finished task | `docs/build-log/T-xxx-*.md` |
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
+| **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
 | **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 24 migrations |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 

@@ -1,0 +1,95 @@
+{# Everything the assessment engine concludes, recomputed after every action.
+   Numbers come from assess(); see nidan/web/admin/playtest/instrumentation.py. #}
+<div id="pt-instrumentation" class="pt-instrumentation">
+{% if panel.missing %}
+  <div class="pt-alert pt-alert-error">
+    This version cannot be assessed: its content has no
+    {% for key in panel.missing %}<code>{{ key }}</code>{% if not loop.last %}, {% endif %}{% endfor %}.
+    Add {{ 'it' if panel.missing|length == 1 else 'them' }} in the case editor, then reload.
+  </div>
+{% else %}
+
+  {% if panel.leak_count %}
+    {% for turn in panel.turns if turn.leaks %}
+      {% for leak in turn.leaks %}
+      <div class="pt-alert pt-alert-leak">
+        ⚠ <strong>Possible leakage</strong> — the reply to question {{ turn.number }}
+        mentioned “{{ leak.keyword }}” (<code>{{ leak.topic }}</code>), but the question
+        did not ask about it. A heuristic: check the persona prompt, then decide.
+      </div>
+      {% endfor %}
+    {% endfor %}
+  {% endif %}
+
+  <div class="pt-section">
+    <div class="pt-section-title">Counters</div>
+    <div class="pt-counters">
+      <span title="questions asked">q={{ panel.counters.q }}</span>
+      <span title="questions about the anchor topic">a={{ panel.counters.a }}</span>
+      <span title="questions about alternative causes">m={{ panel.counters.m }}</span>
+      <span title="required history topics covered">c={{ panel.counters.c_hit }}/{{ panel.counters.c_total }} ({{ '%.0f'|format(panel.counters.c_pct) }}%)</span>
+      <span title="contradictory clues explored">k={{ panel.counters.k }}/{{ panel.counters.K }}</span>
+      <span title="key investigations done">key tests {{ panel.counters.key_done }}/{{ panel.counters.key_total }}</span>
+    </div>
+    <div class="pt-legend">a anchor-topic questions · m alternative-cause questions · c required topics · k clues</div>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">Detectors (live)</div>
+    <table class="pt-table">
+      {% for d in panel.detectors %}
+      <tr title="{{ d.reason }}">
+        <td>{{ d.heading }} <span class="pt-muted">· {{ d.technical }}</span></td>
+        <td class="{{ 'pt-on' if d.detected else 'pt-off' }}">{{ '✓' if d.detected else '✗' }}</td>
+        <td>{{ '%.2f'|format(d.score) }}</td>
+        <td>{{ d.rule or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">Clues explored {{ panel.clues_explored }} / {{ panel.clues|length }}</div>
+    {% if panel.clue_mismatch %}
+      <div class="pt-alert pt-alert-error">
+        The per-clue breakdown ({{ panel.clues_explored }}) disagrees with the detector (k={{ panel.counters.k }}). Trust the detector, and report this.
+      </div>
+    {% endif %}
+    <div class="pt-clues">
+      {% for clue in panel.clues %}
+        <span class="{{ 'pt-clue-on' if clue.explored_by else 'pt-clue-off' }}"
+              title="{{ clue.keywords|join(', ') }}{% if clue.explored_by %} — matched “{{ clue.explored_by }}”{% endif %}">
+          {{ '✓' if clue.explored_by else '○' }} {{ clue.label }}
+        </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {% if panel.diagnosis %}
+  <div class="pt-section">
+    <div class="pt-section-title">Diagnosis</div>
+    “{{ panel.diagnosis }}” — <strong>{{ panel.diagnosis_verdict }}</strong>
+  </div>
+  {% endif %}
+
+  <div class="pt-section">
+    <div class="pt-section-title">Matched topics, per question</div>
+    {% for turn in panel.turns|reverse %}
+      <div class="pt-turn">
+        <div class="pt-turn-q">Question {{ turn.number }} · <span class="pt-muted">{{ turn.question }}</span></div>
+        {% for m in turn.matched %}
+          <div class="pt-topic">
+            ✓ <code>{{ m.topic }}</code> <span class="pt-muted">(keyword “{{ m.keyword }}”){% if not m.required %} · not required for this case{% endif %}</span>
+          </div>
+        {% else %}
+          <div class="pt-topic pt-muted">No topic matched.</div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="pt-muted">Ask a question to see what it matches.</div>
+    {% endfor %}
+  </div>
+
+  <div class="pt-footer pt-muted">Engine {{ panel.engine_version }} · nothing on this page is saved</div>
+{% endif %}
+</div>

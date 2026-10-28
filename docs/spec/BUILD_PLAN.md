@@ -432,7 +432,7 @@ Note     C-4 enforcement here is the structural fix for the 14%-sensitivity clas
 Done     Form-based editor in nidan/web/admin/cases/, live C-1...C-7 validation, save blocking on C-4, draft creation from published, OCC
 ```
 
-**T-022 · Playtest with live instrumentation** ⭐
+**T-022 · Playtest with live instrumentation** ⭐ — ✅ **DONE** (2026-10-28)
 ```
 Phase    2            Depends  T-021,T-016    Est  4 d      Owner  Y
 Files    nidan/web/admin/playtest/
@@ -444,6 +444,7 @@ Accept   1. Split view: student UI left, instrumentation right
          4. Ephemeral — playtest sessions never appear in user data or analytics
          5. Reset without leaving the page
 Note     This is how a non-programmer sees WHY a detector fired. Highest-value admin screen.
+Done     Split view in nidan/web/admin/playtest/; panel is assess() output; event log held client-side, nothing written
 ```
 
 **T-023 · Clinical review workflow** ⭐

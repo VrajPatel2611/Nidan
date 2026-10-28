@@ -26,7 +26,7 @@
 
   <div style="margin-bottom: 16px;">
     <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Introductory Context</label>
-    <textarea name="introductory_text" rows="3" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">{{ content.get('patient', {}).get('introductory_text', '') }}</textarea>
+    <textarea name="introductory_text" rows="3" style="width: 100%; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">{{ content.get('patient', {}).get('intro') or content.get('patient', {}).get('introductory_text', '') }}</textarea>
   </div>
 
   <div>

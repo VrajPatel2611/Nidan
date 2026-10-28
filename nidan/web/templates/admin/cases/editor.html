@@ -12,6 +12,9 @@
     </h1>
   </div>
   <div style="display: flex; gap: 12px; align-items: center;">
+    <a href="/admin/cases/{{ case.case_id }}/versions/{{ case.id }}/playtest" class="btn-admin" style="background: transparent; border: 1px solid #475569; color: #cbd5e1;" title="Play this version as a learner, with the engine's view alongside. Uses the last saved content.">
+      Playtest
+    </a>
     <button id="save-btn" type="submit" form="case-editor-form" class="btn-admin" {% if not validation.can_save %}disabled style="opacity:0.5; cursor:not-allowed;"{% endif %}>
       Save Draft
     </button>

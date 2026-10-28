@@ -7,6 +7,7 @@ save-blocking on C-4 keyword overlaps, and immutable published version handling.
 
 from __future__ import annotations
 
+import copy
 import json
 from datetime import datetime
 from uuid import UUID
@@ -118,43 +119,121 @@ def _validate_invariants(content: dict, master_lists: dict) -> dict:
     }
 
 
-def _parse_form_content(req) -> dict:
-    """Extract content payload from JSON or form submit."""
-    if req.is_json:
-        return req.get_json()
+def _csv(value: str) -> list[str]:
+    return [s.strip() for s in value.split(",") if s.strip()]
 
-    # Form payload parse helper
+
+def _set(target: dict, key: str, value) -> None:
+    """Write `value`, unless it is empty and the key was never there."""
+    if value or key in target:
+        target[key] = value
+
+
+def _parse_form_content(req, existing: dict | None = None) -> dict:
+    """
+    The content to save: JSON as posted, or the form merged over `existing`.
+
+    **Merged, not rebuilt.** The form renders only part of a case -- it has no
+    control for an examination's `key` flag, nor for investigation categories
+    other than "key" -- so building the content from the form alone silently
+    dropped everything it does not show. Each field below is written only if
+    the form posted it; anything else in the stored content is kept as it was.
+    """
+    if req.is_json:
+        payload = dict(req.get_json())
+        payload.pop("expected_updated_at", None)   # a save token, not content
+        return payload
+
     raw = req.form.get("content_json")
     if raw:
         return json.loads(raw)
 
-    # Fallback to form data extraction
-    content = {
-        "title": req.form.get("title", "").strip(),
-        "patient": {
-            "name": req.form.get("patient_name", "").strip(),
-            "age": int(req.form.get("patient_age", 40)),
-            "sex": req.form.get("patient_sex", "male"),
-            "presenting_complaint": req.form.get("presenting_complaint", "").strip(),
-            "introductory_text": req.form.get("introductory_text", "").strip(),
-            "opening_line": req.form.get("opening_line", "").strip(),
-        },
-        "correct_diagnosis": req.form.get("correct_diagnosis", "").strip(),
-        "accepted_diagnoses": [s.strip() for s in req.form.get("accepted_diagnoses", "").split(",") if s.strip()],
-        "partial_diagnoses": [s.strip() for s in req.form.get("partial_diagnoses", "").split(",") if s.strip()],
-        "anchor_topic": req.form.get("anchor_topic", "").strip(),
-        "anchor_keywords": [s.strip() for s in req.form.get("anchor_keywords", "").split(",") if s.strip()],
-        "alternative_hypothesis_keywords": [s.strip() for s in req.form.get("alternative_keywords", "").split(",") if s.strip()],
-        "minimum_questions": int(req.form.get("minimum_questions", 7)),
-        "required_topics": req.form.getlist("required_topics"),
-        "contradictory_clues": [
-            [tag.strip() for tag in clue_set.split(",") if tag.strip()]
-            for clue_set in req.form.getlist("clue_sets") if clue_set.strip()
-        ],
-        "examination": {},
-        "investigations": {},
-        "system_prompt": req.form.get("system_prompt", "").strip(),
-    }
+    form = req.form
+    content = copy.deepcopy(dict(existing or {}))
+
+    if "title" in form:
+        _set(content, "title", form["title"].strip())
+
+    patient = dict(content.get("patient") or {})
+    # `intro` is the stored key; the form field kept its older name.
+    for field, key in (("patient_name", "name"), ("patient_sex", "sex"),
+                       ("presenting_complaint", "presenting_complaint"),
+                       ("introductory_text", "intro"),
+                       ("opening_line", "opening_line")):
+        if field in form:
+            _set(patient, key, form[field].strip())
+    if form.get("patient_age", "").strip():
+        patient["age"] = int(form["patient_age"])
+    if patient:
+        content["patient"] = patient
+
+    for field in ("correct_diagnosis", "anchor_topic"):
+        if field in form:
+            _set(content, field, form[field].strip())
+    for field, key in (("accepted_diagnoses", "accepted_diagnoses"),
+                       ("partial_diagnoses", "partial_diagnoses"),
+                       ("anchor_keywords", "anchor_keywords"),
+                       ("alternative_keywords", "alternative_topics")):
+        if field in form:
+            _set(content, key, _csv(form[field]))
+    # The name an earlier version of this form saved alternative_topics under.
+    content.pop("alternative_hypothesis_keywords", None)
+
+    if "system_prompt" in form:
+        # Browsers submit textarea line breaks as CRLF.
+        _set(content, "system_prompt", form["system_prompt"].replace("\r\n", "\n"))
+
+    # The history section always posts minimum_questions; when it is present,
+    # an empty required_topics list means every box was unticked.
+    if "minimum_questions" in form:
+        content["minimum_questions"] = int(form["minimum_questions"])
+        ticked = form.getlist("required_topics")
+        kept = [t for t in content.get("required_topics", []) if t in ticked]
+        content["required_topics"] = kept + [t for t in ticked if t not in kept]
+
+    if "clue_sets" in form:
+        content["contradictory_clues"] = [
+            _csv(clue_set) for clue_set in form.getlist("clue_sets") if _csv(clue_set)
+        ]
+
+    exams = dict(content.get("examination") or {})
+    for key, master in MASTER_EXAMINATIONS.items():
+        field = f"exam_{key}"
+        if field not in form:
+            continue
+        finding = form[field].strip()
+        if finding:
+            entry = dict(exams.get(key) or {"key": False, "label": master["label"]})
+            entry["finding"] = finding
+            exams[key] = entry
+        else:
+            exams.pop(key, None)   # blank means the normal finding
+    _set(content, "examination", exams)
+
+    tests = dict(content.get("investigations") or {})
+    for key, master in MASTER_INVESTIGATIONS.items():
+        field = f"test_result_{key}"
+        if field not in form:
+            continue
+        result = form[field].strip()
+        is_key = form.get(f"test_key_{key}") == "key"
+        if not result and not is_key:
+            tests.pop(key, None)
+            continue
+        previous = tests.get(key) or {}
+        entry = dict(previous or {"label": master["label"]})
+        entry["result"] = result or master.get("normal_result", "")
+        # The form can promote to "key" and demote from it; "low_value" and
+        # "reasonable" have no control, so they are kept as they were.
+        if is_key:
+            entry["category"] = "key"
+        elif previous.get("category") not in (None, "key"):
+            entry["category"] = previous["category"]
+        else:
+            entry["category"] = "reasonable"
+        tests[key] = entry
+    _set(content, "investigations", tests)
+
     return content
 
 
@@ -200,7 +279,7 @@ def save(case_id: UUID, version_id: UUID):
             return jsonify({"error": {"code": "not_found", "message": "Not found."}}), 404
 
         try:
-            content = _parse_form_content(request)
+            content = _parse_form_content(request, existing.get("content"))
         except Exception as err:
             return jsonify({"error": "invalid_payload", "message": str(err)}), 400
 
@@ -265,8 +344,17 @@ def save(case_id: UUID, version_id: UUID):
 @require_admin
 def validate(case_id: UUID, version_id: UUID):
     """HTMX endpoint to validate invariants live as user types."""
+    with repo_scope(current_admin()) as db:
+        existing = db.cases.for_editing(version_id)
+    if existing is None:
+        return jsonify({"error": {"code": "not_found", "message": "Not found."}}), 404
+
     master_lists = _get_master_lists()
-    content = _parse_form_content(request)
+    try:
+        content = _parse_form_content(request, existing.get("content"))
+    except (ValueError, TypeError):
+        # Mid-edit input such as an empty age; the next keystroke revalidates.
+        return "", 204
     validation = _validate_invariants(content, master_lists)
 
     return render_template(
@@ -294,7 +382,7 @@ def create_new_case():
             "age": 45,
             "sex": "male",
             "presenting_complaint": "Chest pain",
-            "introductory_text": "A 45-year-old male presents to clinic...",
+            "intro": "A 45-year-old male presents to clinic...",
             "opening_line": "Hello doctor, I've had this pain for a few days.",
         },
         "correct_diagnosis": "Angina",
@@ -302,7 +390,7 @@ def create_new_case():
         "partial_diagnoses": ["Coronary artery disease"],
         "anchor_topic": "cardiac",
         "anchor_keywords": ["chest pain", "angina"],
-        "alternative_hypothesis_keywords": ["reflux", "gerd"],
+        "alternative_topics": ["reflux", "gerd"],
         "minimum_questions": 7,
         "required_topics": ["pain_character", "aggravating_factors"],
         "contradictory_clues": [
@@ -313,7 +401,7 @@ def create_new_case():
         ],
         "examination": {},
         "investigations": {
-            "ecg": {"category": "key", "result": "Normal"}
+            "ecg": {"label": "ECG (12-lead)", "category": "key", "result": "Normal"}
         },
         "system_prompt": "You are playing a virtual patient...",
     }
