@@ -20,6 +20,7 @@ One decision per file. **Never edit an accepted ADR** — supersede it with a ne
 | [0014](0014-no-case-retirement-policy-use-variants-instead.md) | No retirement; variants instead | Accepted |
 | [0015](0015-direct-to-consumer-with-the-institutional-path-preserve.md) | B2C, institutional path preserved | Accepted |
 | [0016](0016-tenant-scoping-by-per-transaction-role-assumption.md) | Tenant scoping by per-transaction role assumption | Accepted |
+| [0017](0017-data-residency-eu-frankfurt.md) | Data residency in the EU (Frankfurt) | Accepted |
 
 ## Template
 

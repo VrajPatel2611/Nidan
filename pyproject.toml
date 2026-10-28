@@ -53,7 +53,17 @@ build-backend = "setuptools.build_meta"
 include = ["nidan*"]
 
 [tool.setuptools.package-data]
-nidan = ["web/templates/*.html", "web/static/*"]
+# The `**` patterns are load-bearing, not tidiness. A bare `web/templates/*.html`
+# does not recurse, so every template under admin/ — the whole console — was
+# absent from an installed build while the four top-level ones shipped fine.
+# An editable install hides this completely: it resolves templates from the
+# source tree, so the app works locally and 500s only once it is packaged.
+nidan = [
+    "web/templates/*.html",
+    "web/templates/**/*.html",
+    "web/static/*",
+    "web/static/**/*",
+]
 
 [tool.ruff]
 line-length = 100

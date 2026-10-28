@@ -70,6 +70,17 @@ services:
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-development-only-not-a-secret}
       # Consumed from T-012 onward; set now so compose does not change then.
       DATABASE_URL: postgresql://${POSTGRES_USER:-nidan}:${POSTGRES_PASSWORD:-nidan_local_dev_only}@db:5432/${POSTGRES_DB:-nidan}
+      # Supabase Auth (ADR-0002). Empty is the normal state: the prototype's
+      # consultations are anonymous trials and need no login.
+      #
+      # Set it and /admin becomes reachable. Leave it unset and every admin
+      # route answers 404 — not because the route is missing, but because
+      # jwks.py refuses to fetch a key set it has no URL for, and UX_SPEC
+      # §12.1 makes every admin refusal identical. That 404 is indistinguishable
+      # from the access control working, so a variable missing *here* rather
+      # than in .env looks exactly like a Supabase misconfiguration.
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWT_AUDIENCE: ${SUPABASE_JWT_AUDIENCE:-authenticated}
     ports:
       - "${APP_PORT:-8000}:8000"
     restart: unless-stopped
