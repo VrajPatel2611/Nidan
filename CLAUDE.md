@@ -44,6 +44,7 @@ read only those sections.
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
 | **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 24 migrations |
+| **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 
 `docs/design/` holds **superseded** v1/v2 design docs. Historical only — do not

@@ -50,6 +50,7 @@ DOCUMENTS: dict[str, str] = {
     "docs/process/COMMANDS.md":         "docs/process/Nidan_Commands.docx",
     "docs/process/WINDOWS_SETUP.md":    "docs/process/Nidan_Windows_Setup.docx",
     "docs/process/SUPABASE_DEPLOYMENT.md": "docs/process/Nidan_Supabase_Deployment.docx",
+    "docs/process/LOCAL_ADMIN_ACCESS.md": "docs/process/Nidan_Local_Admin_Access.docx",
     "docs/process/AI_BUILD_PROMPT.md":  "docs/process/Nidan_AI_Build_Prompt.docx",
     "docs/process/USAGE.md":            "docs/process/Nidan_AI_Build_Prompt_Usage.docx",
     "docs/process/RENAME_PLAN.md":      "docs/process/Nidan_Rename_Plan.docx",
