@@ -250,12 +250,17 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ## Done
 
 - **2026-10-28** · **S-4 settled — `ADR-0017`, data residency in the EU
-  (Frankfurt), `eu-central-1`.** The last open ⟨DECIDE⟩ item. Supabase project
-  `Nidan` created. Keeping the data in the EEA removes the GDPR Chapter V
-  transfer obligation for EU users rather than satisfying it, and the obligation
-  is one-directional. Also fixed two things found while verifying it: compose
-  never passed `SUPABASE_URL` to the app, and package-data shipped 4 of 25
-  templates. 685 tests. Branch `docs/adr-0017-data-residency`.
+  (Frankfurt), `eu-central-1`. MERGED, PR #28, `b98ddc9`.** The last open
+  ⟨DECIDE⟩ item; **no ⟨DECIDE⟩ items remain.** Supabase project `Nidan`
+  created and `/admin` reached with a real token end to end. Keeping the data
+  in the EEA removes the GDPR Chapter V transfer obligation for EU users
+  rather than satisfying it, and the obligation is one-directional.
+
+  Two bugs found while verifying it, both fixed in the same PR: compose never
+  passed `SUPABASE_URL` to the app, and package-data shipped 4 of 25 templates
+  and 2 of 4 JS files — see Y-5, it broke the case editor and Playtest in any
+  Docker build. 685 tests pass on the merged result; a rebuilt image now
+  packages 25/25 templates and 4/4 static files.
 
 - **2026-10-28** · **T-022 playtest merged** (PR #24) and a T-021 form fix
   (PR #27). Phase 2 is 3 of 4 tasks done; **T-023 is all that remains**, and it
