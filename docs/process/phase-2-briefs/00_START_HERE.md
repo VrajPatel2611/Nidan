@@ -1,11 +1,7 @@
 # Nidan · Phase 2 — read this first
 
-You own **T-021, T-022, T-023**. Three tasks, ~11 days, all in `nidan/web/admin/`.
-
-**First, finish T-020.** Your admin shell is written and pushed, but its pull
-request is still red and unmerged. `FIX_T-020_FIRST.md` gets it green — about
-ten minutes. Do that before you read the rest of this file, because T-021 builds
-directly on T-020 being on `main`.
+You own **T-022 and T-023**. Two tasks, ~6 days, both in `nidan/web/admin/`.
+T-020 (admin shell) and T-021 (case editor) are merged and on `main`.
 
 This file is the **process**: how to start a task, how to push it, and how to
 open a pull request that goes green the first time. The other three files are
@@ -43,7 +39,7 @@ after its pull request is merged. Every task starts from `main`, pulled fresh,
 ### Rule 2 · One branch per task, named after the task
 
 ```
-feat/t-021-case-editor
+feat/t-022-playtest
 feat/t-022-playtest
 feat/t-023-clinical-review
 ```
@@ -102,7 +98,7 @@ alembic upgrade head
 pytest -q
 ```
 
-That last command must end with `590 passed` or thereabouts. If it does not,
+That last command must end with `607 passed` or thereabouts. If it does not,
 fix the setup **first** — do not start a task on a broken environment, because
 then you cannot tell your failures apart from pre-existing ones.
 
@@ -119,7 +115,7 @@ Follow this literally for each of the three tasks.
 ```bash
 git checkout main
 git pull origin main
-git checkout -b feat/t-021-case-editor
+git checkout -b feat/t-022-playtest
 ```
 
 Three commands, in that order, every time. The `git pull` is the one that
@@ -139,7 +135,7 @@ thought — run `git fetch origin && git status` and read what it says.
 
 ```bash
 git add -A
-git commit -m "feat(admin): sectioned case editor form (T-021)"
+git commit -m "feat(admin): instrumentation panel (T-022)"
 ```
 
 Small commits beat one enormous one. The message format the project uses is
@@ -218,7 +214,7 @@ Part 5. All five. It is faster than a red build.
 First push of a branch:
 
 ```bash
-git push -u origin feat/t-021-case-editor
+git push -u origin feat/t-022-playtest
 ```
 
 Every push after that:
@@ -230,15 +226,15 @@ git push
 ## 4.6 Open the pull request
 
 1. Go to **https://github.com/VrajPatel2611/nidan**
-2. GitHub shows a yellow banner: *"feat/t-021-case-editor had recent pushes"* —
+2. GitHub shows a yellow banner: *"feat/t-022-playtest had recent pushes"* —
    click **Compare & pull request**. (If the banner is gone: **Pull requests →
    New pull request**.)
 3. Check the two dropdowns at the top. They must read:
-   **base: `main`** ← **compare: `feat/t-021-case-editor`**
+   **base: `main`** ← **compare: `feat/t-022-playtest`**
    If `base` says anything other than `main`, change it. This is the single most
    common pull-request mistake.
 4. Title: the same as your main commit message, e.g.
-   `feat(admin): case editor with live C-4 validation (T-021)`
+   `feat(admin): playtest with live instrumentation (T-022)`
 5. Description — answer these four, briefly:
    - What this adds
    - Which acceptance criteria from `BUILD_PLAN` it satisfies
@@ -289,7 +285,7 @@ It means `main` has schema changes your branch does not. Merge `main` in.
 ```bash
 git checkout main
 git pull origin main
-git branch -d feat/t-021-case-editor
+git branch -d feat/t-022-playtest
 ```
 
 Then start the next task from 4.1. Never reuse a merged branch.
@@ -375,9 +371,10 @@ The **only** exception: when a task is finished you tick its line in
 one-line change, and if it conflicts you take `main`'s version and regenerate.
 
 **If a task looks like it needs a file from the "never" list, that is real
-information, not a blocker to work around.** Say what you need and start on a
-part of the task that does not need it. T-021 had exactly one such dependency
-and it has already been built for you.
+information, not a blocker to work around.** Put it in Vraj's inbox in
+`HANDOFF.md` on the `handoff` branch, say what you need and what "done" looks
+like, and start on a part of the task that does not need it. That is exactly
+how the three T-023 backend gaps were found and fixed before you reached them.
 
 ---
 
@@ -400,7 +397,9 @@ through `with repo_scope(...) as db:`. A connection obtained any other way runs
 with row-level security switched off and looks completely normal.
 
 **The actor decides the privilege.** `current_actor()` for reads,
-`current_admin()` for anything that writes clinical content. T-021 explains why.
+`current_admin()` for writing clinical content, `current_reviewer()` for the
+review queue. Each maps to a different database role, and the database — not
+the decorator — is what actually refuses the wrong one.
 
 **Never use bias vocabulary in user-facing text.** Not "bias", "anchoring",
 "premature closure", "confirmation bias". The screens a clinician reads use
@@ -436,12 +435,13 @@ this strange way" questions have a one-page answer there.
 # Part 9 · The order, and the one thing to know about it
 
 ```
-T-021  Case editor         5 d
-T-022  Playtest            4 d
+T-021  Case editor         5 d   ✅ merged 2026-10-28 (PR #22)
+T-022  Playtest            4 d   ← you are here
 T-023  Clinical review     2 d   ← the one that matters most
 ```
 
-Strictly in that order — each genuinely depends on the one before.
+In that order — T-023 genuinely depends on T-022, because a reviewer judges a
+case by playing it.
 
 **T-023 is the gate for the whole project.** Until it exists, the two clinician
 reviewers cannot look at a case at all, no case can be published, and content
