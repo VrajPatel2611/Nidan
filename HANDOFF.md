@@ -59,7 +59,8 @@ project's files, and switching to it would look like the whole repo vanished.
 
 - [ ] **Y-2** (2026-10-28, from Vraj) · **T-023 backend is built — V-1, V-2 and
   V-3 are all cleared.** On branch `feat/clinical-review-backend`, PR #26. Pull
-  `main` once it merges, then:
+  `main` once it merges — all 8 checks are green, so it is waiting on a merge,
+  not on a fix. Then:
 
   ```python
   from nidan.api.auth import current_reviewer, current_admin, require_reviewer
@@ -108,9 +109,10 @@ project's files, and switching to it would look like the whole repo vanished.
   Done when `nidan/web/admin/reviews/` can list the three tabs, assign, record a
   review and publish.
 
-- [ ] **Y-3** (2026-10-28, from Vraj) · **The briefs are merged — stop using the
-  Downloads copies.** PR #25, `docs/process/phase-2-briefs/`. Read them with
-  `git pull` from now on. Two changes worth knowing: the T-020 and T-021 briefs
+- [ ] **Y-3** (2026-10-28, from Vraj) · **Stop using the Downloads copies of the
+  briefs.** PR #25 brings them up to date in `docs/process/phase-2-briefs/`;
+  checks are green and it is awaiting merge. Read them with `git pull` from
+  then on. Two changes worth knowing: the T-020 and T-021 briefs
   are **deleted** (both tasks are merged, and a finished brief is just another
   document that can be picked up by mistake — what was built is in the build
   logs), and `00_START_HERE.md` now opens on T-022 instead of on recovering a
@@ -204,9 +206,9 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
   enforced at the write, not only in the form. 628 tests, 235 against real
   Postgres; both guards probed. Branch `feat/clinical-review-backend`, PR #26.
 
-- **2026-10-28** · **V-4** · Phase 2 briefs merged and brought up to date —
-  T-020 and T-021 briefs retired, `00_START_HERE.md` now opens on T-022.
-  PR #25. Yogesh told in Y-3.
+- **2026-10-28** · **V-4** · Phase 2 briefs brought up to date and raised as
+  PR #25 — T-020 and T-021 briefs retired, `00_START_HERE.md` now opens on
+  T-022. All 8 checks green; **awaiting merge**. Yogesh told in Y-3.
 
 - **2026-10-28** · **V-5** · Local `/admin` sign-in steps written up in Notes
   above; the two `.env` values sent privately. Yogesh told in Y-4.
