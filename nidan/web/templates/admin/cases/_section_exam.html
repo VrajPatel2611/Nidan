@@ -14,7 +14,7 @@
         <div style="font-size: 12px; font-weight: 600; color: #38bdf8; margin-bottom: 4px;">
           {{ exam.label }} (<code>{{ exam.key }}</code>) &nbsp;<span style="color: #64748b; font-weight: 400;">{{ exam.category }}</span>
         </div>
-        <input type="text" name="exam_{{ exam.key }}" value="{{ exam_data.get(exam.key, '') }}" placeholder="Normal (or write abnormal finding)" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px;">
+        <input type="text" name="exam_{{ exam.key }}" value="{{ exam_data.get(exam.key, {}).get('finding', '') }}" placeholder="Normal (or write abnormal finding)" style="width: 100%; background: #1e293b; border: 1px solid #334155; color: #fff; padding: 6px; border-radius: 4px; font-size: 13px;">
       </div>
     {% endfor %}
   </div>

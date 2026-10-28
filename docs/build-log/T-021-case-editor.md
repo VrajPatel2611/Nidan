@@ -71,3 +71,42 @@ pytest -m "not slow" -q               # 583 passed
 python validate_detectors.py         # PASS: detector accuracy 94.4% >= 94%
 pytest tests/test_case_invariants.py # 40 passed
 ```
+
+---
+
+## 6 · Fix — 28 October 2026: the form lost content on save
+
+Branch `fix/case-editor-form-content`. Found while building T-022.
+
+**What was wrong.** `_parse_form_content` rebuilt the whole content dict from
+the form fields, so anything the form does not render was replaced or dropped on
+the first save:
+
+| Field | What happened |
+|---|---|
+| `examination`, `investigations` | set to `{}` — every finding and result gone, C-7 then failed |
+| `alternative_topics` | saved as `alternative_hypothesis_keywords`, which the anchoring detector does not read |
+| `patient.intro` | read and written as `introductory_text` |
+| `anchor_topic` | offered as a dropdown of lexicon keys; stored cases use free text, which the detector quotes, so it was replaced by the first option |
+| exam `key` flags, investigation `reasonable` / `low_value` | no control on the form, so lost |
+
+The examination boxes also displayed the whole stored entry rather than its
+finding text.
+
+**The fix.** The form is merged over the stored content: each field is written
+only when the form posted it, and everything else is kept. Investigations can be
+promoted to `key` and demoted from it; other categories are preserved. A blank
+finding or result removes the entry (blank means normal). `anchor_topic` is a
+text box. The live-validation endpoint now loads the stored version too, so it
+validates what would actually be saved.
+
+**The test.** `tests/test_admin_case_editor_form.py` opens a copy of each seeded
+case in the editor, submits the form as a browser would without touching
+anything, and requires the stored content to be identical — then that editing
+one field changes only that field. It failed on all five cases before the fix.
+
+```bash
+pytest -q                                   # 632 passed, Docker running
+python validate_detectors.py                # PASS: 94.4% >= 94%
+pytest tests/test_case_invariants.py -q     # 46 passed
+```
