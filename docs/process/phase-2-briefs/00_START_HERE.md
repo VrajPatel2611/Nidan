@@ -1,7 +1,8 @@
 # Nidan · Phase 2 — read this first
 
-You own **T-022 and T-023**. Two tasks, ~6 days, both in `nidan/web/admin/`.
-T-020 (admin shell) and T-021 (case editor) are merged and on `main`.
+You own **T-023**, the last task in the phase — 2 days, in `nidan/web/admin/`.
+T-020 (admin shell), T-021 (case editor) and T-022 (playtest) are all merged
+and on `main`.
 
 This file is the **process**: how to start a task, how to push it, and how to
 open a pull request that goes green the first time. The other three files are
@@ -98,7 +99,7 @@ alembic upgrade head
 pytest -q
 ```
 
-That last command must end with `607 passed` or thereabouts. If it does not,
+That last command must end with `653 passed` or thereabouts. If it does not,
 fix the setup **first** — do not start a task on a broken environment, because
 then you cannot tell your failures apart from pre-existing ones.
 
@@ -436,8 +437,8 @@ this strange way" questions have a one-page answer there.
 
 ```
 T-021  Case editor         5 d   ✅ merged 2026-10-28 (PR #22)
-T-022  Playtest            4 d   ← you are here
-T-023  Clinical review     2 d   ← the one that matters most
+T-022  Playtest            4 d   ✅ merged 2026-10-28 (PR #24)
+T-023  Clinical review     2 d   ← you are here, and it is the gate
 ```
 
 In that order — T-023 genuinely depends on T-022, because a reviewer judges a
