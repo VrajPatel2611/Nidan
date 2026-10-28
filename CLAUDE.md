@@ -265,6 +265,24 @@ Neither blocks T-010: the schema does not encode a price, a limit or a region.
 
 ---
 
+## Two laptops — the handoff file
+
+Vraj (backend) and Yogesh (frontend/admin) work on separate laptops with one
+Claude account. Claude on one laptop **cannot see the other's chats or memory**,
+so work crosses between them through `HANDOFF.md` on the `handoff` branch — a
+branch with no shared history with `main`: no pull request, no CI.
+
+- **At the start of every session**, before task work:
+  `git fetch origin handoff && git show origin/handoff:HANDOFF.md`
+  Tell the person what is open in their inbox, and whether it blocks the task.
+- **When something turns up that the other person must do**, add it to their
+  inbox and push. Edit through a worktree (`git worktree add ../nidan-handoff
+  handoff`), never by checking out `handoff` in this folder — it has none of the
+  project's files.
+- The rules for writing items are at the top of `HANDOFF.md`. **No secrets** in it.
+
+---
+
 ## Context for working with me
 
 - The research is **complete and published** — do not redo it.

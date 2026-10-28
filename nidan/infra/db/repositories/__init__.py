@@ -27,10 +27,12 @@ from nidan.infra.db.actor import (
     ServiceActor,
 )
 from nidan.infra.db.repositories.anonymous import anonymous_scope
+from nidan.infra.db.repositories.audit import AuditRepository
 from nidan.infra.db.repositories.base import Repositories, Repository, repo_scope
 
 __all__ = [
     "Actor", "AuthenticatedUser", "AdminUser", "AnonymousVisitor",
     "ServiceActor",
     "repo_scope", "anonymous_scope", "Repositories", "Repository",
+    "AuditRepository",
 ]

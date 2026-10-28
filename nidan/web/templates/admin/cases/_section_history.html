@@ -1,0 +1,21 @@
+<div id="section-history" class="card editor-section">
+  <div class="card-title">History & Required Topics</div>
+  
+  <div style="margin-bottom: 16px;">
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px;">Minimum Questions Required</label>
+    <input type="number" name="minimum_questions" value="{{ content.get('minimum_questions', 7) }}" min="1" max="50" style="width: 120px; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;" required>
+  </div>
+
+  <div>
+    <label style="display: block; font-size: 12px; color: #94a3b8; margin-bottom: 8px;">Required Topics (Select from lexicon)</label>
+    <div style="max-height: 200px; overflow-y: auto; background: #0f172a; border: 1px solid #334155; border-radius: 4px; padding: 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+      {% for topic in master_lists.topics %}
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: #cbd5e1; cursor: pointer;">
+          <input type="checkbox" name="required_topics" value="{{ topic.topic_key }}"
+            {% if topic.topic_key in content.get('required_topics', []) %}checked{% endif %}>
+          <span>{{ topic.display_name }} (<code>{{ topic.topic_key }}</code>)</span>
+        </label>
+      {% endfor %}
+    </div>
+  </div>
+</div>

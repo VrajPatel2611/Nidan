@@ -24,7 +24,7 @@ class ProfileRepository(Repository):
     def get(self) -> Mapping[str, Any] | None:
         """The actor's own profile. Deliberately unfiltered -- see the module docstring."""
         row = self._conn.execute(sa.text("""
-            SELECT id, display_name, professional_role, year_of_training,
+            SELECT id, display_name, professional_role, platform_role, year_of_training,
                    country, timezone, research_pid, subscription_tier,
                    subscription_ends, onboarded_at, consent_research,
                    platform_role

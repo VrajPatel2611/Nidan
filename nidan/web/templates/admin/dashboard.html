@@ -1,0 +1,99 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Dashboard — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Admin Dashboard</h1>
+</div>
+
+<!-- Today Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-value">142</div>
+    <div class="stat-label">sessions today</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">118</div>
+    <div class="stat-label">completed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">$1.84</div>
+    <div class="stat-label">LLM cost</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">0.9%</div>
+    <div class="stat-label">leakage rate</div>
+  </div>
+</div>
+
+<!-- Needs Attention & Content Summary Grid -->
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+  <div class="card">
+    <div class="card-title">Needs Attention</div>
+    <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 14px;">
+      <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
+        <span>· 3 cases awaiting clinical review</span>
+        <a href="/admin/reviews" style="color: #38bdf8; text-decoration: none;">Review queue →</a>
+      </li>
+      <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
+        <span>· 2 leakage flags unreviewed</span>
+        <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
+      </li>
+      <li style="padding: 10px 0; display: flex; justify-content: space-between;">
+        <span>· Feedback fallback rate 6.2% (alert &gt; 5%)</span>
+        <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Content Summary</div>
+    <p style="color: #cbd5e1; font-size: 15px; margin-bottom: 16px;">
+      <strong>10</strong> published cases &nbsp;·&nbsp; <strong>2</strong> drafts &nbsp;·&nbsp; <strong>0</strong> retired
+    </p>
+    <a href="/admin/cases" class="btn-admin">Go to Case bank</a>
+  </div>
+</div>
+
+<!-- Audit Log Activity Feed -->
+<div class="card">
+  <div class="card-title">Recent Audit Log Activity</div>
+  {% if recent_audits %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Action</th>
+          <th>Entity Type</th>
+          <th>Entity ID</th>
+          <th>Reason</th>
+          <th>Timestamp</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in recent_audits %}
+          <tr>
+            <td><code>{{ log.action }}</code></td>
+            <td>{{ log.entity_type }}</td>
+            <td>{{ log.entity_id or '—' }}</td>
+            <td>{{ log.reason or '—' }}</td>
+            <td>{{ log.created_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color: #94a3b8; font-size: 14px; margin: 0;">No audit log records recorded yet.</p>
+  {% endif %}
+
+  <!-- Quick Test Form to write audit log via HTMX/POST -->
+  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #334155;">
+    <form hx-post="/admin/audit-action" hx-target="#audit-status" style="display: flex; gap: 12px; align-items: center;">
+      <input type="text" name="action" value="case_version.published" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+      <input type="text" name="reason" value="clinician approved" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
+      <button type="submit" class="btn-admin" style="padding: 6px 12px; font-size: 13px;">Test Audit Record</button>
+    </form>
+    <div id="audit-status" style="margin-top: 8px; font-size: 13px; color: #38bdf8;"></div>
+  </div>
+</div>
+{% endblock %}

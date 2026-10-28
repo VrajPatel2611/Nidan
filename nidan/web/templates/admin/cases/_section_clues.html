@@ -1,0 +1,45 @@
+<div id="section-clues" class="card editor-section">
+  <div class="card-title">Contradictory Clue Sets</div>
+  <p style="font-size: 13px; color: #94a3b8; margin-bottom: 12px;">
+    Each clue set is a comma-separated list of tags/keywords that point away from the trap. At least 4 clue sets are required for publication (C-6).
+  </p>
+
+  <div id="clue-sets-container" style="display: flex; flex-direction: column; gap: 12px;">
+    {% set clue_sets = content.get('contradictory_clues', []) %}
+    {% for clue in clue_sets %}
+      <div class="clue-set-row" style="display: flex; gap: 8px; align-items: center;">
+        <span style="font-size: 12px; color: #64748b; width: 60px;">Clue {{ loop.index }}:</span>
+        <input type="text" name="clue_sets" value="{{ clue|join(', ') }}" style="flex: 1; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+        <button type="button" onclick="this.parentElement.remove()" style="background: #ef4444; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+      </div>
+    {% else %}
+      {% for i in range(1, 5) %}
+        <div class="clue-set-row" style="display: flex; gap: 8px; align-items: center;">
+          <span style="font-size: 12px; color: #64748b; width: 60px;">Clue {{ i }}:</span>
+          <input type="text" name="clue_sets" value="" style="flex: 1; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+          <button type="button" onclick="this.parentElement.remove()" style="background: #ef4444; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+        </div>
+      {% endfor %}
+    {% endfor %}
+  </div>
+
+  <div style="margin-top: 12px;">
+    <button type="button" onclick="addClueSetRow()" class="btn-admin" style="background: #334155; padding: 6px 12px; font-size: 12px;">+ Add Clue Set</button>
+  </div>
+</div>
+
+<script>
+function addClueSetRow() {
+  const container = document.getElementById("clue-sets-container");
+  const count = container.children.length + 1;
+  const div = document.createElement("div");
+  div.className = "clue-set-row";
+  div.style.cssText = "display: flex; gap: 8px; align-items: center;";
+  div.innerHTML = `
+    <span style="font-size: 12px; color: #64748b; width: 60px;">Clue ${count}:</span>
+    <input type="text" name="clue_sets" value="" style="flex: 1; background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px;">
+    <button type="button" onclick="this.parentElement.remove()" style="background: #ef4444; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer;">✕</button>
+  `;
+  container.appendChild(div);
+}
+</script>

@@ -1,0 +1,58 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Case Bank — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Case Bank</h1>
+  <form action="/admin/cases/new" method="POST" style="display: flex; gap: 8px;">
+    <input type="text" name="slug" placeholder="slug (e.g. chest-pain)" style="background: #1e293b; border: 1px solid #334155; color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 13px;" required>
+    <button type="submit" class="btn-admin">+ New case</button>
+  </form>
+</div>
+
+<div class="card">
+  {% if cases %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Slug</th>
+          <th>Specialty</th>
+          <th>Version</th>
+          <th>Status</th>
+          <th>Min. Questions</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cases %}
+          <tr>
+            <td>
+              <a href="/admin/cases/{{ c.case_id }}/versions/{{ c.id }}" style="color: #38bdf8; text-decoration: none; font-weight: 600;">
+                {{ c.title or c.slug }}
+              </a>
+            </td>
+            <td><code>{{ c.slug }}</code></td>
+            <td>{{ c.specialty or 'General' }}</td>
+            <td>v{{ c.version }}</td>
+            <td>
+              {% if c.status == 'published' %}
+                <span style="color: #4ade80; font-weight: 600;">published</span>
+              {% else %}
+                <span style="color: #fbbf24; font-weight: 600;">{{ c.status }}</span>
+              {% endif %}
+            </td>
+            <td>{{ c.minimum_questions }}</td>
+            <td>
+              <a href="/admin/cases/{{ c.case_id }}/versions/{{ c.id }}" class="btn-admin" style="padding: 4px 10px; font-size: 12px;">Edit</a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p style="color: #94a3b8; font-size: 14px; margin: 0;">No cases in case bank yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

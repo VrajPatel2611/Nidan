@@ -408,16 +408,17 @@ Accept   1. 16 sessions imported with 8 profiles keyed on research_pid
 
 ---
 
-**T-020 · Admin shell and auth**
+**T-020 · Admin shell and auth** — ✅ **DONE** (2026-09-21)
 ```
 Phase    2            Depends  T-014          Est  1 d      Owner  Y
 Files    nidan/web/admin/
 Spec     UX_SPEC §12 · ADR-0006
 Accept   1. Jinja + HTMX shell, admin-only, desktop-only
          2. Every admin action writes to audit_log
+Done     Jinja+HTMX shell in nidan/web/admin/, @require_admin, @require_reviewer, 022_platform_role, AuditRepository
 ```
 
-**T-021 · Case editor** ⭐
+**T-021 · Case editor** ⭐ — ✅ **DONE** (2026-09-30)
 ```
 Phase    2            Depends  T-020,T-011    Est  5 d      Owner  Y
 Files    nidan/web/admin/cases/
@@ -428,6 +429,7 @@ Accept   1. Sectioned form: patient, truth, trap, history, clues, exams, investi
          4. Unsaved-changes guard on navigate away
          5. Token counter on the persona prompt
 Note     C-4 enforcement here is the structural fix for the 14%-sensitivity class of bug.
+Done     Form-based editor in nidan/web/admin/cases/, live C-1...C-7 validation, save blocking on C-4, draft creation from published, OCC
 ```
 
 **T-022 · Playtest with live instrumentation** ⭐

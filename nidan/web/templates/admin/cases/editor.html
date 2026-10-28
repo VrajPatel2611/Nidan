@@ -1,0 +1,92 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Editor: {{ case.title or case.slug }} v{{ case.version }} — Nidan Admin{% endblock %}
+
+{% block content %}
+<!-- Top Header & Banners -->
+<div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <a href="/admin/cases" style="color: #94a3b8; text-decoration: none; font-size: 13px;">← Cases</a>
+    <h1 style="font-size: 24px; font-weight: 700; margin: 4px 0 0 0; color: #f8fafc;">
+      {{ case.title or case.slug }} &nbsp;<span style="font-size: 16px; font-weight: 400; color: #94a3b8;">v{{ case.version }} ({{ case.status }})</span>
+    </h1>
+  </div>
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <button id="save-btn" type="submit" form="case-editor-form" class="btn-admin" {% if not validation.can_save %}disabled style="opacity:0.5; cursor:not-allowed;"{% endif %}>
+      Save Draft
+    </button>
+  </div>
+</div>
+
+<!-- Published Read-Only Warning Banner -->
+{% if case.status == 'published' %}
+  <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #7dd3fc; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+    ℹ Published content is read-only. Saving creates a new draft version.
+  </div>
+{% endif %}
+
+<!-- Concurrent Edit Banner (hidden by default) -->
+<div id="concurrent-edit-banner" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; color: #fcd34d; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+  ⚠ This version was changed by someone else after this form was opened. <a href="javascript:location.reload()" style="color: #fff; font-weight: 700;">[ Reload ]</a>
+</div>
+
+<!-- Main Layout: Editor Grid -->
+<div style="display: grid; grid-template-columns: 180px 1fr 300px; gap: 24px; align-items: start;">
+
+  <!-- Section Navigation Menu -->
+  <div class="card" style="position: sticky; top: 20px; padding: 12px;">
+    <div style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 8px;">Sections</div>
+    <nav style="display: flex; flex-direction: column; gap: 4px; font-size: 13px;">
+      <a href="#section-patient" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Patient</a>
+      <a href="#section-truth" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Truth</a>
+      <a href="#section-trap" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▪ The Trap</a>
+      <a href="#section-history" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ History</a>
+      <a href="#section-clues" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Clues</a>
+      <a href="#section-exam" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Examination</a>
+      <a href="#section-tests" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Tests</a>
+      <a href="#section-persona" style="color: #cbd5e1; text-decoration: none; padding: 6px; border-radius: 4px;">▸ Persona</a>
+    </nav>
+  </div>
+
+  <!-- Form Container -->
+  <form id="case-editor-form" action="/admin/cases/{{ case.case_id }}/versions/{{ case.id }}/save" method="POST"
+        hx-post="/admin/cases/{{ case.case_id }}/versions/{{ case.id }}/validate"
+        hx-trigger="keyup delay:500ms, change delay:200ms"
+        hx-target="#validation-panel"
+        hx-swap="outerHTML">
+    <input type="hidden" name="expected_updated_at" value="{{ updated_at }}">
+    <input type="hidden" name="title" value="{{ content.get('title', case.title or '') }}">
+
+    {% include "admin/cases/_section_patient.html" %}
+    {% include "admin/cases/_section_truth.html" %}
+    {% include "admin/cases/_section_trap.html" %}
+    {% include "admin/cases/_section_history.html" %}
+    {% include "admin/cases/_section_clues.html" %}
+    {% include "admin/cases/_section_exam.html" %}
+    {% include "admin/cases/_section_tests.html" %}
+    {% include "admin/cases/_section_persona.html" %}
+  </form>
+
+  <!-- Validation Sidebar -->
+  <div>
+    {% include "admin/cases/_validation.html" %}
+  </div>
+
+</div>
+
+<!-- Unsaved Changes Guard Script -->
+<script>
+let isDirty = false;
+document.getElementById("case-editor-form").addEventListener("change", function() {
+  isDirty = true;
+});
+window.onbeforeunload = function() {
+  if (isDirty) {
+    return "You have unsaved changes in the case editor.";
+  }
+};
+document.getElementById("case-editor-form").addEventListener("submit", function() {
+  isDirty = false;
+});
+</script>
+{% endblock %}
