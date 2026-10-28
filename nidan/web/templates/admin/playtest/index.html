@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Playtest: {{ meta.title }} v{{ meta.version }} — Nidan Admin{% endblock %}
+
+{% block content %}
+<style>
+  .pt-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+  .pt-panel-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin-bottom: 12px; }
+  .pt-transcript { display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto; padding-right: 4px; margin-bottom: 16px; }
+  .pt-msg { padding: 10px 14px; border-radius: 8px; font-size: 14px; line-height: 1.5; max-width: 85%; white-space: pre-wrap; }
+  .pt-patient { background: #334155; color: #f1f5f9; align-self: flex-start; }
+  .pt-doctor { background: #0369a1; color: #fff; align-self: flex-end; }
+  .pt-result { background: #0f172a; border: 1px solid #334155; color: #cbd5e1; align-self: stretch; max-width: 100%; }
+  .pt-input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px 10px; border-radius: 6px; font-size: 14px; }
+  .pt-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .pt-row .pt-input { flex: 1; min-width: 0; }
+  .btn-quiet { background: transparent; border: 1px solid #475569; color: #cbd5e1; }
+  .btn-quiet:hover { background: #334155; }
+  .pt-error { color: #fca5a5; font-size: 13px; min-height: 18px; margin-top: 4px; }
+  .pt-busy { opacity: 0.6; pointer-events: none; }
+  .pt-section { margin-bottom: 18px; }
+  .pt-section-title { font-size: 13px; font-weight: 600; color: #f8fafc; margin-bottom: 8px; }
+  .pt-counters { display: flex; flex-wrap: wrap; gap: 14px; font-family: ui-monospace, monospace; font-size: 14px; color: #e2e8f0; }
+  .pt-legend { font-size: 11px; color: #64748b; margin-top: 6px; }
+  .pt-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .pt-table td { padding: 6px 8px; border-bottom: 1px solid #334155; }
+  .pt-table td:nth-child(n+2) { font-family: ui-monospace, monospace; width: 56px; }
+  .pt-on { color: #fbbf24; } .pt-off { color: #64748b; }
+  .pt-muted { color: #94a3b8; }
+  .pt-clues { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+  .pt-clue-on { color: #86efac; } .pt-clue-off { color: #94a3b8; }
+  .pt-turn { border-left: 2px solid #334155; padding-left: 10px; margin-bottom: 10px; font-size: 13px; }
+  .pt-turn-q { margin-bottom: 4px; color: #e2e8f0; }
+  .pt-alert { padding: 10px 12px; border-radius: 6px; font-size: 13px; margin-bottom: 10px; line-height: 1.5; }
+  .pt-alert-leak { background: rgba(245, 158, 11, 0.12); border: 1px solid #f59e0b; color: #fcd34d; }
+  .pt-alert-error { background: rgba(239, 68, 68, 0.12); border: 1px solid #ef4444; color: #fca5a5; }
+  .pt-footer { font-size: 11px; margin-top: 8px; }
+  .pt-instrumentation code { color: #7dd3fc; font-size: 12px; }
+</style>
+
+<div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+  <div>
+    <a href="/admin/cases/{{ meta.case_id }}/versions/{{ meta.version_id }}" style="color: #94a3b8; text-decoration: none; font-size: 13px;">← Back to the editor</a>
+    <h1 style="font-size: 24px; font-weight: 700; margin: 4px 0 0 0; color: #f8fafc;">
+      Playtest · {{ meta.title }} &nbsp;<span style="font-size: 16px; font-weight: 400; color: #94a3b8;">v{{ meta.version }} ({{ meta.status }})</span>
+    </h1>
+  </div>
+  <button id="pt-reset" type="button" class="btn-admin btn-quiet">⟲ Reset</button>
+</div>
+
+<div id="pt-root" class="pt-grid"
+     data-base="/admin/cases/{{ meta.case_id }}/versions/{{ meta.version_id }}/playtest">
+
+  <div class="card">
+    <div class="pt-panel-title">Student view</div>
+    <div id="pt-student">
+      {% include "admin/playtest/_student.html" %}
+    </div>
+
+    <form id="pt-ask" class="pt-row" autocomplete="off">
+      <input id="pt-question" class="pt-input" type="text" placeholder="Ask a question…" maxlength="2000">
+      <button class="btn-admin" type="submit">→</button>
+    </form>
+    <div class="pt-row">
+      <select id="pt-exam" class="pt-input">
+        <option value="">Examine…</option>
+        {% for group, items in examinations.items() %}
+          <optgroup label="{{ group }}">
+            {% for key, label in items %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+      <select id="pt-test" class="pt-input">
+        <option value="">Order a test…</option>
+        {% for group, items in investigations.items() %}
+          <optgroup label="{{ group }}">
+            {% for key, label in items %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </optgroup>
+        {% endfor %}
+      </select>
+    </div>
+    <form id="pt-diagnose" class="pt-row" autocomplete="off">
+      <input id="pt-diagnosis" class="pt-input" type="text" placeholder="Diagnosis…" maxlength="2000">
+      <button class="btn-admin" type="submit">Give diagnosis</button>
+    </form>
+    <div id="pt-error" class="pt-error" role="alert"></div>
+  </div>
+
+  <div class="card">
+    <div class="pt-panel-title">Instrumentation</div>
+    <div id="pt-panel">
+      {% include "admin/playtest/_instrumentation.html" %}
+    </div>
+  </div>
+</div>
+
+<script src="/static/admin/playtest.js"></script>
+{% endblock %}

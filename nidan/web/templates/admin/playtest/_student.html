@@ -1,0 +1,20 @@
+{# The consultation transcript, as a learner sees it. No assessment state here,
+   ever: no counts, no topics, no hints (CLAUDE.md, PRD P2). #}
+<div id="pt-transcript" class="pt-transcript">
+  <div class="pt-msg pt-patient">
+    {{ (case.patient or {}).get('opening_line') or case.get('opening_line') or "Hello, doctor." }}
+  </div>
+  {% for e in events %}
+    {% if e.type == "question" %}
+      <div class="pt-msg pt-doctor">{{ e.payload.text }}</div>
+    {% elif e.type == "patient_reply" %}
+      <div class="pt-msg pt-patient">{{ e.payload.text }}</div>
+    {% elif e.type == "examination" %}
+      <div class="pt-msg pt-result"><strong>{{ e.payload.label }}</strong><br>{{ e.payload.finding }}</div>
+    {% elif e.type == "investigation" %}
+      <div class="pt-msg pt-result"><strong>{{ e.payload.label }}</strong><br>{{ e.payload.result }}</div>
+    {% elif e.type == "diagnosis" %}
+      <div class="pt-msg pt-doctor"><strong>Diagnosis:</strong> {{ e.payload.text }}</div>
+    {% endif %}
+  {% endfor %}
+</div>
