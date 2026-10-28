@@ -23,6 +23,7 @@ from nidan.infra.db.actor import (
     AdminUser,
     AnonymousVisitor,
     AuthenticatedUser,
+    ReviewerUser,
     ServiceActor,
 )
 from nidan.infra.db.repositories import repo_scope
@@ -32,9 +33,11 @@ from nidan.infra.db.repositories.base import assume
 def test_each_actor_maps_to_its_role() -> None:
     assert AuthenticatedUser(uuid.uuid4()).db_role == "nidan_app"
     assert AdminUser(uuid.uuid4()).db_role == "nidan_admin"
+    assert ReviewerUser(uuid.uuid4()).db_role == "nidan_reviewer"
     assert AnonymousVisitor("v1").db_role == "nidan_service"
     assert ServiceActor("the nightly session expiry sweep").db_role == "nidan_service"
-    assert ALLOWED_ROLES == {"nidan_app", "nidan_service", "nidan_admin"}
+    assert ALLOWED_ROLES == {"nidan_app", "nidan_service", "nidan_admin",
+                             "nidan_reviewer"}
 
 
 def test_an_admin_is_an_authenticated_user() -> None:

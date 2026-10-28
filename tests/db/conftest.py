@@ -35,7 +35,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 # engine_versions) was never here for the same reason.
 _DATA_TABLES = (
     "session_events", "session_results", "feedback_texts", "sessions",
-    "clinical_reviews",
+    "clinical_reviews", "review_assignments",
     "subscriptions", "user_case_history", "user_progress",
     "llm_calls", "leakage_flags", "idempotency_keys", "audit_log",
 )

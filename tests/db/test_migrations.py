@@ -19,7 +19,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 EXPECTED_TABLES = {
     "profiles", "subscriptions", "user_progress", "user_case_history",
-    "cases", "case_versions", "clinical_reviews",
+    "cases", "case_versions", "clinical_reviews", "review_assignments",
     "examinations", "investigations", "topic_lexicon", "topic_phrases",
     "sessions", "session_events", "session_results", "engine_versions",
     "feedback_texts",

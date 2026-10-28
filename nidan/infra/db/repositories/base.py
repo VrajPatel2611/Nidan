@@ -133,6 +133,7 @@ class Repositories:
             EngineVersionRepository,
             ResultRepository,
         )
+        from nidan.infra.db.repositories.reviews import ReviewRepository
         from nidan.infra.db.repositories.selection import SelectionRepository
         from nidan.infra.db.repositories.sessions import SessionRepository
 
@@ -147,6 +148,7 @@ class Repositories:
         self.selection = SelectionRepository(conn, actor)
         self.audit = AuditRepository(conn, actor)
         self.cases = CaseRepository(conn, actor)
+        self.reviews = ReviewRepository(conn, actor)
         self.audit = AuditRepository(conn, actor)
 
 
