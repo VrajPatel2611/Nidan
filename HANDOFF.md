@@ -110,13 +110,13 @@ project's files, and switching to it would look like the whole repo vanished.
   review and publish.
 
 - [ ] **Y-3** (2026-10-28, from Vraj) · **Stop using the Downloads copies of the
-  briefs.** PR #25 brings them up to date in `docs/process/phase-2-briefs/`;
-  checks are green and it is awaiting merge. Read them with `git pull` from
-  then on. Two changes worth knowing: the T-020 and T-021 briefs
-  are **deleted** (both tasks are merged, and a finished brief is just another
-  document that can be picked up by mistake — what was built is in the build
-  logs), and `00_START_HERE.md` now opens on T-022 instead of on recovering a
-  pull request that merged a month ago.
+  briefs.** Merged — PR #25, `docs/process/phase-2-briefs/`. `git pull` and read
+  them there from now on.
+
+  Only two files are left: `00_START_HERE.md` and `03_T-023_clinical_review.md`.
+  The T-020, T-021 and T-022 briefs are **deleted** now those tasks are merged —
+  a finished brief is one more document that can be picked up by mistake, which
+  is exactly what went wrong on T-020. What was built is in the build logs.
 
 - [ ] **Y-4** (2026-10-28, from Vraj) · **Signing in to `/admin` locally — V-5
   answered.** Steps below in the Notes section. The two `.env` values are
@@ -199,6 +199,12 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 
 ## Done
 
+- **2026-10-28** · **T-022 playtest merged** (PR #24) and a T-021 form fix
+  (PR #27). Phase 2 is 3 of 4 tasks done; **T-023 is all that remains**, and it
+  is the gate — approving a case is what lets the two clinicians start and the
+  five remaining cases be written. `STATUS.md` regenerated: 19 of 34 tasks,
+  36 d of 83.
+
 - **2026-10-28** · **V-1, V-2, V-3** · T-023 backend built: `nidan_reviewer`
   role and `ReviewerUser` actor (reads drafts, inserts reviews, writes no
   content), `review_assignments` table, `ReviewRepository`, and
@@ -206,9 +212,10 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
   enforced at the write, not only in the form. 628 tests, 235 against real
   Postgres; both guards probed. Branch `feat/clinical-review-backend`, PR #26.
 
-- **2026-10-28** · **V-4** · Phase 2 briefs brought up to date and raised as
-  PR #25 — T-020 and T-021 briefs retired, `00_START_HERE.md` now opens on
-  T-022. All 8 checks green; **awaiting merge**. Yogesh told in Y-3.
+- **2026-10-28** · **V-4** · Phase 2 briefs brought up to date and **merged**
+  (PR #25). T-020, T-021 and T-022 briefs retired as those tasks landed;
+  `00_START_HERE.md` and the README now point at T-023 alone. Yogesh told in
+  Y-3.
 
 - **2026-10-28** · **V-5** · Local `/admin` sign-in steps written up in Notes
   above; the two `.env` values sent privately. Yogesh told in Y-4.
