@@ -36,7 +36,12 @@ from nidan.infra.auth.tokens import (
     TokenMissing,
     verify,
 )
-from nidan.infra.db.repositories import AdminUser, AuthenticatedUser, repo_scope
+from nidan.infra.db.repositories import (
+    AdminUser,
+    AuthenticatedUser,
+    ReviewerUser,
+    repo_scope,
+)
 
 # Where the Supabase SDK puts the access token when the client stores it in a
 # cookie (SECURITY_SPEC L2). Checked after the header, so a request may always
@@ -252,6 +257,28 @@ def current_admin() -> AdminUser:
             "@require_admin, and without it nothing has verified the privilege "
             "this scope is about to run with")
     return AdminUser(current_user_id())
+
+
+def current_reviewer() -> ReviewerUser:
+    """
+    The actor for the review queue. `@require_reviewer` only.
+
+    `ReviewerUser` runs as `nidan_reviewer`, which migration 024 gives SELECT on
+    draft `case_versions` and INSERT on `clinical_reviews` -- the two things
+    `nidan_app` cannot do and which a review consists of.
+
+    **An administrator gets one of these too, not an `AdminUser`.** Both roles
+    reach this screen (`REVIEWER_ROLES`), but reviewing is reviewing whoever is
+    doing it, and the smaller privilege is the right one to hold while doing it.
+    An admin who then wants to publish calls `current_admin()` on that route.
+    """
+    role = getattr(g, "platform_role", None)
+    if role not in REVIEWER_ROLES:
+        raise RuntimeError(
+            "current_reviewer() outside a reviewer route — the handler is "
+            "missing @require_reviewer, and without it nothing has verified "
+            "the privilege this scope is about to run with")
+    return ReviewerUser(current_user_id())
 
 
 def require_admin(view: Callable) -> Callable:

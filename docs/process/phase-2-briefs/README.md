@@ -14,13 +14,11 @@ folder.
 | File | Read when |
 |---|---|
 | `00_START_HERE.md` | before touching anything — setup, git workflow, file ownership |
-| `02_T-022_playtest.md` | 4 d · playtest with live instrumentation |
 | `03_T-023_clinical_review.md` | 2 d · clinical review — the gate for the whole project |
 
-Strictly in that order; T-023 genuinely depends on T-022.
-
-**Already done, briefs retired:** T-020 (admin shell, merged 2026-09-30, PR #19)
-and T-021 (case editor, merged 2026-10-28, PR #22). Their briefs were removed
+**Already done, briefs retired:** T-020 (admin shell, merged 2026-09-30, PR #19),
+T-021 (case editor, merged 2026-10-28, PR #22) and T-022 (playtest, merged
+2026-10-28, PR #24). Their briefs were removed
 rather than left lying about — a finished brief is just one more document that
 can be picked up by mistake. What was built is recorded in
 `docs/build-log/T-020-admin-shell.md` and the T-021 build log.

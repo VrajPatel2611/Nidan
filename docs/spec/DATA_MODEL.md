@@ -503,7 +503,30 @@ CREATE INDEX ON clinical_reviews (case_version_id, reviewed_at DESC);
 CREATE INDEX ON clinical_reviews (reviewer_id, reviewed_at DESC);
 ```
 
-Reviews are **append-only in practice** — a reviewer changing their mind adds a new row. The trigger above checks for *any* approving review, so the review history is preserved.
+Reviews are **append-only in practice** — a reviewer changing their mind adds a new row. The trigger above checks for *any* approving review, so the review history is preserved. Migration 024 grants `nidan_reviewer` INSERT and no UPDATE or DELETE, so "in practice" is now "in the permission layer".
+
+### `review_assignments` (migration 024)
+
+```sql
+CREATE TABLE review_assignments (
+    case_version_id UUID NOT NULL REFERENCES case_versions(id) ON DELETE CASCADE,
+    reviewer_id     UUID NOT NULL REFERENCES profiles(id),
+    assigned_by     UUID NOT NULL REFERENCES profiles(id),
+    assigned_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (case_version_id, reviewer_id)
+);
+
+CREATE INDEX review_assignments_for_reviewer
+    ON review_assignments (reviewer_id, assigned_at DESC);
+```
+
+`BUILD_PLAN` T-023 criterion 1 is "assign a version to a reviewer", and nothing recorded that until this table existed.
+
+**A table rather than a column on `case_versions`.** A column holds one reviewer; `PRD` FR-12.4 has two clinicians, and `UX_SPEC` §12.6 shows both an "Assigned to me" and an "All pending" tab, which only mean different things when a version can sit with more than one of them. The composite primary key makes assigning twice an idempotent no-op rather than a duplicate row that makes the queue count wrong, and it keeps an editorial-workflow fact out of the row that holds clinical content.
+
+`assigned_by` and `assigned_at` are there for the question actually asked when a review has been outstanding for a week.
+
+**No RLS.** The table is a worklist — a pair of ids saying who should look at which draft — and holds no personal data. Enabling it would demand a policy per role for no gain; the tables it references are the protected ones.
 
 ## 5.3 `examinations` and `investigations`
 
@@ -1194,6 +1217,11 @@ CREATE POLICY read_published_cases ON case_versions
 CREATE POLICY admin_manages_case_versions ON case_versions
   FOR ALL TO nidan_admin
   USING (true) WITH CHECK (true);
+
+-- The reviewer (T-023). SELECT only: a reviewer who could edit the case they
+-- are judging is not performing a review.
+CREATE POLICY reviewer_reads_case_versions ON case_versions
+  FOR SELECT TO nidan_reviewer USING (true);
 ```
 
 **`case_versions` carried exactly one policy until T-021, and it was a `SELECT`
@@ -1213,8 +1241,25 @@ cannot repeat it quietly.
 
 **Anonymous trial sessions bypass RLS by necessity** — there is no `auth.uid()`. They are served through a service-role connection with an explicit `anonymous_id` filter in the query, and that code path is short, isolated, and separately tested.
 
-**The admin console does not bypass it.** `nidan_admin` is `NOBYPASSRLS`, like
-`nidan_app` and unlike `nidan_service`. A bypassing role would have been shorter
+**Three application roles, three privileges, all `NOBYPASSRLS`.**
+
+| Role | Draft `case_versions` | `clinical_reviews` | `cases` |
+|---|---|---|---|
+| `nidan_app` | invisible | — | SELECT |
+| `nidan_reviewer` | SELECT | INSERT | SELECT |
+| `nidan_admin` | SELECT + UPDATE | INSERT | INSERT + UPDATE |
+
+`nidan_reviewer` (migration 024) exists because `@require_reviewer` let a
+clinician into the console while their requests still ran as `nidan_app`, which
+can see neither a draft nor insert a review — the two things a review consists
+of. Reusing `nidan_admin` would have been shorter and would have let the two
+clinicians edit the cases they were judging, which `UX_SPEC` §12.6 forbids and
+which is the point of a review. It is granted SELECT on a **named list** of ten
+tables rather than on the whole schema: a reviewer's job has no reason to reach
+`audit_log`, `llm_calls` or anyone's billing.
+
+**The admin console does not bypass RLS either.** `nidan_admin` is
+`NOBYPASSRLS`, like `nidan_app` and unlike `nidan_service`. A bypassing role would have been shorter
 to write and would have switched the safety net off for every statement an
 administrator's request makes, including the ones touching `profiles` and
 `sessions` that have nothing to do with authoring. The policy above opens one

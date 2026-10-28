@@ -295,6 +295,53 @@ class CaseRepository(Repository):
                 f"after this form was opened; reload before saving")
         return new_updated_at
 
+    def publish(self, case_version_id: UUID) -> None:
+        """
+        Make a version live (BUILD_PLAN T-023, criterion 5).
+
+        **The gate is the database, not this method.** Migration 007's
+        `enforce_clinical_approval` trigger refuses the UPDATE when no approving
+        row exists in `clinical_reviews`, and it holds against a script, a
+        migration or a mistake here. What this adds is a readable failure: the
+        console should be able to say "this case has no approving review yet"
+        rather than surface a PL/pgSQL exception.
+
+        Checking with `db.reviews.has_approval()` first is still worth doing --
+        it is how the console greys the button out -- but it is advice, and this
+        is the instruction that is actually enforced.
+        """
+        self._require_admin("publishing a version")
+
+        status = self._conn.execute(sa.text(
+            "SELECT status FROM case_versions WHERE id = :id"),
+            {"id": case_version_id}).scalar()
+        if status is None:
+            raise ValueError(f"no such case version: {case_version_id}")
+        if status == "published":
+            return                      # idempotent: already where it is going
+        if status != "draft":
+            raise ValueError(
+                f"cannot publish a version that is {status}")
+
+        try:
+            self._conn.execute(sa.text("""
+                UPDATE case_versions
+                SET status = 'published', published_at = now()
+                WHERE id = :id
+            """), {"id": case_version_id})
+        except sa.exc.IntegrityError as exc:
+            # The partial unique index, not the trigger: a trigger RAISE arrives
+            # as a ProgrammingError.
+            raise AlreadyPublished(
+                "another version of this case is already published; retire it "
+                "first") from exc
+        except sa.exc.ProgrammingError as exc:
+            if "has no approving clinical review" not in str(exc):
+                raise
+            raise PublicationBlocked(
+                f"case version {case_version_id} has no approving clinical "
+                f"review, so it cannot be published") from exc
+
     def _reject_c4(self, content: Mapping[str, Any]) -> None:
         """
         C-4, enforced where the write happens and not only in the form.
@@ -340,6 +387,29 @@ class ConcurrentEdit(RuntimeError):
 
 class ContentInvariantViolation(ValueError):
     """A case that would be wrong to store. Carries the offending terms."""
+
+
+class PublicationBlocked(RuntimeError):
+    """
+    This version has no approving clinical review (`PRD` FR-12.5).
+
+    Raised when migration 007's `enforce_clinical_approval` trigger refuses the
+    UPDATE. A distinct type because the console answers it with a 409 and a
+    sentence a clinician can act on, and because telling it apart from the
+    unique-violation below by matching on Postgres message text is how the
+    wrong message eventually reaches the wrong screen.
+    """
+
+
+class AlreadyPublished(RuntimeError):
+    """
+    Another version of this case is already published.
+
+    `one_published_version_per_case` (migration 006) is a partial unique index,
+    so publishing v3 while v2 is live is refused at the database. Retiring or
+    republishing v2 first is a decision, not something to do silently on the
+    author's behalf.
+    """
 
 
 def canonical_hash(content: Mapping[str, Any]) -> str:

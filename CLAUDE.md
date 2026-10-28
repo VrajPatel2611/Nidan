@@ -41,8 +41,8 @@ read only those sections.
 | What was done on a finished task | `docs/build-log/T-xxx-*.md` |
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
-| **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — self-contained briefs for T-021 … T-023 |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 23 migrations |
+| **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 24 migrations |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 
 `docs/design/` holds **superseded** v1/v2 design docs. Historical only — do not
@@ -108,13 +108,16 @@ them is the same leak in a quieter form. (`UX_SPEC` §12.1 ·
 the transaction. A connection obtained any other way runs with RLS exempt, and
 nothing about it looks wrong. (`ADR-0016` · `tests/test_db_access.py`)
 
-**The actor decides the privilege, and the route decides the actor.** Four of
+**The actor decides the privilege, and the route decides the actor.** Five of
 them: `AuthenticatedUser` (`nidan_app`), `AdminUser` (`nidan_admin` — the only
-role that may write `cases` and `case_versions`), `AnonymousVisitor` and
-`ServiceActor` (`nidan_service`, RLS bypassed). An admin route that writes
-content opens its scope with `current_admin()`; one that only reads uses
-`current_actor()` like everyone else, so browsing never carries the privilege to
-author. (`migrations/023` · `tests/db/test_case_authoring.py`)
+role that may write `cases` and `case_versions`), `ReviewerUser`
+(`nidan_reviewer` — reads drafts, inserts `clinical_reviews`, writes no
+content), `AnonymousVisitor` and `ServiceActor` (`nidan_service`, RLS bypassed).
+Routes pick with `current_actor()`, `current_admin()` and `current_reviewer()`
+— per route, not per person, so browsing never carries the privilege to author
+and an admin reviewing a case holds the reviewer's smaller role.
+(`migrations/023`, `024` · `tests/db/test_case_authoring.py`,
+`tests/db/test_clinical_review.py`)
 
 **Backfilled events are marked and must be excluded from timing analysis.**
 The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
@@ -161,6 +164,7 @@ nidan/
       selection.py          candidates, allowance count, case history
       audit.py              every admin action, append-only
       cases.py              reads for learners; authoring writes need AdminUser
+      reviews.py            review assignments and the rubric; T-023
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF
@@ -177,7 +181,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    23 hand-written Alembic migrations ← the schema's source of truth
+migrations/versions/    24 hand-written Alembic migrations ← the schema's source of truth
 docs/build-log/         what was actually built, one doc per finished task
 docs/spec/              the build contract — 6 docs + adr/  ← the source of truth
 docs/design/            superseded design docs (historical)
@@ -201,7 +205,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 590 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 653 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -215,9 +219,9 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 23 migrations
+alembic upgrade head               # apply all 24 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 213 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 235 schema, repository and route tests, real Postgres
 ```
 
 ---

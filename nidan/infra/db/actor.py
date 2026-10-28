@@ -1,7 +1,7 @@
 """
 Who is asking (BUILD_PLAN T-012, criterion 1).
 
-Every database transaction in Nidan is opened on behalf of exactly one of four
+Every database transaction in Nidan is opened on behalf of exactly one of five
 actors, and the actor decides two things before a single statement runs: which
 Postgres role the transaction assumes, and whether `auth.uid()` returns
 anything. Get those wrong and Row-Level Security is either silently off or
@@ -28,7 +28,9 @@ from uuid import UUID
 APP_ROLE: Final = "nidan_app"
 SERVICE_ROLE: Final = "nidan_service"
 ADMIN_ROLE: Final = "nidan_admin"
-ALLOWED_ROLES: Final = frozenset({APP_ROLE, SERVICE_ROLE, ADMIN_ROLE})
+REVIEWER_ROLE: Final = "nidan_reviewer"
+ALLOWED_ROLES: Final = frozenset(
+    {APP_ROLE, SERVICE_ROLE, ADMIN_ROLE, REVIEWER_ROLE})
 
 
 @dataclass(frozen=True)
@@ -83,6 +85,29 @@ class AdminUser(AuthenticatedUser):
     """
 
     db_role: ClassVar[str] = ADMIN_ROLE
+
+
+@dataclass(frozen=True)
+class ReviewerUser(AuthenticatedUser):
+    """
+    A clinician assessing a case version (T-023).
+
+    Runs as `nidan_reviewer`, which migration 024 gives SELECT on draft
+    `case_versions` and INSERT on `clinical_reviews` -- the two things a review
+    consists of, and which `nidan_app` can do neither of.
+
+    **Not `AdminUser`, deliberately.** An admin may rewrite clinical content.
+    A reviewer who could edit the case they are judging is not performing a
+    review, and `UX_SPEC` §12.6 keeps the case editor closed to them. The
+    narrower role is what makes that a fact about the database rather than a
+    fact about which link the console happens to render.
+
+    An administrator opening the review queue gets one of these too, not an
+    `AdminUser`. Reviewing is reviewing, whoever is doing it, and the smaller
+    privilege is the right one to be holding while doing it.
+    """
+
+    db_role: ClassVar[str] = REVIEWER_ROLE
 
 
 @dataclass(frozen=True)
@@ -142,4 +167,5 @@ class ServiceActor:
                 "work cannot run as the user -- it is turning RLS off")
 
 
-Actor = AuthenticatedUser | AdminUser | AnonymousVisitor | ServiceActor
+Actor = (AuthenticatedUser | AdminUser | ReviewerUser
+         | AnonymousVisitor | ServiceActor)
