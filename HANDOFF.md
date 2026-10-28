@@ -57,10 +57,11 @@ project's files, and switching to it would look like the whole repo vanished.
   Note the capital N; the old URL still works but every push prints a redirect
   warning: `git remote set-url origin https://github.com/VrajPatel2611/Nidan.git`
 
-- [ ] **Y-2** (2026-10-28, from Vraj) · **T-023 backend is built — V-1, V-2 and
-  V-3 are all cleared.** On branch `feat/clinical-review-backend`, PR #26. Pull
-  `main` once it merges — all 8 checks are green, so it is waiting on a merge,
-  not on a fix. Then:
+- [ ] **Y-2** (2026-10-28, from Vraj) · **T-023 backend is built and MERGED —
+  V-1, V-2 and V-3 are all cleared, and nothing is blocking you.** PR #26 went
+  into `main` as `6680642`. **`git pull` and it is there.** Verified on the
+  merged result: 654 tests pass (235 against real Postgres), ruff, mypy,
+  import-linter and the detector check all green. Then:
 
   ```python
   from nidan.api.auth import current_reviewer, current_admin, require_reviewer
@@ -108,6 +109,11 @@ project's files, and switching to it would look like the whole repo vanished.
 
   Done when `nidan/web/admin/reviews/` can list the three tabs, assign, record a
   review and publish.
+
+  **One migration to apply before the app will run:** `alembic upgrade head`
+  takes your local database from 023 to 024. Without it every review route
+  fails on a missing `review_assignments` table and a missing `nidan_reviewer`
+  role, which will not look like a migration problem.
 
 - [ ] **Y-3** (2026-10-28, from Vraj) · **Stop using the Downloads copies of the
   briefs.** Merged — PR #25, `docs/process/phase-2-briefs/`. `git pull` and read
@@ -209,8 +215,9 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
   role and `ReviewerUser` actor (reads drafts, inserts reviews, writes no
   content), `review_assignments` table, `ReviewRepository`, and
   `CaseRepository.publish()` with typed exceptions. Migration 024. Rubric floor
-  enforced at the write, not only in the form. 628 tests, 235 against real
-  Postgres; both guards probed. Branch `feat/clinical-review-backend`, PR #26.
+  enforced at the write, not only in the form. Both guards probed. **Merged
+  2026-10-28, PR #26, `6680642`** — 654 tests pass on the merged result, 235 of
+  them against real Postgres.
 
 - **2026-10-28** · **V-4** · Phase 2 briefs brought up to date and **merged**
   (PR #25). T-020, T-021 and T-022 briefs retired as those tasks landed;
