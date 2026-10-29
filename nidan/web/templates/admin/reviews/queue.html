@@ -1,0 +1,91 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Clinical Review Queue — Nidan Admin{% endblock %}
+
+{% block content %}
+<style>
+  .rq-tabs { display: flex; gap: 20px; border-bottom: 1px solid #334155; margin-bottom: 20px; font-size: 14px; }
+  .rq-tabs a { color: #94a3b8; text-decoration: none; padding: 8px 0; border-bottom: 2px solid transparent; }
+  .rq-tabs a.active { color: #f8fafc; border-bottom-color: #38bdf8; font-weight: 600; }
+  .rq-row { background: #0f172a; padding: 14px 16px; border-radius: 6px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 12px; }
+  .rq-title { font-size: 15px; font-weight: 600; color: #f8fafc; }
+  .rq-meta { color: #94a3b8; font-size: 13px; margin-top: 4px; }
+  .rq-empty { color: #64748b; font-size: 14px; padding: 8px 0; }
+  .rq-notice { background: rgba(56, 189, 248, 0.1); border: 1px solid #38bdf8; color: #7dd3fc; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; }
+  .rq-input { background: #0f172a; border: 1px solid #334155; color: #fff; padding: 8px; border-radius: 4px; font-size: 14px; }
+  .rq-scores { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+  .rq-decision-approved { color: #86efac; } .rq-decision-changes_requested { color: #fcd34d; } .rq-decision-rejected { color: #fca5a5; }
+</style>
+
+<div style="margin-bottom: 16px;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Clinical Review Queue</h1>
+</div>
+
+{% if notice %}<div class="rq-notice">{{ notice }}</div>{% endif %}
+
+<nav class="rq-tabs">
+  <a href="?tab=mine" class="{{ 'active' if tab == 'mine' }}">Assigned to me ({{ mine|length }})</a>
+  <a href="?tab=pending" class="{{ 'active' if tab == 'pending' }}">All pending ({{ pending|length }})</a>
+  <a href="?tab=completed" class="{{ 'active' if tab == 'completed' }}">Completed</a>
+</nav>
+
+{% macro queue_row(r, show_reviewers=False) %}
+  <div class="rq-row">
+    <div>
+      <div class="rq-title">{{ r.title or r.slug }} · v{{ r.version }}</div>
+      <div class="rq-meta">
+        {{ r.diagnosis }} · trap: {{ r.trap }}
+        {% if r.ago %}&nbsp;·&nbsp; assigned {{ r.ago }}{% endif %}
+        {% if show_reviewers %}&nbsp;·&nbsp; {{ r.reviewers }} reviewer{{ '' if r.reviewers == 1 else 's' }}, {{ r.reviews_recorded }} review{{ '' if r.reviews_recorded == 1 else 's' }} recorded{% endif %}
+      </div>
+    </div>
+    {% if r.playtest_url %}<a class="btn-admin" href="{{ r.playtest_url }}">Open in Playtest</a>{% endif %}
+  </div>
+{% endmacro %}
+
+{% if tab == 'mine' %}
+  {% for r in mine %}{{ queue_row(r) }}{% else %}
+    <div class="rq-empty">Nothing assigned to you. When a case version is assigned, it appears here.</div>
+  {% endfor %}
+
+{% elif tab == 'pending' %}
+  {% if assign %}
+  <div class="card">
+    <div class="card-title">Assign a draft for review</div>
+    {% if assign.versions and assign.reviewers %}
+    <form method="post" action="/admin/reviews/assign" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <select name="case_version_id" class="rq-input" required>
+        {% for v in assign.versions %}<option value="{{ v.id }}">{{ v.label }}</option>{% endfor %}
+      </select>
+      <select name="reviewer_id" class="rq-input" required>
+        {% for id, name in assign.reviewers %}<option value="{{ id }}">{{ name }}</option>{% endfor %}
+      </select>
+      <button class="btn-admin" type="submit">Assign</button>
+    </form>
+    {% else %}
+      <div class="rq-empty">{% if not assign.versions %}There are no draft versions to assign.{% else %}No account has the reviewer role yet.{% endif %}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% for r in pending %}{{ queue_row(r, show_reviewers=True) }}{% else %}
+    <div class="rq-empty">Nothing is waiting for review.</div>
+  {% endfor %}
+
+{% else %}
+  {% for r in completed %}
+  <div class="rq-row">
+    <div>
+      <div class="rq-title">{{ r.title or r.slug }} · v{{ r.version }}
+        &nbsp;<span class="rq-decision-{{ r.decision }}">{{ r.decision_label }}</span></div>
+      <div class="rq-meta">by {{ r.reviewer }} · {{ r.reviewed_ago }}</div>
+      <div class="rq-scores">{% for label, score in r.scores %}{{ label }} {{ score }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+      {% if r.comments %}<div class="rq-meta" style="white-space: pre-wrap;">“{{ r.comments }}”</div>{% endif %}
+    </div>
+    {% if r.playtest_url %}<a class="btn-admin" href="{{ r.playtest_url }}" style="background: transparent; border: 1px solid #475569; color: #cbd5e1;">Open</a>{% endif %}
+  </div>
+  {% else %}
+    <div class="rq-empty">No reviews recorded yet.</div>
+  {% endfor %}
+{% endif %}
+{% endblock %}

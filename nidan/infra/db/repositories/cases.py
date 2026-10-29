@@ -193,6 +193,34 @@ class CaseRepository(Repository):
             WHERE cv.id = :id
         """), {"id": case_version_id}).mappings().first()
 
+    def for_review(self, case_version_id: UUID) -> Mapping[str, Any] | None:
+        """
+        One version with its full content, whatever its status — **for reading**.
+
+        What a reviewer needs to open a draft in Playtest (T-023 criterion 1).
+        `for_editing` is the same read behind an admin-only check, because its
+        caller goes on to write; a reviewer must not be handed the editor's
+        method to get the editor's data. Migration 024's
+        `reviewer_reads_case_versions` policy is what actually permits the
+        SELECT; this check only makes a wrong scope fail as a sentence.
+
+        Added by Yogesh in T-023 with Vraj to review (handoff V-6).
+        """
+        from nidan.infra.db.actor import AdminUser, ReviewerUser
+
+        if not isinstance(self._actor, AdminUser | ReviewerUser):
+            raise PermissionError(
+                "opening a draft for review needs a ReviewerUser (use "
+                "current_reviewer()) or an AdminUser; this scope was opened as "
+                f"{type(self._actor).__name__}")
+        return self._conn.execute(sa.text("""
+            SELECT cv.id, cv.case_id, cv.version, cv.status, cv.title,
+                   cv.content, cv.published_at, c.slug, c.specialty,
+                   c.created_by
+            FROM case_versions cv JOIN cases c ON c.id = cv.case_id
+            WHERE cv.id = :id
+        """), {"id": case_version_id}).mappings().first()
+
     def create_case(self, *, slug: str, specialty: str | None = None) -> UUID:
         """
         A new case with no versions yet.

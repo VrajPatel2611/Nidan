@@ -87,9 +87,11 @@ def test_a_reviewer_gets_404_on_admin_only_route_but_200_on_reviews(client, auth
     mock_db.profiles.get.return_value = mock_profile
 
     with patch("nidan.api.auth.repo_scope") as mock_scope, \
-         patch("nidan.web.admin.routes.repo_scope") as mock_route_scope:
+         patch("nidan.web.admin.routes.repo_scope") as mock_route_scope, \
+         patch("nidan.web.admin.reviews.routes.repo_scope") as mock_review_scope:
         mock_scope.return_value.__enter__.return_value = mock_db
         mock_route_scope.return_value.__enter__.return_value = mock_db
+        mock_review_scope.return_value.__enter__.return_value = mock_db
 
         res_admin = client.get("/admin", headers={"Authorization": f"Bearer {token}"})
         assert res_admin.status_code == 404
@@ -118,11 +120,15 @@ def test_an_admin_user_can_access_admin_shell(client, authority):
     mock_db = MagicMock()
     mock_db.profiles.get.return_value = mock_profile
     mock_db.audit.recent.return_value = []
+    # The sidebar's review count (T-023): two versions assigned to this admin.
+    mock_db.reviews.assigned_to_me.return_value = [{}, {}]
 
     with patch("nidan.api.auth.repo_scope") as mock_scope, \
-         patch("nidan.web.admin.routes.repo_scope") as mock_route_scope:
+         patch("nidan.web.admin.routes.repo_scope") as mock_route_scope, \
+         patch("nidan.web.admin.reviews.routes.repo_scope") as mock_review_scope:
         mock_scope.return_value.__enter__.return_value = mock_db
         mock_route_scope.return_value.__enter__.return_value = mock_db
+        mock_review_scope.return_value.__enter__.return_value = mock_db
 
         res = client.get("/admin", headers={"Authorization": f"Bearer {token}"})
 
@@ -131,8 +137,8 @@ def test_an_admin_user_can_access_admin_shell(client, authority):
     assert b"Admin Dashboard" in res.data
     assert b"Cases" in res.data
     assert b"Content" in res.data
-    # Plain number in brackets, no red badges
-    assert b"Review <span class=\"sidebar-count\">(3)</span>" in res.data
+    # Plain number in brackets, no red badges — and a real count now, not 3
+    assert b"Review <span class=\"sidebar-count\">(2)</span>" in res.data
 
 
 # ── 5. Audit log recording ───────────────────────────────────────────

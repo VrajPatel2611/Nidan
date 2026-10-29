@@ -103,6 +103,34 @@ class ReviewRepository(Repository):
             WHERE case_version_id = :version AND reviewer_id = :reviewer
         """), {"version": case_version_id, "reviewer": reviewer_id})
 
+    def reviewers(self) -> Sequence[Mapping[str, Any]]:
+        """
+        Everyone who may be assigned a review: id, name and role, nothing else.
+
+        **Needs a `ServiceActor`, because RLS allows nothing narrower.**
+        `profiles` has one policy, `own_profile` (migration 016), and it applies
+        to `nidan_admin` like everyone else -- so an administrator cannot see a
+        reviewer's row to assign them. The alternatives were a new policy (a
+        migration) or this: one bypassing read, returning three columns of
+        privileged accounts and no learner data. The caller's reason string says
+        so at the call site.
+
+        Added by Yogesh in T-023 with Vraj to review (handoff V-6). A policy
+        letting `nidan_admin` read privileged profiles would replace it.
+        """
+        from nidan.infra.db.actor import ServiceActor
+
+        if not isinstance(self._actor, ServiceActor):
+            raise PermissionError(
+                "listing reviewers reads other people's profiles and needs a "
+                f"ServiceActor; this scope was opened as {type(self._actor).__name__}")
+        return self._conn.execute(sa.text("""
+            SELECT id, display_name, platform_role
+            FROM profiles
+            WHERE platform_role IN ('reviewer', 'admin') AND deleted_at IS NULL
+            ORDER BY display_name NULLS LAST, id
+        """)).mappings().all()
+
     # ── The queue (`UX_SPEC` §12.6) ──────────────────────────────────────
 
     def assigned_to_me(self) -> Sequence[Mapping[str, Any]]:

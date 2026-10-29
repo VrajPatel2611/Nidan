@@ -1,0 +1,72 @@
+{# The structured review (UX_SPEC §12.6), shown beside Playtest rather than
+   instead of it: a reviewer who has to leave the case to score it scores it
+   from memory. Rules enforced here are repeated on the server. #}
+<div id="rv-form-card" class="card" data-version="{{ review.version_id }}" data-floor="{{ review.floor }}">
+  <div class="card-title">Clinical review</div>
+
+  {% if review.is_author %}
+    <div class="pt-alert pt-alert-leak">
+      ⚠ You created this case. Reviewing your own case is allowed when there is no one else, but a second reviewer is better.
+    </div>
+  {% endif %}
+
+  {% if review.already_reviewed %}
+    <div class="pt-muted" style="font-size: 13px; margin-bottom: 12px;">
+      You have already recorded a review of this version. A recorded review cannot be changed; the history is below.
+    </div>
+  {% else %}
+  <form id="rv-form" autocomplete="off">
+    <table class="pt-table" style="margin-bottom: 12px;">
+      {% for key, label in review.dimensions %}
+      <tr>
+        <td>{{ label }}</td>
+        <td style="width: auto; white-space: nowrap;">
+          {% for n in range(1, 6) %}
+            <label style="margin-right: 6px; cursor: pointer;">
+              <input type="radio" name="{{ key }}" value="{{ n }}" data-label="{{ label }}"> {{ n }}
+            </label>
+          {% endfor %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+
+    <label class="pt-muted" for="rv-comments" style="font-size: 12px;">Comments</label>
+    <textarea id="rv-comments" class="pt-input" rows="4" style="width: 100%; margin: 4px 0 10px;"
+              placeholder="What should the author change? Required to request changes or reject."></textarea>
+
+    <div id="rv-note" class="pt-muted" style="font-size: 13px; min-height: 18px; margin-bottom: 10px;">Score all four dimensions.</div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <button type="button" class="btn-admin btn-quiet" data-decision="changes_requested">Request changes</button>
+      <button type="button" class="btn-admin btn-quiet" data-decision="rejected">Reject</button>
+      <button type="button" class="btn-admin" data-decision="approved" id="rv-approve" disabled style="opacity: 0.5;">Approve</button>
+    </div>
+    <div id="rv-result" class="pt-error" role="alert"></div>
+  </form>
+  {% endif %}
+
+  {% if review.is_admin %}
+    <div style="border-top: 1px solid #334155; margin-top: 16px; padding-top: 12px; display: flex; align-items: center; gap: 12px;">
+      <button type="button" id="rv-publish" class="btn-admin" {% if not review.has_approval %}disabled style="opacity: 0.5;"{% endif %}>Publish this version</button>
+      <span class="pt-muted" style="font-size: 12px;">
+        {% if review.has_approval %}Approved — publishing makes it available to learners.{% else %}Needs an approving review first.{% endif %}
+      </span>
+    </div>
+    <div id="rv-publish-result" class="pt-error" role="alert"></div>
+  {% endif %}
+
+  {% if review.history %}
+    <div class="pt-section" style="margin-top: 16px;">
+      <div class="pt-section-title">Reviews of this version</div>
+      {% for h in review.history %}
+        <div class="pt-turn">
+          <div class="pt-turn-q"><strong>{{ h.decision }}</strong> · {{ h.reviewer }} · {{ h.ago }}</div>
+          <div class="pt-muted">{% for label, score in h.scores %}{{ label }} {{ score }}{% if not loop.last %} · {% endif %}{% endfor %}</div>
+          {% if h.comments %}<div style="white-space: pre-wrap; margin-top: 4px;">“{{ h.comments }}”</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+<script src="/static/admin/review_form.js"></script>

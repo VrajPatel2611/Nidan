@@ -12,7 +12,6 @@ from nidan.api.auth import (
     current_actor,
     current_admin,
     require_admin,
-    require_reviewer,
 )
 from nidan.infra.db.repositories import repo_scope
 
@@ -36,7 +35,6 @@ def dashboard():
         active_section="dashboard",
         user_email=user_email,
         recent_audits=recent_audits,
-        pending_reviews=3,
         unreviewed_leakage=2,
     )
 
@@ -56,25 +54,10 @@ def case_bank():
         active_section="case_bank",
         user_email=user_email,
         cases=cases,
-        pending_reviews=3,
     )
 
 
-@bp.get("/reviews")
-@require_reviewer
-def review_queue():
-    """Review queue view (A-05). Accessible by admins and reviewers."""
-    with repo_scope(current_actor()) as db:
-        profile = db.profiles.get()
-    user_email = (profile.get("display_name") if profile else None) or "reviewer@nidan.internal"
-
-    return render_template(
-        "admin/reviews.html",
-        active_nav="cases",
-        active_section="review_queue",
-        user_email=user_email,
-        pending_reviews=3,
-    )
+# The review queue (A-05) lives in nidan/web/admin/reviews/ (T-023).
 
 
 @bp.get("/content")
@@ -90,7 +73,6 @@ def clinical_content():
         active_nav="content",
         active_section="content",
         user_email=user_email,
-        pending_reviews=3,
     )
 
 
@@ -107,7 +89,6 @@ def ai_ops():
         active_nav="ops",
         active_section="ops",
         user_email=user_email,
-        pending_reviews=3,
     )
 
 
@@ -124,7 +105,6 @@ def users():
         active_nav="users",
         active_section="users",
         user_email=user_email,
-        pending_reviews=3,
     )
 
 
@@ -141,7 +121,6 @@ def system():
         active_nav="system",
         active_section="system",
         user_email=user_email,
-        pending_reviews=3,
     )
 
 

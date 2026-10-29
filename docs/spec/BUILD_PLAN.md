@@ -447,7 +447,7 @@ Note     This is how a non-programmer sees WHY a detector fired. Highest-value a
 Done     Split view in nidan/web/admin/playtest/; panel is assess() output; event log held client-side, nothing written
 ```
 
-**T-023 · Clinical review workflow** ⭐
+**T-023 · Clinical review workflow** ⭐ — ✅ **DONE** (2026-10-29)
 ```
 Phase    2            Depends  T-022          Est  2 d      Owner  Y
 Files    nidan/web/admin/reviews/
@@ -458,6 +458,7 @@ Accept   1. Assign a version to a reviewer; reviewer opens it in Playtest
          4. Any dimension < 4 cannot be recorded as approved
          5. Publish is blocked without an approving review (409, and the DB trigger holds)
 Note     Completing this unblocks your two clinician reviewers. Pull it as early as possible.
+Done     Queue + assignment + rubric form beside Playtest + publish in nidan/web/admin/reviews/; rubric and gate each enforced twice
 ```
 
 ---
