@@ -1,7 +1,7 @@
 """
 cases.py
 --------
-Defines all 9 clinical case configurations for the virtual patient
+Defines all 10 clinical case configurations for the virtual patient
 simulator. Each case contains the patient persona, Gemini system
 prompt, correct diagnosis, and bias detection configuration.
 
@@ -22,9 +22,11 @@ Case list:
           (two voices: the child and his mother Sunita)
   case_8: Naveen Reddy, 58M — Rectal bleeding — Colorectal cancer vs piles
           (the anchor is TRUE: he has haemorrhoids, and they are not the cause)
+  case_9: Tanvir Ahmed, 26M — Back pain — Axial spondyloarthritis vs strain
+          (diagnosed by a pattern: no single answer gives it away)
   case_10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a simple faint
-          (id 9 is reserved for the case still to be written;
-           the number names the content, not the order it was authored)
+          (ids name the content, not the order the cases were authored:
+           10 was written before 8 and 9)
 """
 
 from nidan.domain.types import Case, CaseSummary
@@ -1008,6 +1010,126 @@ CASES = {
              "fully empty", "still need to go"],
             ["family", "father", "bowel cancer", "relative",
              "anyone in the family"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 9: Tanvir Ahmed, 26M — Back pain — Axial spondyloarthritis vs
+    # mechanical strain. Diagnosed by a PATTERN, not a disclosure: no
+    # single answer gives it away, and four unremarkable ones together
+    # are the ASAS inflammatory back pain criteria.
+    # ──────────────────────────────────────────────────────────────────
+    "case_9": {
+        "id": "case_9",
+        "title": "The Back Pain That Was Better By Lunchtime",
+        "patient_intro": (
+            "A 26-year-old warehouse operative named Tanvir Ahmed attends "
+            "with low back pain he has had for about ten months. He puts it "
+            "down to the lifting at work and has come because his employer "
+            "asked for a note."
+        ),
+        "opening_line": (
+            "My back has been playing up for the best part of a year. It is "
+            "the lifting at work, I think — I shift boxes all day. Work want "
+            "something in writing."
+        ),
+        "system_prompt": (
+            "You are playing Tanvir Ahmed, a 26-year-old warehouse operative "
+            "with 10 months of low back pain. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are relaxed about "
+            "it and assume it is a work strain.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "NOTHING you say is dramatic. No single answer gives the "
+            "diagnosis away. Answer each question plainly and let the "
+            "learner assemble it.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Onset: GRADUAL, over several weeks. You blame a particular "
+            "lift but cannot actually name a day it started. Say so ONLY if "
+            "asked how it began.\n"
+            "- What helps: MOVEMENT. A walk loosens it. What makes it worse: "
+            "SITTING STILL. After a film you can barely straighten up. Share "
+            "ONLY if asked what makes it better or worse.\n"
+            "- Morning stiffness: about NINETY MINUTES every morning before "
+            "you can move properly. Share ONLY if asked about stiffness.\n"
+            "- Night: wakes you at THREE OR FOUR most nights — the second "
+            "half of the night, not when you first go to bed. You get up and "
+            "walk around and it settles. Share ONLY if asked about nights.\n"
+            "- Anti-inflammatories: IBUPROFEN works remarkably well — almost "
+            "gone within a day. It comes back within hours of a dose wearing "
+            "off. Share ONLY if asked what you have tried.\n"
+            "- Buttock pain: ALTERNATES — left for a few weeks, then the "
+            "right. Share ONLY if asked where it is.\n"
+            "- Eye: two years ago you had a PAINFUL RED EYE, saw the eye "
+            "hospital, had drops for a few weeks. Nobody connected it to "
+            "anything. Share ONLY if asked about eyes.\n"
+            "- Heel: the back of your HEEL is tender on and off, worst "
+            "first thing. Share ONLY if asked.\n"
+            "- Bowels: occasionally loose for a week or two at a time, no "
+            "blood. Share ONLY if asked.\n"
+            "- Family: FATHER has psoriasis. An uncle has 'arthritis of the "
+            "spine' and a bent back. Share ONLY if asked about family.\n"
+            "- NOT present: no leg weakness, no numbness, no saddle "
+            "anaesthesia, no bladder or bowel incontinence, no trauma, no "
+            "fever, no weight loss, no night sweats, no cancer history, no "
+            "intravenous drug use.\n\n"
+            "PERSONALITY: Easy-going, slightly bored to be here, wants the "
+            "note and expects to be told to lift more carefully."
+        ),
+        "correct_diagnosis": (
+            "Axial spondyloarthritis (non-radiographic) — inflammatory back "
+            "pain with sacroiliitis on MRI"
+        ),
+        "anchor_topic": "mechanical back pain / work strain",
+        "anchor_keywords": [
+            "mechanical", "muscular", "muscle strain", "strain", "sprain",
+            "pulled", "lifting", "heavy lifting", "manual job", "warehouse",
+            "posture", "sciatica", "slipped disc", "disc", "nerve root",
+            "physiotherapy", "core strength", "bed rest", "mattress",
+            "ergonomic", "lifting technique", "gym injury", "wear and tear",
+            "rest it", "stop lifting", "lighter duties", "back support",
+        ],
+        "alternative_topics": [
+            "ankylosing spondylitis", "axial spondyloarthritis",
+            "spondyloarthritis", "inflammatory back pain", "sacroiliitis",
+            "sacroiliac", "hla b27", "enthesitis", "uveitis", "iritis",
+            "psoriasis", "inflammatory marker", "schober", "rheumatology",
+            "bone marrow oedema", "improves with exercise",
+            "worse with rest", "alternating buttock", "autoimmune",
+            "seronegative",
+        ],
+        "required_topics": [
+            "relieving_factors",
+            "morning_stiffness",
+            "night_pain",
+            "nsaid_response",
+            "extra_articular_features",
+            "onset_timing",
+            "family_history",
+            "duration_pattern",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets. Unusually, NO single clue here
+        # is alarming on its own — a young man with a stiff back who feels
+        # better for moving is unremarkable. Four of them together are the
+        # ASAS inflammatory back pain criteria, which is why this case
+        # rewards breadth rather than a lucky question.
+        "contradictory_clues": [
+            ["better when you move", "better with movement", "worse sitting",
+             "after sitting", "walk it off", "loosen", "worse with rest",
+             "improves with exercise"],
+            ["morning stiffness", "stiff in the morning", "stiffness",
+             "how long does it take", "loosen up"],
+            ["at night", "wakes you", "early hours", "second half of the",
+             "get up and walk", "middle of the night"],
+            ["anti-inflammatory", "anti inflammatory", "ibuprofen",
+             "naproxen", "does it help", "what have you tried"],
+            ["red eye", "sore eye", "uveitis", "iritis", "eye hospital",
+             "psoriasis", "scaly", "heel", "achilles"],
+            ["buttock", "alternating", "one side then the other",
+             "swaps sides", "both sides"],
+            ["gradual", "came on slowly", "insidious", "pin a day",
+             "exactly when", "specific injury"],
         ],
     },
 }
@@ -2486,6 +2608,189 @@ CLINICAL_DATA = {
                 "category": "low_value"},
         },
     },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 9: Axial spondyloarthritis, non-radiographic. Two findings
+    # that only turn up if looked for: a psoriatic plaque in the natal
+    # cleft he has never mentioned, and a modified Schober of 3.2 cm.
+    # The plain X-ray is NORMAL, deliberately — believing it excludes
+    # the diagnosis is the second trap, and the commoner one.
+    # ──────────────────────────────────────────────────────────────────
+    "case_9": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Tanvir Ahmed, a 26-year-old warehouse operative. "
+            "Easy-going, slightly bored to be here, certain this is a work "
+            "strain, mainly after a note for your employer. Low back pain "
+            "for 10 months.\n\n"
+            "NOTHING you say is dramatic and no single answer gives it away. "
+            "Answer plainly and let the learner assemble the picture.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Onset: GRADUAL over several weeks, starting around age 25. "
+            "You blame a heavy lift but cannot name the day — pressed, you "
+            "admit it crept up rather than started.\n"
+            "• Site: low back and BUTTOCKS, ALTERNATING — left for a few "
+            "weeks, then the right. Does not shoot down the leg past the "
+            "knee. No numbness, no weakness, no pins and needles.\n"
+            "• Better with: MOVEMENT, walking, the first hour of a shift. "
+            "Worse with: SITTING STILL, long drives, sitting through a "
+            "film — you can barely straighten afterwards. Rest makes it "
+            "worse, not better.\n"
+            "• Morning stiffness: about 90 MINUTES before you move "
+            "properly. Better by lunchtime most days.\n"
+            "• Night: wakes you at 3-4 am MOST NIGHTS, in the SECOND HALF "
+            "of the night. Getting up and walking about settles it. Not a "
+            "problem falling asleep.\n"
+            "• Anti-inflammatories: IBUPROFEN works remarkably well, almost "
+            "gone within a day of starting it, back within hours of a dose "
+            "wearing off. Paracetamol does nothing.\n"
+            "• Eye: 2 years ago, a PAINFUL RED EYE with light sensitivity. "
+            "Seen at the eye hospital, given drops for a few weeks, "
+            "resolved. Nobody connected it to your back and nor did you.\n"
+            "• Heel: the back of the right HEEL is tender on and off, worst "
+            "on the first steps of the morning.\n"
+            "• Bowels: loose for a week or two at a time, a few times a "
+            "year. No blood, no mucus, no weight loss.\n"
+            "• PMH: nothing else. No psoriasis that YOU know of.\n"
+            "• Family: FATHER has psoriasis on his elbows. An UNCLE has "
+            "'arthritis of the spine' and a stooped back.\n"
+            "• Social: non-smoker. Lifts boxes all day, which is what you "
+            "blame it on. Plays five-a-side, which actually helps.\n"
+            "• NO RED FLAGS: no leg weakness, no saddle numbness, no "
+            "bladder or bowel incontinence, no trauma, no fever, no weight "
+            "loss, no night sweats, no cancer, no steroids, no IV drugs.\n"
+        ),
+        "accepted_diagnoses": [
+            "axial spondyloarthritis", "spondyloarthritis",
+            "ankylosing spondylitis", "non-radiographic axial "
+            "spondyloarthritis", "axial spa", "sacroiliitis",
+            "inflammatory back pain", "seronegative spondyloarthropathy",
+            "spondyloarthropathy", "psoriatic spondyloarthritis",
+        ],
+        "partial_diagnoses": [
+            "inflammatory arthritis", "autoimmune", "rheumatological",
+            "enthesitis", "reactive arthritis", "needs rheumatology",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well, comfortable, moves easily once up. No "
+                           "obvious deformity, posture normal on standing. "
+                           "Nothing here suggests ten months of disease.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 68 · BP 122/74 mmHg · RR 14 · SpO₂ 99% · "
+                           "Temp 36.6°C — afebrile. Unremarkable.",
+                "key": False},
+            "spine": {"label": "Spinal examination",
+                "finding": "Lumbar lordosis preserved. MODIFIED SCHOBER'S "
+                           "TEST 3.2 cm (normal > 5 cm) — REDUCED LUMBAR "
+                           "FLEXION. Lateral flexion reduced bilaterally. "
+                           "Chest expansion 3.8 cm (normal > 5 cm at this "
+                           "age). TENDERNESS over both sacroiliac joints. "
+                           "No midline bony tenderness, no step.",
+                "key": True},
+            "joints": {"label": "Joint examination",
+                "finding": "No peripheral synovitis, no swollen or hot "
+                           "joints, no dactylitis. TENDERNESS AND SLIGHT "
+                           "SWELLING AT THE RIGHT ACHILLES INSERTION — "
+                           "enthesitis. Plantar fascia not tender.",
+                "key": True},
+            "skin": {"label": "Skin examination",
+                "finding": "A SMALL SCALY PLAQUE IN THE NATAL CLEFT and a "
+                           "second behind the right ear. He has never "
+                           "mentioned them and does not consider them "
+                           "anything — they are psoriasis, and they are only "
+                           "found by looking in the places people do not "
+                           "look. Nails: no pitting, no onycholysis.",
+                "key": True},
+            "gait": {"label": "Gait assessment",
+                "finding": "Normal heel-toe gait, no antalgia, no "
+                           "Trendelenburg. Walks comfortably — consistent "
+                           "with pain that improves on moving.",
+                "key": False},
+            "neuro_focal": {"label": "Focal neurological exam",
+                "finding": "Power 5/5 in both legs, reflexes normal and "
+                           "symmetrical, plantars downgoing, sensation "
+                           "intact including perianally. STRAIGHT LEG RAISE "
+                           "NEGATIVE to 80° bilaterally. No radiculopathy, "
+                           "no cauda equina.",
+                "key": True},
+            "eyes_fundoscopy": {"label": "Eye examination",
+                "finding": "Anterior segment QUIET today — no injection, no "
+                           "cells, pupils regular and reactive. Fundi "
+                           "normal. The episode two years ago is in the "
+                           "history, not on the slit lamp now.",
+                "key": False},
+        },
+        "investigations": {
+            "mri_sacroiliac": {"label": "MRI — sacroiliac joints (STIR)",
+                "result": "BONE MARROW OEDEMA in the subchondral bone of "
+                          "both sacroiliac joints, more marked on the left, "
+                          "with early erosion of the iliac cortex. Meets the "
+                          "ASAS definition of a positive MRI for "
+                          "sacroiliitis. THIS IS THE DIAGNOSIS, and it is "
+                          "the only imaging that could have made it.",
+                "category": "key"},
+            "xray_sacroiliac": {"label": "X-ray — pelvis and sacroiliac joints",
+                "result": "NORMAL. Joint spaces preserved, no erosion, no "
+                          "sclerosis, no ankylosis. Reasonable to order — "
+                          "and the result is a trap of its own. Structural "
+                          "change takes years to appear on plain film; this "
+                          "is non-radiographic axial spondyloarthritis, and "
+                          "a normal X-ray excludes nothing.",
+                "category": "key"},
+            "crp": {"label": "C-reactive protein",
+                "result": "22 mg/L (ref < 5) — RAISED. Elevated in only "
+                          "about half of axial spondyloarthritis, so a "
+                          "normal CRP would not have excluded it either.",
+                "category": "key"},
+            "esr": {"label": "Erythrocyte sedimentation rate",
+                "result": "34 mm/hr (ref < 15 in men under 50) — RAISED.",
+                "category": "reasonable"},
+            "hla_b27": {"label": "HLA-B27",
+                "result": "POSITIVE. Supportive, not diagnostic: around 8% "
+                          "of the general population carry it and most never "
+                          "develop anything. It raises the probability; the "
+                          "MRI is what settles it.",
+                "category": "reasonable"},
+            "rf_anti_ccp": {"label": "Rheumatoid factor & anti-CCP",
+                "result": "RF < 10 IU/mL (ref < 14) · anti-CCP < 7 U/mL "
+                          "(ref < 17). BOTH NEGATIVE — which is expected. "
+                          "The spondyloarthritides are seronegative, so "
+                          "these results support the diagnosis rather than "
+                          "arguing against it.",
+                "category": "reasonable"},
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 139 g/L · WCC 8.1 · Platelets 352 ×10⁹/L "
+                          "(ref 150-400) · MCV 86 fL. Essentially normal, "
+                          "platelets at the upper end with the "
+                          "inflammation.",
+                "category": "reasonable"},
+            "ana": {"label": "Antinuclear antibody",
+                "result": "Negative at 1:80. Reasonable to send when "
+                          "screening for connective tissue disease, though "
+                          "it was never going to confirm this one.",
+                "category": "reasonable"},
+            "urate": {"label": "Serum urate",
+                "result": "320 µmol/L (ref 200-430). Normal — gout excluded, "
+                          "and it was never likely in the sacroiliac joints "
+                          "of a 26-year-old.",
+                "category": "low_value"},
+            "vitamin_d": {"label": "Vitamin D (25-OH)",
+                "result": "48 nmol/L (ref > 50 sufficient) — marginally low. "
+                          "Common, worth correcting, and not the cause of "
+                          "ten months of inflammatory back pain.",
+                "category": "low_value"},
+            "bone_dexa": {"label": "DEXA bone densitometry",
+                "result": "Lumbar spine Z-score -0.4, femoral neck -0.2. "
+                          "Normal for age. Relevant years into established "
+                          "disease, not at presentation.",
+                "category": "low_value"},
+            "anca": {"label": "ANCA",
+                "result": "Negative. No indication — there is nothing here "
+                          "suggesting vasculitis.",
+                "category": "low_value"},
+        },
+    },
 }
 
 # Merge the clinical data layer into the base CASES definitions.
@@ -3310,6 +3615,34 @@ MASTER_INVESTIGATIONS = {
             "inflammation. Normal examination."
         ),
     },
+
+    # ── Added 2026-10-29 for case_9, seeded by migration 031 ─────────
+    "hla_b27": {
+        "label": "HLA-B27",
+        "group": "Immunology & Autoantibodies",
+        "normal_result": (
+            "HLA-B27 NEGATIVE. Note that this allele is carried by roughly "
+            "8% of people of northern European descent and far fewer "
+            "elsewhere, so a positive result supports a diagnosis and a "
+            "negative one does not exclude it."
+        ),
+    },
+    "xray_sacroiliac": {
+        "label": "X-ray — pelvis and sacroiliac joints",
+        "group": "Imaging",
+        "normal_result": (
+            "Sacroiliac joints normal, joint spaces preserved, no erosion, "
+            "no sclerosis, no ankylosis. No fracture. Normal plain film."
+        ),
+    },
+    "mri_sacroiliac": {
+        "label": "MRI — sacroiliac joints (STIR sequences)",
+        "group": "Imaging",
+        "normal_result": (
+            "No bone marrow oedema in either sacroiliac joint. No erosion, "
+            "no fatty metaplasia, no ankylosis. Normal study."
+        ),
+    },
 }
 
 
@@ -3628,6 +3961,7 @@ CASE_SLUGS: dict[str, str] = {
     "case_6": "headache-hypertension",
     "case_7": "wheezing-child-asthma",
     "case_8": "rectal-bleeding-colorectal-cancer",
+    "case_9": "back-pain-axial-spondyloarthritis",
     "case_10": "syncope-aortic-stenosis",
 }
 

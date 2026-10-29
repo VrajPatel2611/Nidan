@@ -17,16 +17,17 @@ clinician reviewers are no longer blocked, which matters more than the task
 count suggests: **their turnaround is calendar time that runs in parallel with
 engineering**, so onboarding them is worth more than starting the next task.
 
-**Next: Phase 3 — the API and the web app** (8 tasks, 28 d). T-030 (JSON API,
+**Next: Phase 3 — the API and the web app** (8 tasks, 28 d), with clinical
+review running beside it rather than after it. T-030 (JSON API,
 Vraj) and T-032 (Next.js scaffold, Yogesh) have no dependency on each other and
 can start together. But `BUILD_PLAN` §11.1 still rates **content authoring the
 real critical path**: three cases remain to be written and all ten reviewed,
-and no amount of engineering removes that. Cases 6, 7, 8 and 10 were written on
+and no amount of engineering removes that. Cases 6, 7, 8, 9 and 10 were written on
 29 Oct 2026 — 6 and 7 from designs that had been sitting in
-`docs/cases_design.md` since May. **One remains: case_9, axial spondyloarthritis
-called mechanical back pain.** It needs new topics and new investigation
-keys — there is still no HLA-B27 and no plain X-ray of any kind in the
-master list.
+`docs/cases_design.md` since May. **All ten now exist**, five of them
+written in one day from designs and master-list entries that had been
+waiting since May. What remains is review, and the two clinicians cannot
+start until the console has a URL — see `REVIEWER_ONBOARDING.md`.
 
 ---
 
@@ -53,7 +54,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 30 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 32 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
@@ -154,8 +155,9 @@ and `--down-revision` and refuse to overwrite without `--force`.
 (`DATA_MODEL` §9.1)
 
 **The topic lexicon is full.** Cases 6 and 7 used the last of the 40 topics
-migration 017 seeded; 027 added five for case 10 and 029 four more plus two
-investigations for case 8. **Every remaining case
+migration 017 seeded. 027, 029 and 031 added thirteen more, plus five
+investigations that did not exist (colonoscopy, FIT, HLA-B27 and two imaging
+keys). **Every remaining case
 needs new topics, so each is two migrations, not one** — and T-044, the
 lexicon editor that would make this a screen instead, is Phase 4.
 A topic added to `topics.py` without a migration leaves the database
@@ -171,12 +173,12 @@ fails the build below that. Do not "fix" a detector without re-running it.
 ```
 nidan/
   domain/               pure logic — no Flask, no Groq, no I/O
-    content/cases.py      the 9 clinical cases + master exam/investigation lists
+    content/cases.py      all 10 clinical cases + master exam/investigation lists
     assessment/bias.py    the three detectors  ← the core IP
     assessment/engine.py  assess(events, case, engine) — pure, replayable
     assessment/thresholds.py  the constants, as data (engine_versions)
     assessment/clinical.py  diagnosis and coverage scoring
-    assessment/topics.py    TOPIC_KEYWORDS (49) + extract_topics
+    assessment/topics.py    TOPIC_KEYWORDS (53) + extract_topics
     selection.py          which case, and how much of the month is left
     session.py            session state — create, update, and replay(events)
     events.py             the 8 event types and their payload shapes
@@ -211,8 +213,8 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    30 Alembic migrations ← the schema's source of truth
-                        (017, 019, 026-030 are generated from cases.py
+migrations/versions/    32 Alembic migrations ← the schema's source of truth
+                        (017, 019, 026-032 are generated from cases.py
                          and topics.py; see the rule below)
 docs/build-log/         what was actually built, one doc per finished task
 docs/spec/              the build contract — 6 docs + adr/  ← the source of truth
@@ -251,7 +253,7 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 30 migrations
+alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
 pytest tests/db -q --no-cov        # 241 schema, repository and route tests, real Postgres
 ```
@@ -278,7 +280,7 @@ pytest tests/db -q --no-cov        # 241 schema, repository and route tests, rea
 | | |
 |---|---|
 | Persona | Clinical-phase students and early trainees, years 3–5 |
-| Launch cases | 10 — 9 authored, **1 still to write**, the critical path |
+| Launch cases | 10 — **all 10 authored** (29 Oct 2026). All 10 still need clinical review |
 | Free tier | 3 sessions/month, configured not schema |
 | Price | $8–12/mo, $60–80/yr — exact figure at T-041 |
 | Regional pricing | Yes, at launch |
@@ -329,5 +331,7 @@ branch with no shared history with `main`: no pull request, no CI.
   group**, so no causal claim. Do not overstate it.
 - Two clinician reviewers are available but **blocked until the case editor and
   Playtest exist** (`BUILD_PLAN` T-021 → T-023). That gate matters more than it looks.
-- **Content authoring is the real critical path**, not engineering. One more
-  case must be written, and all ten clinically reviewed, before launch.
+- **Content authoring is done, review is not.** All ten cases exist as
+  drafts. None can be published until a clinician approves it — the gate is
+  a database trigger, not a convention. **Clinical review is now the whole
+  of the critical path**, and it is calendar time, not engineering time.

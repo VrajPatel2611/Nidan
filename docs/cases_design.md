@@ -10,6 +10,7 @@
 ## DOCUMENT PURPOSE
 
 This file is the single source of truth for the clinical cases.
+All ten launch cases are designed and built as of 29 October 2026.
 Every field in this file maps directly to a field in cases.py.
 Never change cases.py without first updating this file.
 The Case Update Log at the bottom tracks every change and why.
@@ -29,13 +30,14 @@ of the list:
   Design CASE 5  The Wheezing Child            -> cases.py case_7
   Design CASE 6  The Faint That Was Not a Faint -> cases.py case_10
   Design CASE 7  The Bleeding That Was Already Explained -> case_8
+  Design CASE 8  The Back Pain That Was Better By Lunchtime -> case_9
 
   (cases.py case_2 is pulmonary embolism and case_5 is diabetic
    ketoacidosis. Neither was designed here; both were written directly
-   into cases.py during the pilot build. cases.py has no case_9
-   yet: that id is reserved for the two cases still to be
-   written, so the number names the content and not the order it was
-   authored.)
+   into cases.py during the pilot build. The ten cases
+   are complete as of 29 October 2026, and the ids name the content
+   rather than the order they were authored: case_10 was written
+   before case_8 and case_9.)
 
 The one piece of hard evidence that these designs were always meant to
 be built: every topic key and every detection keyword listed under
@@ -1673,22 +1675,263 @@ Anchor trap is solid. PASS.
 ---
 ---
 
+## CASE 8 (code `case_9`): The Back Pain That Was Better By Lunchtime
+
+### Status: Designed and IMPLEMENTED 29 Oct 2026 as cases.py `case_9`,
+### slug `back-pain-axial-spondyloarthritis`, seeded as draft by
+### migration 032. The TENTH AND LAST case of the launch set.
+
+---
+
+### Patient Persona
+Name: Tanvir Ahmed
+Age / Gender: 26-year-old male
+Occupation: Warehouse operative
+Presenting complaint: Low back pain for about ten months
+
+Opening line shown to user on chat screen:
+"A 26-year-old warehouse operative named Tanvir Ahmed attends with low
+back pain he has had for about ten months. He puts it down to the
+lifting at work and has come because his employer asked for a note."
+
+---
+
+### Correct Diagnosis
+Axial spondyloarthritis, non-radiographic — inflammatory back pain with
+sacroiliitis on MRI
+
+Average real-world delay from first symptom to this diagnosis is
+measured in years, and the reason is in the presentation: a young man
+in a lifting job with a sore back is the most ordinary thing a
+clinician sees all week.
+
+---
+
+### Anchor Trap
+Young man + manual job + back pain = mechanical strain. Reinforced by
+the patient, who blames a specific lift, and by the setting — he has
+come for a note, not for a diagnosis.
+
+---
+
+### What makes this case different from every other one here
+
+**No single answer gives it away.** Every other case in this document
+turns on a disclosure: the ibuprofen in case 1, the blood pressure in
+case 2, the absence of fever in case 5. Ask the right question and the
+case opens.
+
+Here there is no such question. Each answer is unremarkable on its own:
+
+- it came on gradually — so do plenty of strains
+- it is better for moving — rest is overrated for back pain anyway
+- he is stiff in the morning — so is everyone with a bad back
+- ibuprofen helps — ibuprofen helps most things
+- it wakes him at night — plenty of back pain does
+
+**Four of those together are the ASAS inflammatory back pain
+criteria.** The case is diagnosed by assembling a pattern, which means
+it rewards breadth of history rather than a lucky question — and it is
+the only case in the bank that does.
+
+---
+
+### The second trap: the normal X-ray
+
+Plain films are normal, and they are *supposed* to be. Structural
+change in the sacroiliac joints takes years to appear; this is
+**non-radiographic** axial spondyloarthritis, which is a real
+diagnosis and not an early version of one.
+
+A learner who orders the X-ray, sees "normal", and stops has been
+caught by a second trap that has nothing to do with the first. The
+result text says so explicitly, because the point of the case is
+undermined if the learner never learns why the film was clear.
+
+---
+
+### Anchor Keywords
+mechanical, muscular, muscle strain, strain, sprain, pulled, lifting,
+heavy lifting, manual job, warehouse, posture, sciatica, slipped disc,
+disc, nerve root, physiotherapy, core strength, bed rest, mattress,
+ergonomic, lifting technique, gym injury, wear and tear, rest it,
+stop lifting, lighter duties, back support
+
+---
+
+### Alternative Topics Keywords
+ankylosing spondylitis, axial spondyloarthritis, spondyloarthritis,
+inflammatory back pain, sacroiliitis, sacroiliac, hla b27, enthesitis,
+uveitis, iritis, psoriasis, inflammatory marker, schober, rheumatology,
+bone marrow oedema, improves with exercise, worse with rest,
+alternating buttock, autoimmune, seronegative
+
+---
+
+### Required Topics
+(four were NEW — seeded by migration 031)
+
+1. relieving_factors — existing, reused rather than duplicated. It
+   already asks what makes the pain better or worse, and "better with
+   movement, worse with rest" is the ANSWER to that question, not a
+   different question.
+2. morning_stiffness — and crucially, how long               [NEW]
+3. night_pain — second half of the night, relieved by getting up [NEW]
+4. nsaid_response — dramatic and short-lived                 [NEW]
+5. extra_articular_features — eye, skin, bowel, heel         [NEW]
+6. onset_timing — existing. Gradual, and he cannot name a day.
+7. family_history — existing
+8. duration_pattern — existing
+
+---
+
+### Minimum Questions Before Concluding: 8
+
+---
+
+### Contradictory Clues
+(reveal only when directly asked — note that none is alarming alone)
+
+1. BETTER WITH MOVEMENT, WORSE WITH REST. After sitting through a film
+   he can barely straighten. A walk loosens it. This is the inverse of
+   mechanical back pain.
+
+2. MORNING STIFFNESS OF NINETY MINUTES. Mechanical stiffness lasts
+   minutes. Over 30 minutes is the inflammatory threshold.
+
+3. WAKES AT 3-4 AM, in the SECOND HALF of the night, and getting up to
+   walk settles it. Not difficulty falling asleep.
+
+4. IBUPROFEN WORKS DRAMATICALLY — almost gone within a day, back
+   within hours of a dose wearing off. A near-complete NSAID response
+   is itself a diagnostic feature.
+
+5. ALTERNATING BUTTOCK PAIN — left for weeks, then right. Nerve roots
+   do not alternate.
+
+6. A PAINFUL RED EYE two years ago, treated at the eye hospital with
+   drops. Anterior uveitis. Nobody connected it to his back, including
+   him.
+
+7. ONSET WAS GRADUAL. He blames a lift but cannot name the day;
+   pressed, he admits it crept up over weeks.
+
+8. FATHER has psoriasis; an UNCLE has "arthritis of the spine".
+
+---
+
+### What cannot be asked for
+
+- **Modified Schober's test 3.2 cm** (normal > 5) and chest expansion
+  3.8 cm — objective restriction in a man who looks fine standing.
+- **Achilles enthesitis** on the right.
+- **A small psoriatic plaque in the natal cleft**, and another behind
+  the ear. He has never mentioned them because he does not consider
+  them anything. They are found only by looking where people do not
+  look.
+- **A negative straight leg raise**, which quietly removes the
+  radicular explanation.
+
+---
+
+### Bias Detection Summary for This Case
+
+Anchoring fires if:
+- The learner asks 3+ questions in the strain/lifting/posture
+  vocabulary AND never asks about stiffness, nights, or what helps.
+
+Premature closure fires if:
+- "Mechanical back pain" or "muscular strain" is submitted after fewer
+  than 8 questions, or covering fewer than 5 topics.
+
+Confirmation bias fires if:
+- The learner advises physiotherapy, lifting technique or lighter
+  duties AND never asked about morning stiffness, night pain or the
+  NSAID response.
+
+---
+
+### Patient Voice Notes
+
+Q: "How did it start?"
+A: "I think it was a heavy lift, but honestly I could not tell you
+    which day. It sort of crept up over a few weeks."
+
+Q: "What makes it better or worse?"
+A: "Moving helps. Sitting still is the worst — after a film I can
+    barely straighten up."
+
+Q: "Are you stiff in the mornings?"
+A: "Very. It takes an hour and a half before I can move properly.
+    By lunchtime I am usually all right."
+
+Q: "Does it wake you at night?"
+A: "Three or four in the morning, most nights. I get up and walk
+    about and then it settles."
+
+Q: "What have you tried for it?"
+A: "Ibuprofen. It works really well — almost gone the next day. But
+    when it wears off it comes straight back."
+
+Q: "Have you ever had a problem with your eyes?"
+A: "Two years back I had a red eye, really painful. The eye hospital
+    gave me drops. Nothing since."
+
+Q: "Anyone in the family with joint or skin problems?"
+A: "My dad has psoriasis on his elbows. And an uncle has arthritis in
+    his spine — he is quite bent over now."
+
+---
+
+### Anchor Test — medical student perspective
+
+Imagined first 5 questions:
+1. "Do you lift at work?" — ANCHOR, and the answer is yes
+2. "Did it start after a particular lift?" — ANCHOR, leading, and he
+   will agree unless pressed
+3. "Any numbness or weakness in the legs?" — CORRECT red-flag screen,
+   and all negative, which reassures in the wrong direction
+4. "Have you tried physiotherapy?" — ANCHOR
+5. "How long have you had it?" — NEUTRAL
+
+The red-flag screen is the subtle part. It is good practice, it is
+taught, and every answer is negative — so a learner who does it
+properly comes away MORE confident this is mechanical. The features
+that matter are not red flags; they are the pattern, and nothing
+prompts a learner to ask for it.
+
+Anchor trap is solid. PASS.
+
+---
+---
+
 ## CASE COMPARISON TABLE
 ## Quick reference for verifying coverage and balance
 
-| Field                | Case 1      | Case 2        | Case 3         | Case 4      | Case 5     | Case 6          | Case 7           |
-|----------------------|-------------|---------------|----------------|-------------|------------|-----------------|------------------|
-| cases.py id          | case_1      | case_6        | case_3         | case_4      | case_7     | case_10         | case_8           |
-| Patient              | 48M         | 28F           | 74M            | 35F         | 10M        | 68M             | 58M              |
-| Correct Dx           | GERD        | Hypertension  | UTI/Delirium   | Hypothyroid | Asthma     | Aortic stenosis | Colorectal cancer|
-| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression  | Infection  | Vasovagal faint | Haemorrhoids     |
-| Anchor is…           | wrong       | wrong         | wrong          | wrong       | wrong      | wrong           | **TRUE**         |
-| Min Questions        | 7           | 7             | 8              | 8           | 7          | 8               | 8                |
-| Required Topics      | 8           | 8             | 8              | 8           | 7          | 8               | 8                |
-| Contradictory Clues  | 8           | 8 (6 built)   | 8              | 8           | 8 (7 built)| 6               | 7                |
-| Anchor Keywords      | 28          | 27            | 26             | 26          | 29         | 29              | 26               |
-| Alt Topic Keywords   | 28          | 20            | 24             | 26          | 22         | 21              | 21               |
-| Solved by            | history     | examination   | history        | history     | tests      | examination     | examination      |
+| Field                | Case 1      | Case 2        | Case 3         | Case 4      | Case 5     | Case 6          | Case 7           | Case 8           |
+|----------------------|-------------|---------------|----------------|-------------|------------|-----------------|------------------|------------------|
+| cases.py id          | case_1      | case_6        | case_3         | case_4      | case_7     | case_10         | case_8           | case_9           |
+| Patient              | 48M         | 28F           | 74M            | 35F         | 10M        | 68M             | 58M              | 26M              |
+| Correct Dx           | GERD        | Hypertension  | UTI/Delirium   | Hypothyroid | Asthma     | Aortic stenosis | Colorectal cancer| Axial spondyloarthritis |
+| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression  | Infection  | Vasovagal faint | Haemorrhoids     | Mechanical strain|
+| Anchor is…           | wrong       | wrong         | wrong          | wrong       | wrong      | wrong           | **TRUE**         | wrong            |
+| Min Questions        | 7           | 7             | 8              | 8           | 7          | 8               | 8                | 8                |
+| Required Topics      | 8           | 8             | 8              | 8           | 7          | 8               | 8                | 8                |
+| Contradictory Clues  | 8           | 8 (6 built)   | 8              | 8           | 8 (7 built)| 6               | 7                | 7                |
+| Anchor Keywords      | 28          | 27            | 26             | 26          | 29         | 29              | 26               | 27               |
+| Alt Topic Keywords   | 28          | 20            | 24             | 26          | 22         | 21              | 21               | 20               |
+| Solved by            | history     | examination   | history        | history     | tests      | examination     | examination      | **pattern**      |
+
+The last row is the one worth reading across. The bank was not designed
+for variety of disease — it was designed so that no two cases fail the
+same way. Three are solved by asking more, two by examining, one by
+ordering the right test, one by not stopping at the first finding, and
+one only by assembling a pattern out of answers that are unremarkable
+individually.
+
+(cases.py `case_2`, pulmonary embolism, and `case_5`, diabetic
+ketoacidosis, are not in this table — they were written directly into
+cases.py during the pilot build and have no design section here.)
 
 ---
 

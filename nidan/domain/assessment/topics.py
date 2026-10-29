@@ -318,6 +318,37 @@ TOPIC_KEYWORDS = {
         "changed", "new for you", "worse than usual", "unlike",
         "compared with", "is this the same",
     ],
+
+    # ── case_9: Axial spondyloarthritis / Back pain ───────────────
+    # Seeded by migration 031. `relieving_factors` is reused rather than
+    # duplicated: it already asks what makes the pain better or worse,
+    # and the inflammatory answer — better with movement, worse with
+    # rest — is the answer to that question, not a different question.
+    #
+    # This case is diagnosed by a PATTERN, so the topics are the
+    # components of the pattern. A learner who covers all four has the
+    # ASAS inflammatory back pain criteria whether they know it or not.
+    "morning_stiffness": [
+        "morning stiffness", "stiff in the morning", "stiffness",
+        "how long does the stiffness", "loosen up", "stiff when you wake",
+        "first thing", "take to ease",
+    ],
+    "night_pain": [
+        "at night", "night pain", "wakes you", "waking at night",
+        "second half of the night", "early hours", "get up and walk",
+        "disturb your sleep", "middle of the night",
+    ],
+    "nsaid_response": [
+        "anti-inflammatory", "anti inflammatory", "ibuprofen", "naproxen",
+        "nsaid", "does it help", "how well does", "what have you tried",
+        "any relief from", "works for the pain",
+    ],
+    "extra_articular_features": [
+        "red eye", "sore eye", "uveitis", "iritis", "eye problem",
+        "psoriasis", "skin rash", "scaly", "nail changes",
+        "bowel", "diarrhoea", "blood in the stool", "heel", "achilles",
+        "tendon",
+    ],
 }
 
 
