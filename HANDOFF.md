@@ -49,28 +49,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-- [ ] **V-6** (2026-10-29, from Yogesh) · **Review two read-only additions
-  to `infra/` made in T-023.** Yogesh agreed to them rather than wait, on the
-  condition you look them over. Both are on branch `feat/t-023-clinical-review`
-  (commit `a101ee5`, in the T-023 PR once opened):
-
-  1. **`CaseRepository.for_review(version_id)`** — the same SELECT as
-     `for_editing()`, but accepting `ReviewerUser` as well as `AdminUser`.
-     Migration 024 lets `nidan_reviewer` read drafts, yet no repository method
-     did (`for_editing` is admin-only, `content()` is published-only), so a
-     reviewer could not open a draft in Playtest — T-023 criterion 1. A test
-     confirms the reviewer role still cannot UPDATE `case_versions`, through the
-     repository or by raw SQL in its scope.
-  2. **`ReviewRepository.reviewers()`** — **needs a `ServiceActor` (RLS bypass)**,
-     returns `id, display_name, platform_role` of reviewer/admin profiles only.
-     Needed for the assign dropdown: `profiles` has only `own_profile`, which
-     binds `nidan_admin` too, so an admin cannot see anyone else's row. The
-     cleaner fix is a policy letting `nidan_admin` read privileged profiles —
-     a migration, so yours. If you add it, swap the call in
-     `nidan/web/admin/reviews/routes.py:_reviewer_names()` to `current_admin()`
-     and drop the ServiceActor requirement.
-
-  Done when you have approved them as they are, or replaced them.
+*Empty — V-6 answered 2026-10-29, see Done.*
 
 ## Inbox — for Yogesh
 
@@ -269,6 +248,30 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-10-29** · **V-6 answered.** Both of Yogesh's T-023 additions reviewed.
+
+  **`CaseRepository.for_review()` — approved as it stands.** Right shape: read
+  only, `AdminUser` or `ReviewerUser`, and migration 024's policy is what
+  actually permits the SELECT rather than the Python check. No change.
+
+  **`ReviewRepository.reviewers()` — replaced, as you suggested.** Migration
+  025 adds `privileged_profiles_are_mutually_visible`, so the `ServiceActor`
+  is gone. You were right that it was a migration and right to flag it: with
+  the bypass in place `ADR-0016`'s "confined to one module" and `CLAUDE.md`'s
+  "`anonymous.py` is the one path where RLS is OFF" were both false.
+
+  The cause was one missing `TO` in migration 016 — `own_profile` is
+  `FOR ALL USING (id = auth.uid())` with no role, so it bound `nidan_admin`
+  too. The grant was always there.
+
+  **It covers `nidan_reviewer` as well as `nidan_admin`**, because
+  `_reviewer_names()` is called for reviewers too, not only on the admin
+  branch — admin-only would have rendered "a reviewer" in their queue.
+  `_reviewer_names()` now opens with `current_reviewer()`. Nothing else in
+  `nidan/web/admin/reviews/routes.py` changed.
+
+  Branch `feat/migration-025-admin-reads-reviewers`. 714 tests.
 
 - **2026-10-29** · **T-023 built** on `feat/t-023-clinical-review`
   (`a101ee5`), **not yet pushed or merged** — Yogesh decides. Queue with three
