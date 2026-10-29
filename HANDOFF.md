@@ -49,7 +49,28 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-*Empty — V-1 to V-5 done 2026-10-28, see below.*
+- [ ] **V-6** (2026-10-29, from Yogesh) · **Review two read-only additions
+  to `infra/` made in T-023.** Yogesh agreed to them rather than wait, on the
+  condition you look them over. Both are on branch `feat/t-023-clinical-review`
+  (commit `a101ee5`, in the T-023 PR once opened):
+
+  1. **`CaseRepository.for_review(version_id)`** — the same SELECT as
+     `for_editing()`, but accepting `ReviewerUser` as well as `AdminUser`.
+     Migration 024 lets `nidan_reviewer` read drafts, yet no repository method
+     did (`for_editing` is admin-only, `content()` is published-only), so a
+     reviewer could not open a draft in Playtest — T-023 criterion 1. A test
+     confirms the reviewer role still cannot UPDATE `case_versions`, through the
+     repository or by raw SQL in its scope.
+  2. **`ReviewRepository.reviewers()`** — **needs a `ServiceActor` (RLS bypass)**,
+     returns `id, display_name, platform_role` of reviewer/admin profiles only.
+     Needed for the assign dropdown: `profiles` has only `own_profile`, which
+     binds `nidan_admin` too, so an admin cannot see anyone else's row. The
+     cleaner fix is a policy letting `nidan_admin` read privileged profiles —
+     a migration, so yours. If you add it, swap the call in
+     `nidan/web/admin/reviews/routes.py:_reviewer_names()` to `current_admin()`
+     and drop the ServiceActor requirement.
+
+  Done when you have approved them as they are, or replaced them.
 
 ## Inbox — for Yogesh
 
@@ -248,6 +269,14 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-10-29** · **T-023 built** on `feat/t-023-clinical-review`
+  (`a101ee5`), **not yet pushed or merged** — Yogesh decides. Queue with three
+  tabs, audited assignment, rubric form beside Playtest, publish with 409.
+  708 tests pass, none skipped; the rubric-floor and trigger tests were both
+  watched failing. Uses everything from Y-2. Y-3 and Y-5 are done: briefs read
+  from `docs/process/phase-2-briefs/`, `main` pulled, local DB at 024.
+  Still open for Yogesh: Y-1 (remote URL) and Y-4 (needs the anon key).
 
 - **2026-10-28** · **S-4 settled — `ADR-0017`, data residency in the EU
   (Frankfurt), `eu-central-1`. MERGED, PR #28, `b98ddc9`.** The last open
