@@ -167,9 +167,74 @@ project's files, and switching to it would look like the whole repo vanished.
   every asset is collected. **If you add a new template subdirectory, that test
   is what will tell you.**
 
+- [ ] **Y-6** (2026-10-29, from Vraj) · **Two cases to put through the review
+  queue — they are the first real content the console has had.** Branch
+  `feat/cases-6-7`, stacked on `feat/reviewer-onboarding`; merge the onboarding
+  one first. Migration **026** seeds them as v1 drafts:
+
+  | slug | title | what it tests |
+  |---|---|---|
+  | `headache-hypertension` | The Headache That Is Not Stress | the diagnosis is on the blood-pressure cuff — a learner can take a flawless history and miss it by not examining |
+  | `wheezing-child-asthma` | The Wheezing Child | two voices: the chatbot plays the child or his mother, depending on who is addressed |
+
+  **`wheezing-child-asthma` is the one to Playtest first.** It is the only case
+  with two speakers, and nothing in T-022 was built with that in mind. If the
+  patient panel assumes one name, or the transcript does not make clear who is
+  answering, that is a real finding and worth raising before a clinician meets
+  it. The prompt tells the model to default to the mother and answer as the boy
+  when he is addressed directly.
+
+  Done looks like: both open in Playtest, both reach the rubric form, and a
+  review can be recorded against each.
+
+- [ ] **Y-7** (2026-10-29, from Vraj) · **Where will the reviewers actually
+  reach the console?** This is a decision, not a task, and it is now the only
+  thing between the clinicians and their first review.
+
+  The console runs on `localhost:8000` and there is **no deployment task
+  anywhere in `BUILD_PLAN`** — all seven phases, T-045 is "launch readiness",
+  not hosting. No `fly.toml`, no `render.yaml`, no Procfile. Two clinicians
+  cannot review cases on a laptop in Ahmedabad.
+
+  Nothing about a *case* needs deploying — cases are rows, and migrations 019
+  and 026 already seed all seven as drafts. What needs a URL is the Flask app
+  that already exists. Two steps, in order: `SUPABASE_DEPLOYMENT.md` for the 26
+  migrations against the Supabase project, then the container somewhere with
+  `DATABASE_URL` pointing at it. The app is stateless by construction
+  (`ADR-0003`), so this is about half a day, not a project.
+
+  **This is not T-032.** The learner-facing Next.js app is Phase 3 and
+  unrelated; what the reviewers need is `/admin`, which is built.
+
+  Vraj to decide the host. Flag it if it blocks you.
+
 ---
 
 ## Notes
+
+### Onboarding a clinical reviewer (2026-10-29)
+
+Two new documents and one script, on `feat/reviewer-onboarding`:
+
+- `docs/process/REVIEWER_ONBOARDING.md` — the operator's runbook: Supabase
+  account, role, assignment, and how to verify it worked before the clinician
+  tries. Verification matters because `UX_SPEC` §12.1 makes every refusal an
+  identical 404, so nothing about the failure says which of five causes it was.
+- `docs/process/REVIEWER_GUIDE.md` — **what the clinician receives**, and the
+  only document in the repo written for someone outside the team. It exists
+  because of one word in the rubric: *trap validity* is unreadable without
+  knowing that every Nidan case is built around a plausible wrong answer. A
+  reviewer meeting it cold marks the case down for being misleading — and
+  since any dimension below 4 blocks approval, that misunderstanding silently
+  stops a case publishing. A `.docx` is generated alongside it.
+- `scripts/provision_reviewer.py` — replaces the `psql` one-liner in
+  `LOCAL_ADMIN_ACCESS` §3, which writes to `auth.users` (Supabase's table, not
+  ours), changes an existing account's privilege without saying so, and records
+  nothing. This refuses all three and writes an `audit_log` row.
+
+**Give both reviewers the same first case, independently.** Comparing two first
+reviews of one case tells you whether the rubric is being read the same way,
+which is worth more right now than two more cases reviewed.
 
 ### ~~Signing in to `/admin` on a local machine (answers V-5)~~
 
