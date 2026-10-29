@@ -49,23 +49,34 @@ def _display_name(topic_key: str) -> str:
     return topic_key.replace("_", " ").capitalize()
 
 
-def build(revision: str, down_revision: str, *,
-          everything: bool, topic_keys: list[str]) -> str:
+def _rows(master: dict, wanted: list[str] | None) -> list[dict]:
     """
-    `everything` reproduces migration 017. Otherwise only `topic_keys` are
-    emitted, and the examination and investigation lists are empty — an
-    additive migration that adds rows beside what 017 already seeded.
+    Master-list rows, with `display_order` taken from position in the FULL
+    dict even when only some keys are emitted.
+
+    That is the whole subtlety of an additive migration here. Numbering a
+    two-row migration 0 and 1 would collide with the first two chips on every
+    learner's menu, and the duplicate would surface as two items fighting for
+    the same slot rather than as an error.
     """
-    exams = [
+    return [
         {"key": k, "label": v["label"], "group_name": v["group"],
          "normal_result": v["normal_result"], "display_order": i}
-        for i, (k, v) in enumerate(MASTER_EXAMINATIONS.items())
-    ] if everything else []
-    investigations = [
-        {"key": k, "label": v["label"], "group_name": v["group"],
-         "normal_result": v["normal_result"], "display_order": i}
-        for i, (k, v) in enumerate(MASTER_INVESTIGATIONS.items())
-    ] if everything else []
+        for i, (k, v) in enumerate(master.items())
+        if wanted is None or k in wanted
+    ]
+
+
+def build(revision: str, down_revision: str, *, everything: bool,
+          topic_keys: list[str], exam_keys: list[str],
+          investigation_keys: list[str]) -> str:
+    """
+    `everything` reproduces migration 017. Otherwise only the named keys are
+    emitted — an additive migration that adds rows beside what 017 seeded.
+    """
+    exams = _rows(MASTER_EXAMINATIONS, None if everything else exam_keys)
+    investigations = _rows(MASTER_INVESTIGATIONS,
+                           None if everything else investigation_keys)
     keys = list(TOPIC_KEYWORDS) if everything else topic_keys
     topics = [
         {"topic_key": k, "display_name": _display_name(k),
@@ -74,8 +85,10 @@ def build(revision: str, down_revision: str, *,
     ]
     n_phrases = sum(len(t["phrases"]) for t in topics)
 
-    summary = ("the full master lists" if everything
-               else ", ".join(t["topic_key"] for t in topics))
+    summary = ("the full master lists" if everything else ", ".join(
+        [t["topic_key"] for t in topics]
+        + [f"examination `{r['key']}`" for r in exams]
+        + [f"investigation `{r['key']}`" for r in investigations]))
     return f'''"""seed_content
 
 Revision ID: {revision}
@@ -169,6 +182,10 @@ def main() -> int:
     ap.add_argument("--down-revision", required=True, help='e.g. "026"')
     ap.add_argument("--topics", default="",
                     help="comma-separated topic keys to add")
+    ap.add_argument("--investigations", default="",
+                    help="comma-separated investigation keys to add")
+    ap.add_argument("--examinations", default="",
+                    help="comma-separated examination keys to add")
     ap.add_argument("--all", action="store_true", dest="everything",
                     help="the whole master list — this is how 017 was made")
     ap.add_argument("--name", default="seed_content",
@@ -177,19 +194,37 @@ def main() -> int:
                     help="overwrite an existing migration file")
     args = ap.parse_args()
 
-    topic_keys = [t.strip() for t in args.topics.split(",") if t.strip()]
-    if args.everything and topic_keys:
-        print("--all already includes every topic; drop --topics.", file=sys.stderr)
+    def split(value: str) -> list[str]:
+        return [x.strip() for x in value.split(",") if x.strip()]
+
+    topic_keys = split(args.topics)
+    exam_keys = split(args.examinations)
+    investigation_keys = split(args.investigations)
+    named = topic_keys + exam_keys + investigation_keys
+
+    if args.everything and named:
+        print("--all already includes everything; drop the other flags.",
+              file=sys.stderr)
         return 2
-    if not args.everything and not topic_keys:
-        print("nothing to seed: pass --topics or --all.", file=sys.stderr)
+    if not args.everything and not named:
+        print("nothing to seed: pass --topics, --examinations, "
+              "--investigations, or --all.", file=sys.stderr)
         return 2
-    unknown = [t for t in topic_keys if t not in TOPIC_KEYWORDS]
-    if unknown:
-        print(f"unknown topic key(s): {unknown}.\nAdd them to "
-              f"nidan/domain/assessment/topics.py first — this script seeds "
-              f"what is there, it does not invent phrases.", file=sys.stderr)
-        return 2
+
+    for label, keys, source, where in (
+        ("topic", topic_keys, TOPIC_KEYWORDS,
+         "nidan/domain/assessment/topics.py"),
+        ("examination", exam_keys, MASTER_EXAMINATIONS,
+         "MASTER_EXAMINATIONS in nidan/domain/content/cases.py"),
+        ("investigation", investigation_keys, MASTER_INVESTIGATIONS,
+         "MASTER_INVESTIGATIONS in nidan/domain/content/cases.py"),
+    ):
+        unknown = [k for k in keys if k not in source]
+        if unknown:
+            print(f"unknown {label} key(s): {unknown}.\nAdd them to {where} "
+                  f"first — this script seeds what is there, it does not "
+                  f"invent content.", file=sys.stderr)
+            return 2
 
     out = VERSIONS / f"{args.revision}_{args.name}.py"
     if out.exists() and not args.force:
@@ -202,7 +237,9 @@ def main() -> int:
         return 1
 
     out.write_text(build(args.revision, args.down_revision,
-                         everything=args.everything, topic_keys=topic_keys),
+                         everything=args.everything, topic_keys=topic_keys,
+                         exam_keys=exam_keys,
+                         investigation_keys=investigation_keys),
                    encoding="utf-8")
     if args.everything:
         print(f"Wrote {out.name} — {len(MASTER_EXAMINATIONS)} exams, "
@@ -211,8 +248,10 @@ def main() -> int:
               f"{sum(len(v) for v in TOPIC_KEYWORDS.values())} phrases")
     else:
         n = sum(len(TOPIC_KEYWORDS[t]) for t in topic_keys)
-        print(f"Wrote {out.name} — {len(topic_keys)} topic(s), {n} phrases: "
-              + ", ".join(topic_keys))
+        print(f"Wrote {out.name} — {len(topic_keys)} topic(s) / {n} phrases, "
+              f"{len(exam_keys)} examination(s), "
+              f"{len(investigation_keys)} investigation(s): "
+              + ", ".join(named))
     return 0
 
 

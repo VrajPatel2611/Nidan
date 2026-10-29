@@ -1,7 +1,7 @@
 """
 cases.py
 --------
-Defines all 8 clinical case configurations for the virtual patient
+Defines all 9 clinical case configurations for the virtual patient
 simulator. Each case contains the patient persona, Gemini system
 prompt, correct diagnosis, and bias detection configuration.
 
@@ -20,8 +20,10 @@ Case list:
           (examination-required: the diagnosis is on the blood pressure cuff)
   case_7: Arjun Shah,   10M — Cough and wheeze — Asthma vs chest infection
           (two voices: the child and his mother Sunita)
+  case_8: Naveen Reddy, 58M — Rectal bleeding — Colorectal cancer vs piles
+          (the anchor is TRUE: he has haemorrhoids, and they are not the cause)
   case_10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a simple faint
-          (ids 8 and 9 are reserved for the two cases still to be written;
+          (id 9 is reserved for the case still to be written;
            the number names the content, not the order it was authored)
 """
 
@@ -884,6 +886,128 @@ CASES = {
              "auscultate", "echocardiogram"],
             ["palpitation", "racing heart", "irregular", "skipped beat",
              "heart rhythm", "fluttering"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 8: Naveen Reddy, 58M — Rectal bleeding — Colorectal cancer vs
+    # haemorrhoids. THE ANCHOR IS TRUE. He has haemorrhoids, they are
+    # visible on examination, and they explain some of the story and none
+    # of the rest. The only case in the bank where the trap is a correct
+    # finding rather than a wrong one.
+    # ──────────────────────────────────────────────────────────────────
+    "case_8": {
+        "id": "case_8",
+        "title": "The Bleeding That Was Already Explained",
+        "patient_intro": (
+            "A 58-year-old bus depot manager named Naveen Reddy attends about "
+            "bleeding from the back passage over the past four months. He was "
+            "diagnosed with haemorrhoids twelve years ago and has come mainly "
+            "because his wife kept asking him to."
+        ),
+        "opening_line": (
+            "I have had a bit of bleeding again, on and off for a few months. "
+            "I have had piles for years so I know what it is — but my wife "
+            "would not let it go, so here I am."
+        ),
+        "system_prompt": (
+            "You are playing Naveen Reddy, a 58-year-old bus depot manager "
+            "with four months of rectal bleeding. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are matter-of-fact "
+            "and slightly dismissive — you are certain this is your piles.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOU GENUINELY HAVE HAEMORRHOIDS and have had them for twelve "
+            "years. You are not wrong about that, and you will say so. What "
+            "you have NOT noticed is that this episode is different from "
+            "every previous one. You are not withholding it — the comparison "
+            "has simply never occurred to you. If asked directly whether this "
+            "bleeding is the same as before, you will think about it and "
+            "realise it is not.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- The blood NOW: MIXED THROUGH the stool, darker than before, "
+            "sometimes with slime. Describe it that way ONLY if asked what "
+            "the blood looks like or where it is.\n"
+            "- The blood BEFORE (your usual piles): bright red, on the paper "
+            "or a few drops in the pan, never mixed in, always with "
+            "straining. Share ONLY if asked to compare.\n"
+            "- Bowel habit: CHANGED about four months ago. Used to be once "
+            "every morning, now THREE OR FOUR TIMES A DAY and looser. Share "
+            "ONLY if asked about bowel habit.\n"
+            "- Tenesmus: often feels like you have not finished, and have to "
+            "go back within minutes. New. Share ONLY if asked.\n"
+            "- Weight: about 6 kg down over four months without trying. "
+            "Trousers loose. Share ONLY if asked about weight.\n"
+            "- Energy: tired, and breathless going up the depot stairs where "
+            "you were fine a year ago. Share ONLY if asked.\n"
+            "- Family: FATHER had bowel cancer at 71 and was treated. Share "
+            "ONLY if asked about family.\n"
+            "- NOT present: no abdominal pain to speak of, no vomiting, no "
+            "jaundice, no fever, no foreign travel, no new medication, no "
+            "NSAIDs, no anal pain, no lump you can feel outside.\n\n"
+            "PERSONALITY: Practical, understated, a little impatient. Will "
+            "repeat that he knows it is his piles unless something makes him "
+            "reconsider."
+        ),
+        "correct_diagnosis": (
+            "Colorectal carcinoma (rectal), with coexisting haemorrhoids and "
+            "iron-deficiency anaemia"
+        ),
+        "anchor_topic": "haemorrhoids / benign anorectal cause",
+        # NOTE. "constipation" and "straining" are deliberately absent, even
+        # though they are the vocabulary of the trap. They already belong to
+        # the `bowel_habits` required topic, and asking about them is good
+        # history. The anchor list uses the words of the CONCLUSION — piles,
+        # cream, banding, nothing serious — not the words of the question.
+        # Same reason case_10 excludes the drug names.
+        "anchor_keywords": [
+            "haemorrhoid", "hemorrhoid", "piles", "fissure", "anal fissure",
+            "fibre", "laxative", "stool softener", "haemorrhoid cream",
+            "suppositor", "witch hazel", "sitz bath", "banding",
+            "rubber band", "ointment", "irritable bowel", "spicy",
+            "nothing serious", "common at your age", "benign",
+            "reassure", "no need to worry", "old age", "just the piles",
+            "sit for too long", "driving all day",
+        ],
+        "alternative_topics": [
+            "colonoscopy", "cancer", "malignancy", "tumour", "bowel cancer",
+            "colorectal", "fit test", "faecal immunochemical", "red flag",
+            "weight loss", "anaemia", "iron deficiency", "ferritin",
+            "rectal examination", "per rectum", "tenesmus", "mucus",
+            "two week wait", "urgent referral", "mass", "staging",
+        ],
+        "required_topics": [
+            "bleeding_character",
+            "change_from_baseline",
+            "bowel_habits",
+            "tenesmus_incomplete",
+            "anaemia_symptoms",
+            "weight_history",
+            "family_history",
+            "duration_pattern",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets. Note clue[1]: the question that
+        # unlocks this case is not "do you have piles?" — he does — but
+        # "is this the same as your piles?", which he has never been asked.
+        # "usual piles" is absent from it because "piles" is an anchor
+        # keyword and the two would collide under C-4.
+        "contradictory_clues": [
+            ["mixed in", "mixed with", "mixed through", "in the stool",
+             "dark blood", "darker", "colour of the blood", "mucus",
+             "slime"],
+            ["different from", "same as usual", "like before", "changed",
+             "is this the same", "compared with", "new for you"],
+            ["bowel habit", "looser", "more often", "times a day",
+             "diarrhoea", "opening your bowels", "how often do you go"],
+            ["weight", "lost weight", "losing weight", "weight loss",
+             "trousers", "clothes looser"],
+            ["tired", "fatigue", "breathless", "pale", "anaemia",
+             "short of breath", "energy"],
+            ["tenesmus", "incomplete", "not finished", "need to go again",
+             "fully empty", "still need to go"],
+            ["family", "father", "bowel cancer", "relative",
+             "anyone in the family"],
         ],
     },
 }
@@ -2173,6 +2297,195 @@ CLINICAL_DATA = {
                 "category": "low_value"},
         },
     },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 8: Rectal carcinoma with coexisting haemorrhoids. The rectal
+    # examination returns BOTH findings in one report, on purpose — that
+    # is the clinical reality, and a learner who stops reading at the
+    # first one has made the same mistake inside the examination that
+    # the case is about.
+    # ──────────────────────────────────────────────────────────────────
+    "case_8": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Naveen Reddy, a 58-year-old bus depot manager. "
+            "Practical, understated, slightly impatient, certain this is "
+            "your piles. You have come about rectal bleeding for 4 months, "
+            "and only because your wife insisted.\n\n"
+            "YOU GENUINELY HAVE HAEMORRHOIDS, diagnosed 12 years ago. You "
+            "are not wrong about that. What you have not noticed is that "
+            "this episode differs from every previous one. If asked to "
+            "compare, you will think and realise it is different.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Bleeding NOW: present 4 months, most days. MIXED THROUGH the "
+            "stool rather than on the surface. DARKER than you remember, "
+            "sometimes almost maroon. SLIME or jelly with it on occasion. "
+            "Not related to straining.\n"
+            "• Bleeding BEFORE (your usual piles, 12 years): BRIGHT RED, on "
+            "the paper or a few drops in the pan, never mixed in, always "
+            "after straining, settles in a day or two with cream.\n"
+            "• Bowel habit: CHANGED 4 months ago. Was once every morning, "
+            "reliably. Now THREE TO FOUR TIMES A DAY and looser, never "
+            "properly formed. No nocturnal diarrhoea.\n"
+            "• Tenesmus: frequently feel you have not finished and must go "
+            "back within minutes, often passing little. New in 4 months.\n"
+            "• Weight: 6 kg down in 4 months, unintentionally. Trousers "
+            "loose on the same notch.\n"
+            "• Energy: tired most days. BREATHLESS climbing the depot "
+            "stairs, which you managed easily a year ago. No chest pain.\n"
+            "• Appetite: slightly reduced but you still eat normally. No "
+            "early satiety, no vomiting, no difficulty swallowing.\n"
+            "• PMH: haemorrhoids (12 years). Type 2 diabetes — diet "
+            "controlled, diagnosed 4 years ago. Nothing else. No previous "
+            "colonoscopy, never invited for bowel screening that you "
+            "recall, no inflammatory bowel disease.\n"
+            "• Medications: metformin 500 mg twice daily. Occasional "
+            "haemorrhoid cream. NO NSAIDs, NO aspirin, NO anticoagulant, NO "
+            "iron tablets.\n"
+            "• Family: FATHER had bowel cancer at 71, treated with surgery, "
+            "lived another decade. No other cancers in the family.\n"
+            "• Social: non-smoker. Alcohol 8 units/week. Sits for long "
+            "periods at work, which is what you blame the piles on.\n"
+            "• NOT present: no abdominal pain of note, no jaundice, no "
+            "fever, no night sweats, no foreign travel, no anal pain, no "
+            "external lump you can feel.\n"
+        ),
+        "accepted_diagnoses": [
+            "colorectal cancer", "bowel cancer", "rectal cancer",
+            "colorectal carcinoma", "rectal carcinoma", "colon cancer",
+            "adenocarcinoma of the rectum", "large bowel malignancy",
+            "colorectal malignancy", "bowel malignancy", "rectal tumour",
+        ],
+        "partial_diagnoses": [
+            "malignancy", "cancer", "iron deficiency anaemia",
+            "lower gi bleeding", "needs colonoscopy", "two week wait",
+            "inflammatory bowel disease",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "PALE conjunctivae. Comfortable, not jaundiced, "
+                           "no clubbing, no lymphoedema. Looks slightly "
+                           "thinner than his recorded weight from last year.",
+                "key": True},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 92 bpm regular · BP 128/76 mmHg · RR 14 · "
+                           "SpO₂ 98% on air · Temp 36.6°C. Mild resting "
+                           "tachycardia; otherwise unremarkable.",
+                "key": False},
+            "rectal": {"label": "Digital rectal examination",
+                "finding": "TWO findings, and both are real. "
+                           "(1) EXTERNAL HAEMORRHOIDS at 3 and 7 o'clock, "
+                           "non-thrombosed, non-tender — exactly as he "
+                           "describes, and they do bleed. "
+                           "(2) A FIRM, IRREGULAR, FIXED MASS palpable on "
+                           "the posterior rectal wall about 7 cm from the "
+                           "anal verge, roughly 4 cm across, not tender. "
+                           "Dark altered blood and mucus on the glove. "
+                           "Finding (1) does not account for finding (2).",
+                "key": True},
+            "abdomen": {"label": "Abdominal exam",
+                "finding": "Soft, non-distended, non-tender. No palpable "
+                           "mass, no hepatomegaly, no ascites. Bowel sounds "
+                           "normal. A normal abdomen does not exclude a "
+                           "rectal tumour that sits below the reach of "
+                           "palpation.",
+                "key": True},
+            "hands_nails": {"label": "Hands and nails",
+                "finding": "KOILONYCHIA — spoon-shaped nails — with pale "
+                           "nail beds. No clubbing. Signs of chronic iron "
+                           "deficiency.",
+                "key": True},
+            "lymph_nodes": {"label": "Lymph node examination",
+                "finding": "No inguinal, cervical or supraclavicular "
+                           "lymphadenopathy. No Virchow's node.",
+                "key": False},
+            "weight_bmi": {"label": "Weight and BMI",
+                "finding": "78 kg, 1.74 m, BMI 25.8 kg/m². Recorded weight "
+                           "14 months ago was 84 kg — a 6 kg fall, "
+                           "documented rather than reported.",
+                "key": False},
+            "mental_state": {"label": "Mental state",
+                "finding": "Calm, orientated, no anxiety or low mood. Keen "
+                           "to be reassured and to get back to work.",
+                "key": False},
+        },
+        "investigations": {
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 94 g/L (ref 130-170) — ANAEMIC · MCV 71 fL "
+                          "(ref 80-100) — MICROCYTIC · WCC 7.6 · Platelets "
+                          "468 ×10⁹/L (ref 150-400) — raised. Microcytic "
+                          "anaemia in a man of 58 is a red flag in its own "
+                          "right and is never explained by haemorrhoids "
+                          "bleeding a few drops onto the paper.",
+                "category": "key"},
+            "colonoscopy": {"label": "Colonoscopy",
+                "result": "A FUNGATING, CIRCUMFERENTIAL TUMOUR at 8 cm from "
+                          "the anal verge, partially obstructing the lumen; "
+                          "the scope passed with difficulty. Biopsies taken. "
+                          "Internal haemorrhoids also seen on retroflexion — "
+                          "present, and not the cause. Histology: moderately "
+                          "differentiated adenocarcinoma. THIS IS THE "
+                          "DIAGNOSIS.",
+                "category": "key"},
+            "iron_ferritin": {"label": "Iron studies & ferritin",
+                "result": "Ferritin 7 µg/L (ref 30-400) — VERY LOW · serum "
+                          "iron 4 µmol/L · transferrin saturation 6%. "
+                          "Confirmed iron deficiency from chronic blood "
+                          "loss.",
+                "category": "key"},
+            "fit": {"label": "Faecal Immunochemical Test (FIT)",
+                "result": "Faecal haemoglobin 340 µg Hb/g faeces (referral "
+                          "threshold 10 in symptomatic patients) — STRONGLY "
+                          "POSITIVE. Useful, but note what it cannot do: a "
+                          "negative FIT would not have excluded this, and "
+                          "the rectal examination had already found the "
+                          "mass.",
+                "category": "reasonable"},
+            "cea_ca199": {"label": "CEA & CA 19-9",
+                "result": "CEA 18.4 µg/L (ref < 5) — raised · CA 19-9 "
+                          "32 U/mL (ref < 37). CEA is for monitoring after "
+                          "treatment, not for diagnosis; a normal CEA would "
+                          "have excluded nothing.",
+                "category": "reasonable"},
+            "ct_abdomen": {"label": "CT chest, abdomen and pelvis",
+                "result": "A 4.2 cm rectal mass with extension through the "
+                          "muscularis propria and three enlarged mesorectal "
+                          "nodes. NO liver or lung metastases. Staging "
+                          "cT3 N1 M0.",
+                "category": "reasonable"},
+            "u_e_lft": {"label": "U&E and liver function",
+                "result": "Na 139 · K 4.1 · Creatinine 84 µmol/L · eGFR "
+                          "> 60 · ALT 24 · ALP 88 · Bilirubin 11 · Albumin "
+                          "36 g/L (ref 35-50). Essentially normal.",
+                "category": "reasonable"},
+            "crp": {"label": "C-reactive protein",
+                "result": "14 mg/L (ref < 5) — mildly raised. Non-specific, "
+                          "and not enough to point anywhere on its own.",
+                "category": "reasonable"},
+            "stool_mc_s": {"label": "Stool microscopy, culture & sensitivity",
+                "result": "No growth. No ova, cysts or parasites. No "
+                          "Clostridioides difficile toxin. Negative — and "
+                          "four months of altered bowel habit with weight "
+                          "loss was never going to be an infection.",
+                "category": "low_value"},
+            "abdo_uss": {"label": "Abdominal ultrasound",
+                "result": "Liver, gallbladder, pancreas, spleen and kidneys "
+                          "normal. No free fluid. Ultrasound does not image "
+                          "the rectum; a normal scan here is reassurance "
+                          "about nothing that was asked.",
+                "category": "low_value"},
+            "psa": {"label": "Prostate specific antigen",
+                "result": "1.8 µg/L (ref < 4 at this age). Normal. Not "
+                          "indicated — nothing in the history points at the "
+                          "prostate.",
+                "category": "low_value"},
+            "coeliac_screen": {"label": "Coeliac serology",
+                "result": "Anti-tTG IgA < 1 U/mL (ref < 7), total IgA "
+                          "normal. Negative. Reasonable in young patients "
+                          "with altered bowel habit; not in a man of 58 with "
+                          "rectal bleeding and weight loss.",
+                "category": "low_value"},
+        },
+    },
 }
 
 # Merge the clinical data layer into the base CASES definitions.
@@ -2975,6 +3288,28 @@ MASTER_INVESTIGATIONS = {
             "MMSE 30/30. Normal orientation, memory, and executive function."
         ),
     },
+
+    # ── Added 2026-10-29 for case_8, seeded by migration 029 ─────────
+    # The first additions to this list since migration 017. Appended, never
+    # inserted: `display_order` is position in this dict, and renumbering the
+    # menu would move every chip a learner has learnt the place of.
+    "fit": {
+        "label": "Faecal Immunochemical Test (FIT)",
+        "group": "Stool & GI",
+        "normal_result": (
+            "Faecal haemoglobin < 10 µg Hb/g faeces (threshold for urgent "
+            "referral is 10 in symptomatic patients). Negative."
+        ),
+    },
+    "colonoscopy": {
+        "label": "Colonoscopy",
+        "group": "Endoscopy",
+        "normal_result": (
+            "Caecum reached, good bowel preparation. Normal mucosa "
+            "throughout the colon and rectum. No polyps, no mass, no "
+            "inflammation. Normal examination."
+        ),
+    },
 }
 
 
@@ -3292,6 +3627,7 @@ CASE_SLUGS: dict[str, str] = {
     "case_5": "vomiting-diabetic-ketoacidosis",
     "case_6": "headache-hypertension",
     "case_7": "wheezing-child-asthma",
+    "case_8": "rectal-bleeding-colorectal-cancer",
     "case_10": "syncope-aortic-stenosis",
 }
 

@@ -28,11 +28,12 @@ of the list:
   Design CASE 4  The Tired Teacher             -> cases.py case_4
   Design CASE 5  The Wheezing Child            -> cases.py case_7
   Design CASE 6  The Faint That Was Not a Faint -> cases.py case_10
+  Design CASE 7  The Bleeding That Was Already Explained -> case_8
 
   (cases.py case_2 is pulmonary embolism and case_5 is diabetic
    ketoacidosis. Neither was designed here; both were written directly
-   into cases.py during the pilot build. cases.py has no case_8 or
-   case_9 yet: those ids are reserved for the two cases still to be
+   into cases.py during the pilot build. cases.py has no case_9
+   yet: that id is reserved for the two cases still to be
    written, so the number names the content and not the order it was
    authored.)
 
@@ -1469,21 +1470,225 @@ Anchor trap is solid for the current audience. PASS.
 ---
 ---
 
+## CASE 7 (code `case_8`): The Bleeding That Was Already Explained
+
+### Status: Designed and IMPLEMENTED 29 Oct 2026 as cases.py `case_8`,
+### slug `rectal-bleeding-colorectal-cancer`, seeded as draft by
+### migration 030. The only case in the bank where the anchor is TRUE.
+
+---
+
+### Patient Persona
+Name: Naveen Reddy
+Age / Gender: 58-year-old male
+Occupation: Bus depot manager
+Presenting complaint: Rectal bleeding, on and off, for four months
+
+Opening line shown to user on chat screen:
+"A 58-year-old bus depot manager named Naveen Reddy attends about
+bleeding from the back passage over the past four months. He was
+diagnosed with haemorrhoids twelve years ago and has come mainly
+because his wife kept asking him to."
+
+---
+
+### Correct Diagnosis
+Colorectal carcinoma (rectal), with coexisting haemorrhoids and
+iron-deficiency anaemia
+
+---
+
+### Anchor Trap — and why this one is different
+
+In every other case in this document the anchor is simply wrong. Here
+**the anchor is correct and insufficient.**
+
+Naveen has haemorrhoids. He has had them for twelve years. They are
+visible on examination, at 3 and 7 o'clock, and they do bleed. Nothing
+he believes is false. What is false is the inference that because they
+explain *some* of the bleeding they explain *all* of it — and nothing
+in his account draws attention to the gap, because he has never
+compared this episode with the previous ones.
+
+This is satisfaction of search: the first finding that fits ends the
+search, and the second finding is never looked for. It is one of the
+commonest ways a real diagnosis is missed, and no other case here
+teaches it.
+
+The rectal examination therefore returns **both findings in one
+report**, deliberately. A learner who stops reading at the
+haemorrhoids has made the same mistake inside the examination that
+the case is about.
+
+---
+
+### Anchor Keywords
+haemorrhoid, hemorrhoid, piles, fissure, anal fissure, fibre, laxative,
+stool softener, haemorrhoid cream, suppositor, witch hazel, sitz bath,
+banding, rubber band, ointment, irritable bowel, spicy, nothing serious,
+common at your age, benign, reassure, no need to worry, old age,
+just the piles, sit for too long, driving all day
+
+**"Constipation" and "straining" are deliberately excluded**, although
+they are the vocabulary of the trap. They already belong to the
+`bowel_habits` required topic, and asking about them is good history.
+The anchor list uses the words of the CONCLUSION, not of the question —
+the same decision as `case_10` and its drug names.
+
+---
+
+### Alternative Topics Keywords
+colonoscopy, cancer, malignancy, tumour, bowel cancer, colorectal,
+fit test, faecal immunochemical, red flag, weight loss, anaemia,
+iron deficiency, ferritin, rectal examination, per rectum, tenesmus,
+mucus, two week wait, urgent referral, mass, staging
+
+---
+
+### Required Topics
+(four were NEW — seeded by migration 029)
+
+1. bleeding_character — mixed through, or on the paper?     [NEW]
+2. change_from_baseline — is this the same as before?       [NEW]
+3. bowel_habits — existing, reused unchanged
+4. tenesmus_incomplete — the feeling of not having finished [NEW]
+5. anaemia_symptoms — tired, breathless, pale               [NEW]
+6. weight_history — existing
+7. family_history — existing
+8. duration_pattern — existing
+
+**Topic 2 is the one that unlocks the case.** The question is not "do
+you have piles?" — he does, and he will say so in his opening line.
+It is "is this the same as your piles?", which nobody has asked him
+in four months.
+
+---
+
+### Minimum Questions Before Concluding: 8
+
+---
+
+### Contradictory Clues
+(reveal only when directly asked)
+
+1. The blood is MIXED THROUGH the stool and DARKER, sometimes with
+   mucus. His usual piles bleed bright red onto the paper, never
+   mixed in, always after straining.
+
+2. He has NEVER COMPARED the two. Asked directly, he thinks about it
+   and realises this episode is different. He is not withholding it;
+   the comparison has simply not occurred to him.
+
+3. BOWEL HABIT CHANGED four months ago — once every morning, now
+   three or four times a day and looser.
+
+4. TENESMUS — frequently feels he has not finished and must go back
+   within minutes, often passing little. New.
+
+5. SIX KILOGRAMS of unintentional weight loss over four months, and
+   the clinic has a recorded weight from fourteen months ago to
+   confirm it rather than rely on his estimate.
+
+6. TIRED AND BREATHLESS on the depot stairs, which he managed easily
+   a year ago.
+
+7. FATHER had bowel cancer at 71.
+
+---
+
+### What cannot be asked for
+
+- **Digital rectal examination**: external haemorrhoids AND a firm,
+  irregular, fixed mass on the posterior wall at 7 cm.
+- **Koilonychia and pale conjunctivae** — chronic iron deficiency,
+  visible before any blood test.
+- **A normal abdomen**, which excludes nothing: a rectal tumour sits
+  below the reach of abdominal palpation.
+
+Hb 94 g/L with an MCV of 71 settles it even before the colonoscopy.
+Microcytic anaemia in a man of 58 is a red flag on its own and is never
+explained by a few drops of blood on the paper.
+
+---
+
+### Bias Detection Summary for This Case
+
+Anchoring fires if:
+- The learner asks 3+ questions in the piles/fissure/fibre vocabulary
+  AND never asks what the blood looks like or whether it has changed.
+
+Premature closure fires if:
+- "Haemorrhoids" is submitted after fewer than 8 questions, or
+  covering fewer than 5 topics.
+
+Confirmation bias fires if:
+- The learner recommends cream, fibre or banding AND never asked
+  about weight, bowel habit or the character of the bleeding.
+
+---
+
+### Patient Voice Notes
+
+Q: "What has been happening?"
+A: "I have had a bit of bleeding again, on and off for a few months.
+    I have had piles for years so I know what it is."
+
+Q: "What does the blood look like?"
+A: "Darker than it used to be, I suppose. And it is through the
+    motion rather than just on the paper. Sometimes a bit of slime."
+
+Q: "Is this the same as your piles have been before?"
+A: "... No, actually. Before it was bright red, on the paper, after
+    straining. This is not like that. I had not thought about it."
+
+Q: "Has your bowel habit changed?"
+A: "Yes — I was once every morning like clockwork. Now it is three or
+    four times a day and looser."
+
+Q: "Any weight change?"
+A: "My trousers are loose. I have not been trying to lose anything."
+
+Q: "Anyone in the family with bowel trouble?"
+A: "My father had bowel cancer. He was 71. They operated and he was
+    fine for years afterwards."
+
+---
+
+### Anchor Test — medical student perspective
+
+Imagined first 5 questions:
+1. "How long has the bleeding been going on?" — NEUTRAL
+2. "Do you have a history of haemorrhoids?" — ANCHOR, and he says yes
+3. "Is it bright red on the paper?" — leading, and he will agree if
+   not pressed
+4. "Are you constipated or straining?" — coverage, but reinforces it
+5. "Have you tried a cream?" — ANCHOR
+
+The trap is self-confirming: the patient supplies it, the history
+supports it, and the examination finds it. The case can only be broken
+by a learner who keeps looking after finding it.
+
+Anchor trap is solid. PASS.
+
+---
+---
+
 ## CASE COMPARISON TABLE
 ## Quick reference for verifying coverage and balance
 
-| Field                | Case 1      | Case 2        | Case 3         | Case 4      | Case 5     | Case 6          |
-|----------------------|-------------|---------------|----------------|-------------|------------|-----------------|
-| cases.py id          | case_1      | case_6        | case_3         | case_4      | case_7     | case_10         |
-| Patient              | 48M         | 28F           | 74M            | 35F         | 10M        | 68M             |
-| Correct Dx           | GERD        | Hypertension  | UTI/Delirium   | Hypothyroid | Asthma     | Aortic stenosis |
-| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression  | Infection  | Vasovagal faint |
-| Min Questions        | 7           | 7             | 8              | 8           | 7          | 8               |
-| Required Topics      | 8           | 8             | 8              | 8           | 7          | 8               |
-| Contradictory Clues  | 8           | 8 (6 built)   | 8              | 8           | 8 (7 built)| 6               |
-| Anchor Keywords      | 28          | 27            | 26             | 26          | 29         | 29              |
-| Alt Topic Keywords   | 28          | 20            | 24             | 26          | 22         | 21              |
-| Solved by            | history     | examination   | history        | history     | tests      | examination     |
+| Field                | Case 1      | Case 2        | Case 3         | Case 4      | Case 5     | Case 6          | Case 7           |
+|----------------------|-------------|---------------|----------------|-------------|------------|-----------------|------------------|
+| cases.py id          | case_1      | case_6        | case_3         | case_4      | case_7     | case_10         | case_8           |
+| Patient              | 48M         | 28F           | 74M            | 35F         | 10M        | 68M             | 58M              |
+| Correct Dx           | GERD        | Hypertension  | UTI/Delirium   | Hypothyroid | Asthma     | Aortic stenosis | Colorectal cancer|
+| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression  | Infection  | Vasovagal faint | Haemorrhoids     |
+| Anchor is…           | wrong       | wrong         | wrong          | wrong       | wrong      | wrong           | **TRUE**         |
+| Min Questions        | 7           | 7             | 8              | 8           | 7          | 8               | 8                |
+| Required Topics      | 8           | 8             | 8              | 8           | 7          | 8               | 8                |
+| Contradictory Clues  | 8           | 8 (6 built)   | 8              | 8           | 8 (7 built)| 6               | 7                |
+| Anchor Keywords      | 28          | 27            | 26             | 26          | 29         | 29              | 26               |
+| Alt Topic Keywords   | 28          | 20            | 24             | 26          | 22         | 21              | 21               |
+| Solved by            | history     | examination   | history        | history     | tests      | examination     | examination      |
 
 ---
 

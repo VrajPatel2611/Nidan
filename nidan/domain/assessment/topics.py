@@ -287,6 +287,37 @@ TOPIC_KEYWORDS = {
         "heart rhythm", "pounding heart", "heart racing",
         "aware of your heart", "thumping",
     ],
+
+    # ── case_8: Colorectal cancer / Rectal bleeding ───────────────
+    # Seeded by migration 029. `bowel_habits`, `weight_history`,
+    # `family_history` and `duration_pattern` are reused unchanged.
+    #
+    # Note what is NOT here: constipation and straining. They belong to
+    # `bowel_habits` already, and they are also the vocabulary of the
+    # trap — but asking about them is good history, so they stay a
+    # coverage topic and the anchor list uses the words of the
+    # CONCLUSION ("piles", "cream", "banding") instead of the question.
+    "bleeding_character": [
+        "mixed in", "mixed with", "mixed through", "in the stool",
+        "on the paper", "colour of the blood", "dark blood", "bright red",
+        "how much blood", "clots", "mucus", "what does the blood",
+        "separate from",
+    ],
+    "tenesmus_incomplete": [
+        "tenesmus", "incomplete", "not finished", "fully empty",
+        "need to go again", "still need to go", "emptied properly",
+        "urge to go", "feeling of wanting",
+    ],
+    "anaemia_symptoms": [
+        "tired", "tiredness", "fatigue", "breathless", "pale",
+        "short of breath", "dizzy on standing", "palpitations",
+        "lacking energy", "anaemia", "anaemic", "iron",
+    ],
+    "change_from_baseline": [
+        "different from", "different to", "same as usual", "like before",
+        "changed", "new for you", "worse than usual", "unlike",
+        "compared with", "is this the same",
+    ],
 }
 
 

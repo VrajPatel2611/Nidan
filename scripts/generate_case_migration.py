@@ -67,6 +67,8 @@ PATIENT = {
                "presenting_complaint": "Daily headaches for 2 weeks"},
     "case_7": {"name": "Arjun Shah", "age": 10, "sex": "male",
                "presenting_complaint": "Cough and wheeze for several days"},
+    "case_8": {"name": "Naveen Reddy", "age": 58, "sex": "male",
+               "presenting_complaint": "Rectal bleeding for 4 months"},
     "case_10": {"name": "Harbans Singh", "age": 68, "sex": "male",
                 "presenting_complaint": "Two blackouts in six weeks"},
 }

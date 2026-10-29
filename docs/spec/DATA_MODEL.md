@@ -1125,10 +1125,12 @@ Alembic, hand-written, reviewed (`PLATFORM_SPEC` §3.5). Order is dependency-dri
 | 026 | `seed_cases` | Cases 6-7 as v1, status `draft` |
 | 027 | `seed_topics_syncope` | 5 topics and 68 phrases for case 10 |
 | 028 | `seed_cases` | Case 10 as v1, status `draft` |
+| 029 | `seed_colorectal_content` | 4 topics, 44 phrases and 2 investigations for case 8 |
+| 030 | `seed_cases` | Case 8 as v1, status `draft` |
 
 **Migration 007 must follow 006**, since the trigger references `clinical_reviews`.
 
-**017, 019 and 026-028 are generated** — cases by
+**017, 019 and 026-030 are generated** — cases by
 `scripts/generate_case_migration.py`, master content and the topic lexicon by
 `scripts/generate_seed_migration.py`, both reading
 `nidan/domain/content/cases.py` and `nidan/domain/assessment/topics.py`.
@@ -1142,19 +1144,26 @@ already ran 017 or 019 would ever see the change. Both scripts now require
 names its five topic keys. The table-wide `DELETE FROM topic_lexicon` that 017
 can afford — it seeded everything there was — would, in 027, take the 40 topics
 017 seeded with it, and the damage would surface much later as coverage scoring
-that silently credits nothing. Verified by round trip: 028 ↓ 027 ↓ leaves
-exactly 40 topics and 523 phrases standing.
+that silently credits nothing. Verified by round trip at each step: 028 ↓ 027 ↓ leaves exactly 40 topics
+and 523 phrases standing, and 030 ↓ 029 ↓ leaves 45 topics and 86
+investigations.
+
+**An additive master-list migration takes `display_order` from position in
+the full dict**, not from its own list. Numbering a two-row migration 0 and 1
+would collide with the first two chips on every learner's menu, and the
+duplicate would surface as two items fighting for one slot rather than as an
+error. 029 seeds `fit` at 86 and `colonoscopy` at 87.
 
 ## 9.2 Seed data
 
 | Table | Rows | Source |
 |---|---|---|
 | `examinations` | 27 | `MASTER_EXAMINATIONS` in the existing `cases.py` |
-| `investigations` | 86 | `MASTER_INVESTIGATIONS` |
-| `topic_lexicon` | 45 | `TOPIC_KEYWORDS` keys — 40 in 017, 5 in 027 |
-| `topic_phrases` | 591 | `TOPIC_KEYWORDS` values — 523 in 017, 68 in 027 |
+| `investigations` | 88 | `MASTER_INVESTIGATIONS` — 86 in 017, 2 in 029 |
+| `topic_lexicon` | 49 | `TOPIC_KEYWORDS` keys — 40 in 017, 5 in 027, 4 in 029 |
+| `topic_phrases` | 635 | `TOPIC_KEYWORDS` values — 523 in 017, 68 in 027, 44 in 029 |
 | `engine_versions` | 1 | Current thresholds, `is_current = true` |
-| `cases` / `case_versions` | 8 | 5 in migration 019, 2 in 026, 1 in 028; all v1, status `draft` |
+| `cases` / `case_versions` | 9 | 5 in migration 019, 2 in 026, 1 in 028, 1 in 030; all v1, status `draft` |
 
 **Every seeded case enters as `draft`, not `published`.** They must pass clinical review before going live (FR-12.5) — including the ones that already ran in the pilot. Publishing them without review would make the trigger a formality.
 
