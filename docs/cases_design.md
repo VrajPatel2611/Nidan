@@ -2,17 +2,55 @@
 # Project: Bias-Aware Virtual Patient Simulator
 # Student: Roll No. 202301408 | DA-IICT
 # Mentor: Abhishek Gupta
-# Last updated: Day 2 — May 12, 2026
+# Last updated: October 29, 2026
 # Status: LIVING DOCUMENT — update this file before changing cases.py
 
 ---
 
 ## DOCUMENT PURPOSE
 
-This file is the single source of truth for all 5 clinical cases.
+This file is the single source of truth for the clinical cases.
 Every field in this file maps directly to a field in cases.py.
 Never change cases.py without first updating this file.
 The Case Update Log at the bottom tracks every change and why.
+
+## NUMBERING — read this before matching a case to code
+
+The numbers here are DESIGN numbers from May 2026 and they are NOT the
+ids in cases.py. Two of the five cases designed here were not built in
+the first pass; cases.py filled 2 and 5 with other presentations and the
+designs waited. They were implemented on 29 October 2026 at the far end
+of the list:
+
+  Design CASE 1  The Chest Pain Trap          -> cases.py case_1
+  Design CASE 2  The Headache That Is Not Stress -> cases.py case_6
+  Design CASE 3  The Confused Elderly Man      -> cases.py case_3
+  Design CASE 4  The Tired Teacher             -> cases.py case_4
+  Design CASE 5  The Wheezing Child            -> cases.py case_7
+
+  (cases.py case_2 is pulmonary embolism and case_5 is diabetic
+   ketoacidosis. Neither was designed here; both were written directly
+   into cases.py during the pilot build.)
+
+The one piece of hard evidence that these designs were always meant to
+be built: every topic key and every detection keyword listed under
+CASE 2 and CASE 5 below is already present in TOPIC_KEYWORDS, seeded by
+migration 017, and was used by no case at all until 29 October.
+
+## AUDIENCE — this document predates the change
+
+Every "Anchor Test" section below is written from a CS STUDENT's
+perspective, because in May 2026 the evaluators were CS students. The
+product's audience is now clinical-phase medical students in years 3-5
+(PRD D-1, settled September 2026). The anchor traps survive the change,
+but the Anchor Test sections should be read as historical.
+
+## WHAT THIS DOCUMENT DOES NOT COVER
+
+It predates the examination and investigation layer entirely. There is
+no section here for exam findings or test results; those live in
+CLINICAL_DATA in cases.py and were authored there. Anything this file
+does specify still governs.
 
 ---
 
@@ -281,7 +319,9 @@ Anchor trap is working. PASS.
 
 ## CASE 2: The Headache That Is Not Stress
 
-### Status: Design complete — verified Day 2
+### Status: IMPLEMENTED 29 Oct 2026 as cases.py `case_6`,
+### slug `headache-hypertension`, seeded as draft by migration 026.
+### Three divergences, all recorded in the Case Update Log.
 
 ---
 
@@ -959,7 +999,9 @@ extremely strong. PASS.
 
 ## CASE 5: The Wheezing Child
 
-### Status: Design complete — verified Day 2
+### Status: IMPLEMENTED 29 Oct 2026 as cases.py `case_7`,
+### slug `wheezing-child-asthma`, seeded as draft by migration 026.
+### Four divergences, all recorded in the Case Update Log.
 
 ---
 
@@ -1219,5 +1261,61 @@ regardless of the diagnosis. Anchor trap is solid. PASS.
 ## being flagged as anchoring behavior.
 
 ## Updates:
-## (none yet — file created Day 2)
+
+## [Oct 29, 2026] Case 2 (-> case_6) — IMPLEMENTED in cases.py as case_6,
+## slug headache-hypertension, seeded draft by migration 026. Three changes
+## to the design as written:
+##
+## 1. anchor_keywords: REMOVED "tension", "vision for screens", "sleep".
+##    Reason: invariants C-4 and C-9, both substring collisions. The
+##    detectors match with `if kw in question.lower()`, so "tension" fires
+##    on a learner asking about HYPERtension and "vision for screens"
+##    contains the clue keyword "vision" — in both cases the question that
+##    SOLVES the case would have been scored as fixating on the trap.
+##    "sleep" is a proper substring of "sleeping" (C-9). Replaced with
+##    "tension headache" and "sleep quality"; "vision for screens" dropped
+##    outright. This is the 14%-sensitivity bug class, caught before it ran.
+##
+## 2. contradictory_clues: clue 4 ("no specific stress event triggered the
+##    headaches") is NOT implemented. Reason: it is a true and useful clue
+##    for a human reader, but clues are matched as keyword lists against the
+##    learner's questions, and there is no phrasing of "did anything
+##    trigger this" that is both specific to this clue and not already the
+##    stress_assessment topic. Six of the eight clues are implemented, above
+##    the C-6 floor of four.
+##
+## 3. ADDED: the combined oral contraceptive pill, three years, as the
+##    likely cause. Reason: the design names "contraceptive medication" in
+##    the medications topic but never says what the answer is, leaving the
+##    medications question decorative. For a year-3 medical student — the
+##    audience since D-1 — an unexplained BP of 168/104 in a 28-year-old is
+##    an incomplete case; the pill makes the medication history load-bearing
+##    and the case teaches a real, reversible cause.
+
+## [Oct 29, 2026] Case 5 (-> case_7) — IMPLEMENTED in cases.py as case_7,
+## slug wheezing-child-asthma, seeded draft by migration 026. Four changes:
+##
+## 1. anchor_keywords: REMOVED "fever" and "temperature". Reason: C-4.
+##    They are clue 1 — the absence of fever is the single most
+##    discriminating finding in the case. Leaving them in the anchor list
+##    would have counted "does he have a temperature?" as evidence of
+##    fixating on infection. The design document's own Anchor Test says the
+##    fever question "is actually correct regardless of the diagnosis",
+##    which is the same observation reached from the other direction.
+##
+## 2. anchor_keywords: REMOVED "cold" and "cold weather virus". Reason:
+##    C-4 again — both contain "cold", which is inside the clue keywords
+##    "cold air" and "cold weather". Replaced with "common cold" and
+##    "caught a cold", which collide with nothing.
+##
+## 3. anchor_keywords: REMOVED bare "ear" and "ill". Reason: too short to
+##    match safely. "ear" fires on "year", "hear" and "clear"; "ill" on
+##    "still" and "will". Not caught by C-9, which only checks a fixed list
+##    of ordinary words, so this one is judgement rather than a test.
+##    Replaced with "ear infection" and "earache".
+##
+## 4. contradictory_clues: clue 8 ("no sick contacts") is NOT implemented.
+##    Reason: every phrasing of the question that finds it — "is anyone
+##    else unwell", "has he been around sick children" — collides with an
+##    anchor keyword under C-4. Seven of the eight clues are implemented.
 

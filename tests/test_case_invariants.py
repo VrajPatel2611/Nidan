@@ -20,6 +20,7 @@ import pytest
 from nidan.domain.assessment.bias import clue_keywords
 from nidan.domain.assessment.topics import TOPIC_KEYWORDS
 from nidan.domain.content.cases import (
+    CASE_SLUGS,
     CASES,
     MASTER_EXAMINATIONS,
     MASTER_INVESTIGATIONS,
@@ -129,13 +130,29 @@ def test_c7_has_at_least_one_key_investigation(case):
 
 # ── coverage guard ───────────────────────────────────────────────────────
 
-def test_all_five_cases_are_checked():
+def test_every_case_is_checked_and_can_be_identified():
     """
-    Guards against the invariants silently covering fewer cases than exist —
-    a case added to CASES but not loadable would otherwise reduce coverage
-    without any test failing.
+    Guards against the invariants silently covering fewer cases than exist.
+
+    A case added to CASES but not loadable reduces coverage without any test
+    failing. A case added without a `CASE_SLUGS` entry loads perfectly and
+    then has no stable identifier, so it cannot be seeded into `cases.slug`,
+    selected, or reached by URL (`DATA_MODEL` §5.1) — and nothing notices
+    until the migration generator runs.
+
+    The count is a floor, not a fixture. It was `== 5` until cases 6 and 7
+    were written on 29 October 2026, and three more are planned; pinning the
+    number means every new case starts by editing an assertion, which teaches
+    people to edit assertions.
     """
-    assert len(CASE_IDS) == 5, f"expected 5 cases, found {CASE_IDS}"
+    assert len(CASE_IDS) >= 5, f"cases have gone missing: {CASE_IDS}"
+    assert all(get_case(cid) for cid in CASE_IDS), "a case in CASES will not load"
+    assert sorted(CASE_SLUGS) == CASE_IDS, (
+        f"CASES and CASE_SLUGS disagree. Only in CASES: "
+        f"{sorted(set(CASE_IDS) - set(CASE_SLUGS))}; only in CASE_SLUGS: "
+        f"{sorted(set(CASE_SLUGS) - set(CASE_IDS))}")
+    assert len(set(CASE_SLUGS.values())) == len(CASE_SLUGS), (
+        "two cases share a slug, and `cases.slug` is UNIQUE")
 
 
 # ── C-8, C-9 · found during T-002, not yet in DATA_MODEL §8.1 ────────────

@@ -1,7 +1,7 @@
 """
 cases.py
 --------
-Defines all 5 clinical case configurations for the virtual patient
+Defines all 7 clinical case configurations for the virtual patient
 simulator. Each case contains the patient persona, Gemini system
 prompt, correct diagnosis, and bias detection configuration.
 
@@ -16,6 +16,10 @@ Case list:
   case_3: Gopal Mehta,  74M — Acute confusion — UTI/delirium vs Stroke/Dementia
   case_4: Meera Patel,  35F — Fatigue — Hypothyroidism vs Depression (TFTs req'd)
   case_5: Aisha Khan,   21F — Vomiting + abdo pain — DKA vs Gastroenteritis
+  case_6: Priya Sharma, 28F — Headache — Hypertension vs stress/tension
+          (examination-required: the diagnosis is on the blood pressure cuff)
+  case_7: Arjun Shah,   10M — Cough and wheeze — Asthma vs chest infection
+          (two voices: the child and his mother Sunita)
 """
 
 from nidan.domain.types import Case, CaseSummary
@@ -528,6 +532,233 @@ CASES = {
              "breathing fast", "breathing quickly", "sighing"],
             ["glucose", "blood sugar", "sugar level", "diabetes", "ketone",
              "hyperglyc", "hba1c", "type 1 diabetes"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 6: Priya Sharma — Headache — Hypertension vs stress/tension
+    # Designed in docs/cases_design.md as "CASE 2: The Headache That Is
+    # Not Stress". Examination-required: the diagnosis is on the cuff.
+    # ──────────────────────────────────────────────────────────────────
+    "case_6": {
+        "id": "case_6",
+        "title": "The Headache That Is Not Stress",
+        "patient_intro": (
+            "A 28-year-old female software engineer named Priya Sharma visits "
+            "the clinic. She has been getting headaches almost every day for "
+            "the past 2 weeks and is finding it difficult to concentrate at "
+            "work."
+        ),
+        "opening_line": (
+            "I have been getting these headaches almost every day for about "
+            "two weeks. I cannot seem to shake them. It is affecting my work "
+            "and I cannot concentrate properly."
+        ),
+        "system_prompt": (
+            "You are playing Priya Sharma, a 28-year-old software engineer at "
+            "a startup, with daily headaches for 2 weeks. Speak naturally, "
+            "without medical jargon. Keep responses to 2-4 sentences.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Character: THROBBING and POUNDING, 'like pounding from inside'. "
+            "NOT a tight band. Describe it that way ONLY if asked what it "
+            "feels like.\n"
+            "- Location: mainly at the BACK OF THE HEAD, towards the neck. "
+            "Share ONLY if asked where it is.\n"
+            "- Timing: WORST IN THE MORNING — already there on waking, eases "
+            "during the day, returns later. Share ONLY if asked about timing.\n"
+            "- Vision: things go BLURRY during the headache sometimes, a few "
+            "times over the two weeks. Share ONLY if asked about vision.\n"
+            "- Blood pressure: NEVER CHECKED since school. Say so ONLY if "
+            "asked.\n"
+            "- Medications: on the COMBINED ORAL CONTRACEPTIVE PILL for three "
+            "years. Occasional paracetamol, which barely helps. Disclose ONLY "
+            "if asked about medication, tablets, the pill, or contraception.\n"
+            "- Family: MOTHER has high blood pressure, on tablets for years. "
+            "Share ONLY if asked about family.\n"
+            "- Stress: work is busy, but it is ALWAYS busy. Nothing changed "
+            "when the headaches started — no deadline, no new project, no "
+            "life event. Say this if asked about stress.\n"
+            "- Sleep: FINE, about 7 hours. Not a sleep problem.\n"
+            "- NOT present: no neck stiffness, no fever, no photophobia, no "
+            "aura, no vomiting, no weakness, no head injury.\n\n"
+            "PERSONALITY: Articulate, a little frustrated, assumes it is "
+            "stress and expects to be told so."
+        ),
+        "correct_diagnosis": (
+            "Hypertension, newly diagnosed — associated with combined oral "
+            "contraceptive use"
+        ),
+        "anchor_topic": "stress / tension headache / lifestyle",
+        # NOTE. Three terms from the design doc's anchor list are deliberately
+        # absent, each for invariant C-4 or C-9:
+        #   "tension"            ⊂ "hypertension" — the clue that solves it
+        #   "vision for screens" ⊃ "vision"       — likewise
+        #   "sleep"              ⊂ "sleeping"     — C-9, an ordinary word
+        # The detectors match by substring, so each would have counted a
+        # learner asking the right question as fixating on the wrong one.
+        "anchor_keywords": [
+            "stress", "stressed", "tension headache", "anxiety",
+            "work pressure", "overwork", "burnout", "migraine", "painkiller",
+            "relax", "rest", "screen time", "posture", "massage",
+            "stress relief", "mental health", "tired", "exhausted",
+            "caffeine headache", "dehydration headache", "eye strain",
+            "glasses", "work life balance", "meditation", "yoga",
+            "sleep quality", "time off",
+        ],
+        "alternative_topics": [
+            "blood pressure", "hypertension", "bp reading", "bp check",
+            "dizziness", "blurry vision", "floaters", "family history bp",
+            "family history stroke", "kidney", "morning headache",
+            "throbbing", "pulsating", "pounding", "back of head",
+            "monitor", "measurement", "contraceptive", "oral contraceptive",
+            "fundoscopy",
+        ],
+        "required_topics": [
+            "headache_character",
+            "timing_pattern",
+            "visual_symptoms",
+            "family_history",
+            "BP_awareness",
+            "medications",
+            "lifestyle",
+            "stress_assessment",
+        ],
+        "minimum_questions": 7,
+        # Curated disconfirming keyword sets (arguing AGAINST stress/tension,
+        # for hypertension), from the design doc's eight clues. Clue 4 ("no
+        # specific stress event triggered it") is absent: it is a true clue but
+        # there is no question a learner asks that matches it as a keyword.
+        "contradictory_clues": [
+            ["morning", "on waking", "wakes", "first thing", "worst in the"],
+            ["blurry", "blurred vision", "vision", "visual", "eyesight",
+             "spots"],
+            ["blood pressure", "hypertension", "checked", "measured",
+             "bp reading", "ever had it checked"],
+            ["mother", "family history", "runs in the family", "parent",
+             "hereditary", "relative"],
+            ["throbbing", "pounding", "pulsating", "back of the head",
+             "posterior", "neck"],
+            ["contraceptive", "pill", "birth control", "hormonal",
+             "the pill"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 7: Arjun Shah, 10M (mother Sunita) — Cough and wheeze —
+    # First presentation of asthma vs chest infection.
+    # Designed in docs/cases_design.md as "CASE 5: The Wheezing Child".
+    # Two voices: the chatbot plays whoever the learner addresses.
+    # ──────────────────────────────────────────────────────────────────
+    "case_7": {
+        "id": "case_7",
+        "title": "The Wheezing Child",
+        "patient_intro": (
+            "Sunita brings her 10-year-old son Arjun to the clinic. She says "
+            "he has had a cough and a wheezing sound in his chest for the past "
+            "few days. Arjun is sitting next to her and looks a little "
+            "uncomfortable but is not in severe distress."
+        ),
+        "opening_line": (
+            "He has had this cough for a few days now. It seems worse at night "
+            "when he is trying to sleep — it wakes him up sometimes. There is "
+            "a wheezing sound in his chest."
+        ),
+        "system_prompt": (
+            "You are playing TWO people: SUNITA, the worried but calm mother, "
+            "and ARJUN, her 10-year-old son. Reply as whoever the learner "
+            "addresses; default to Sunita. Arjun answers questions put to him "
+            "directly, in a 10-year-old's words. Keep responses to 2-4 "
+            "sentences.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Fever: NO fever. Sunita checked this morning: 36.8°C, normal. "
+            "Say so ONLY if asked.\n"
+            "- Coryza: NO runny nose, NO sore throat. Just the cough and the "
+            "wheeze. Share ONLY if asked.\n"
+            "- Timing: WORST AT NIGHT and in the EARLY MORNING. Wakes him. "
+            "Share ONLY if asked about timing.\n"
+            "- Exercise: at PE last week he coughed and wheezed badly after "
+            "running; the teacher was concerned. Share ONLY if asked about "
+            "exercise or sport.\n"
+            "- Cold air: going outside on cool mornings makes it much worse. "
+            "Share ONLY if asked about weather or cold.\n"
+            "- Recurrence: it has happened TWICE BEFORE in the past year. "
+            "Sunita thought it was a bad cough each time and it went away on "
+            "its own. Share ONLY if asked whether this has happened before.\n"
+            "- Family: Arjun's GRANDFATHER has asthma and uses an inhaler. "
+            "Sunita has HAY FEVER and takes antihistamines every spring. "
+            "Share ONLY if asked about family.\n"
+            "- Impact: he went to school yesterday but was uncomfortable all "
+            "day and did not do PE. He is usually very active. Share ONLY if "
+            "asked about school or activity.\n"
+            "- As ARJUN, if asked directly about his chest: 'Yeah, when I run "
+            "a lot it gets really tight and then I start coughing and it "
+            "sounds funny. It is embarrassing in front of my friends.'\n"
+            "- NOT present: no weight loss, no night sweats, no choking "
+            "episode, no pets at home, no damp at home, no smokers at home.\n\n"
+            "PERSONALITY: Sunita is attentive and precise, and has not "
+            "connected the episodes to each other. Arjun is cooperative and "
+            "slightly embarrassed."
+        ),
+        "correct_diagnosis": "First presentation of asthma",
+        "anchor_topic": "chest infection / viral illness / antibiotics",
+        # NOTE. Four terms from the design doc's anchor list are deliberately
+        # absent, and the first two matter most:
+        #   "fever", "temperature" — these are clue[0]. The doc's own Anchor
+        #     Test says the fever question "is actually correct regardless of
+        #     the diagnosis"; leaving them in the anchor list would have
+        #     scored the single most discriminating question in the case as
+        #     evidence of fixating on infection (C-4).
+        #   "cold"               ⊂ "cold air" — same collision
+        #   "ear", "ill"         — too short to match safely: "ear" fires on
+        #     "year" and "hear", "ill" on "still" and "will"
+        "anchor_keywords": [
+            "infection", "chest infection", "viral", "virus", "bacteria",
+            "bacterial", "antibiotic", "penicillin", "amoxicillin",
+            "common cold", "caught a cold", "flu", "contagious", "school bug",
+            "paracetamol", "runny nose", "throat", "sore throat", "tonsils",
+            "ear infection", "earache", "lymph node", "cough syrup",
+            "inhale steam", "green mucus", "yellow mucus", "blocked nose",
+            "caught something", "pneumonia", "bronchitis",
+        ],
+        "alternative_topics": [
+            "asthma", "wheeze", "trigger", "exercise", "cold air", "night",
+            "morning", "allergy", "eczema", "hay fever", "family asthma",
+            "atopy", "inhaler", "recurring", "bronchospasm", "sport",
+            "pe lesson", "running", "wake up coughing", "seasonal",
+            "peak flow", "spirometry",
+        ],
+        "required_topics": [
+            "fever_infection_signs",
+            "symptom_timing_pattern",
+            "exercise_trigger",
+            "cold_air_trigger",
+            "duration_recurrence",
+            "family_atopy_history",
+            "school_sport_impact",
+        ],
+        "minimum_questions": 7,
+        # Curated disconfirming keyword sets (arguing AGAINST infection, for
+        # asthma). The doc's clue 8 ("no sick contacts") is absent: every
+        # phrasing of it collided with an anchor keyword under C-4.
+        # "run" is absent from clue[2] because it is inside "runny nose".
+        "contradictory_clues": [
+            ["fever", "temperature", "febrile", "hot", "any temperature"],
+            ["night", "at night", "early morning", "wakes", "waking",
+             "nocturnal"],
+            ["exercise", "running", "runs", "sport", "pe lesson", "exertion",
+             "games", "football", "playing"],
+            ["cold air", "cold weather", "winter", "outside", "outdoors",
+             "weather"],
+            ["happened before", "previous", "recurring", "again",
+             "first time", "ever had", "in the past"],
+            ["asthma", "inhaler", "grandfather", "hay fever", "eczema",
+             "allergy", "atopic", "antihistamine"],
+            ["wheeze", "wheezing", "whistling", "tight chest", "chest tight",
+             "tightness"],
         ],
     },
 }
@@ -1304,6 +1535,333 @@ CLINICAL_DATA = {
                 "category": "low_value"},
         },
     },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 6: Hypertension presenting as headache. The history genuinely
+    # does sound like stress, and the diagnosis is on the cuff — a learner
+    # can take a flawless history and still get it wrong by not examining.
+    # The design doc predates this layer; exam and investigations are new.
+    # ──────────────────────────────────────────────────────────────────
+    "case_6": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Priya Sharma, a 28-year-old software engineer at a "
+            "startup. Articulate, mildly frustrated, assumes this is stress "
+            "and half expects to be told so. You have come about daily "
+            "headaches for 2 weeks.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Headache: THROBBING, POUNDING — 'pounding from inside', not a "
+            "band around the head. Severity 5-7/10. Almost daily for 2 weeks, "
+            "gradually more frequent.\n"
+            "• Location: mainly OCCIPITAL — back of the head, towards the "
+            "neck. Not one-sided, not behind the eye.\n"
+            "• Timing: WORST ON WAKING, already present when you open your "
+            "eyes. Eases through the morning, often returns by evening.\n"
+            "• Vision: things go BLURRY during the headache, three or four "
+            "times over the two weeks, lasting minutes. No aura, no zigzags, "
+            "no flashing lights, no double vision, no loss of vision.\n"
+            "• NOT: no neck stiffness, no fever, no rash, no photophobia, no "
+            "vomiting, no weakness or numbness, no speech problems, no "
+            "thunderclap onset, no worsening on coughing or lying flat, no "
+            "head injury, no weight loss, no night sweats.\n"
+            "• Medications: COMBINED ORAL CONTRACEPTIVE PILL for 3 years, "
+            "taken daily, same brand throughout. Paracetamol 1 g perhaps "
+            "three times a week for the headache — it barely helps. No "
+            "NSAIDs, no triptans, no supplements, no herbal remedies, no "
+            "decongestants, no recreational drugs.\n"
+            "• Blood pressure: NEVER CHECKED since a school medical. You have "
+            "never been told it was high.\n"
+            "• PMH: nothing. No diabetes, no kidney disease, no migraine "
+            "history, no pre-eclampsia (never pregnant).\n"
+            "• Family: MOTHER has high blood pressure, on tablets for years. "
+            "Father — you do not know. No known kidney disease, no early "
+            "stroke or heart attack that you are aware of.\n"
+            "• Social: work is busy, but it is ALWAYS busy — nothing changed "
+            "when the headaches started, no new deadline, no life event. "
+            "Sleeps ~7 hours and sleeps well. Non-smoker. Alcohol 4-6 "
+            "units/week. 2 coffees a day, unchanged for years. Drinks water "
+            "regularly. Walks and does yoga twice a week.\n"
+        ),
+        "accepted_diagnoses": [
+            "hypertension", "high blood pressure", "raised blood pressure",
+            "elevated blood pressure", "hypertensive", "newly diagnosed "
+            "hypertension", "essential hypertension", "secondary hypertension",
+            "drug-induced hypertension", "pill-induced hypertension",
+            "oral contraceptive induced hypertension",
+            "contraceptive related hypertension",
+        ],
+        "partial_diagnoses": [
+            "secondary headache", "blood pressure related",
+            "contraceptive side effect", "hormonal", "cardiovascular risk",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well, comfortable, no distress. No rash, no neck "
+                           "stiffness, not photophobic. Kernig's negative.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "BP 168/104 mmHg right arm, 166/102 mmHg left arm; "
+                           "repeated after 5 minutes seated rest 164/102 mmHg "
+                           "(normal < 140/90; 160-179/100-119 is stage 2). "
+                           "HR 76 bpm regular · RR 14 · SpO₂ 99% on air · "
+                           "Temp 36.6°C. THE DIAGNOSIS IS HERE.",
+                "key": True},
+            "eyes_fundoscopy": {"label": "Fundoscopy",
+                "finding": "Generalised ARTERIOLAR NARROWING with early "
+                           "arteriovenous nipping. No haemorrhages, no "
+                           "exudates, NO papilloedema. Keith-Wagener-Barker "
+                           "GRADE I-II hypertensive retinopathy — changes of "
+                           "raised pressure, but no acute damage.",
+                "key": True},
+            "cardiovascular": {"label": "Cardiovascular exam",
+                "finding": "Apex beat normal in position and character — NOT "
+                           "heaving or displaced. Heart sounds I+II, no "
+                           "murmur. JVP not raised, no oedema. Radial and "
+                           "femoral pulses synchronous (no radiofemoral "
+                           "delay — coarctation excluded).",
+                "key": True},
+            "neuro_focal": {"label": "Focal neurological exam",
+                "finding": "Power 5/5, tone, coordination and sensation "
+                           "normal, plantars downgoing. NO focal deficit.",
+                "key": False},
+            "cranial_nerves": {"label": "Cranial nerve exam",
+                "finding": "II-XII intact. Visual fields full to "
+                           "confrontation. Pupils equal and reactive.",
+                "key": False},
+            "weight_bmi": {"label": "Weight and BMI",
+                "finding": "64 kg, 1.63 m, BMI 24.1 kg/m² (normal 18.5-24.9). "
+                           "Weight is NOT the explanation here.",
+                "key": False},
+            "abdomen": {"label": "Abdominal exam",
+                "finding": "Soft, non-tender. NO renal bruit. No palpable or "
+                           "ballotable kidneys, no masses.",
+                "key": False},
+            "neck_thyroid": {"label": "Neck and thyroid",
+                "finding": "No goitre, no nodule, no bruit. Occipital muscles "
+                           "not tender — no myofascial tenderness to support a "
+                           "tension-type headache.",
+                "key": False},
+        },
+        "investigations": {
+            "urinalysis": {"label": "Urine dipstick",
+                "result": "Protein negative · Blood negative · Glucose "
+                          "negative · Leucocytes negative. NO proteinuria — "
+                          "no evidence of kidney damage yet, which fits "
+                          "recent-onset hypertension.",
+                "category": "key"},
+            "u_e_creatinine": {"label": "Urea, electrolytes & creatinine",
+                "result": "Na 140 mmol/L · K 4.2 (ref 3.5-5.3) · Urea 4.4 "
+                          "(ref 2.5-7.8) · Creatinine 71 µmol/L (ref 45-90) · "
+                          "eGFR > 90 mL/min/1.73m². NORMAL. Normal potassium "
+                          "makes primary hyperaldosteronism unlikely.",
+                "category": "key"},
+            "ecg": {"label": "ECG (12-lead)",
+                "result": "Sinus rhythm 74 bpm. Normal axis. NO left "
+                          "ventricular hypertrophy (S in V1 + R in V5 = "
+                          "26 mm; Sokolow-Lyon threshold 35 mm). No ischaemic "
+                          "change. A normal ECG is consistent with "
+                          "hypertension of recent onset, and does not "
+                          "exclude it.",
+                "category": "key"},
+            "pregnancy_test": {"label": "Urine pregnancy test",
+                "result": "Negative. Relevant before changing or stopping "
+                          "hormonal contraception, and before prescribing an "
+                          "ACE inhibitor or ARB.",
+                "category": "reasonable"},
+            "lipids": {"label": "Lipid profile",
+                "result": "Total cholesterol 4.4 mmol/L (target < 5.0) · "
+                          "LDL 2.4 · HDL 1.6 · Triglycerides 0.9. Normal. "
+                          "Part of cardiovascular risk assessment once "
+                          "hypertension is found.",
+                "category": "reasonable"},
+            "hba1c": {"label": "HbA1c",
+                "result": "33 mmol/mol (ref < 42). Normal.",
+                "category": "reasonable"},
+            "tfts": {"label": "Thyroid function tests",
+                "result": "TSH 1.8 mU/L (ref 0.4-4.0) · Free T4 15 pmol/L "
+                          "(ref 9-23). Normal — thyroid disease excluded as a "
+                          "secondary cause.",
+                "category": "reasonable"},
+            "renal_uss": {"label": "Renal ultrasound",
+                "result": "Both kidneys normal size and echotexture, no "
+                          "obstruction, no asymmetry. Reasonable in a "
+                          "28-year-old with new hypertension, where a "
+                          "secondary cause is more likely than at 60.",
+                "category": "reasonable"},
+            "ct_head": {"label": "CT head",
+                "result": "No haemorrhage, no mass, no hydrocephalus. NORMAL "
+                          "— and it was never going to show the diagnosis, "
+                          "which is on the blood pressure cuff.",
+                "category": "low_value"},
+            "mri_brain": {"label": "MRI brain",
+                "result": "Normal. No space-occupying lesion, no venous sinus "
+                          "thrombosis. Not indicated without red flags or "
+                          "focal signs.",
+                "category": "low_value"},
+            "eeg": {"label": "EEG",
+                "result": "Normal. No indication — this is not a seizure "
+                          "disorder.",
+                "category": "low_value"},
+            "cortisol": {"label": "Morning serum cortisol",
+                "result": "385 nmol/L (ref 140-690). Normal. Screening for "
+                          "Cushing's with no clinical features is low yield.",
+                "category": "low_value"},
+        },
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 7: First presentation of asthma, called a chest infection.
+    # Two voices — Sunita and Arjun. The absence of fever is the single
+    # most discriminating finding, which is why "fever" is a clue here and
+    # NOT an anchor keyword (see the note on the stub above).
+    # ──────────────────────────────────────────────────────────────────
+    "case_7": {
+        "system_prompt": _RULES + (
+            "YOU ARE TWO PEOPLE. SUNITA: Arjun's mother, attentive, precise, "
+            "worried but calm; she has not connected the episodes to each "
+            "other. ARJUN: 10 years old, cooperative, slightly embarrassed, "
+            "answers in a child's words. Reply as whoever the learner "
+            "addresses; default to Sunita.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Cough: DRY, he brings nothing up. Present 4-5 days this time.\n"
+            "• Timing: WORST AT NIGHT and in the EARLY MORNING. Wakes him. "
+            "Much less during the school day.\n"
+            "• Fever: NONE. Sunita measured 36.8°C this morning. He has not "
+            "felt hot at any point.\n"
+            "• Coryza: NO runny nose, NO sore throat, no earache. Nothing but "
+            "the cough and the wheeze.\n"
+            "• Exercise: at PE last week he coughed and wheezed badly after "
+            "running, and the teacher was concerned. Settles with rest.\n"
+            "• Cold air: going outside on a cool morning makes it much worse; "
+            "he comes back in coughing.\n"
+            "• Recurrence: TWICE BEFORE in the past year. Sunita thought it "
+            "was a bad cough each time; it resolved by itself. Nobody "
+            "connected them.\n"
+            "• Family: GRANDFATHER (paternal) has asthma and uses an inhaler. "
+            "SUNITA has hay fever and takes antihistamines every spring. No "
+            "cystic fibrosis, no TB contact.\n"
+            "• PMH: mild eczema as a toddler, in the elbow creases. Born at "
+            "term, no neonatal problems, immunisations up to date. No "
+            "hospital admissions, no pneumonia.\n"
+            "• Impact: at school yesterday but uncomfortable all day; did not "
+            "do PE. Usually very active. No school missed yet.\n"
+            "• Environment: no pets, no damp or mould, nobody smokes at home.\n"
+            "• NOT: no weight loss, no night sweats, no choking episode, no "
+            "haemoptysis, no feeding or growth problems.\n"
+            "• AS ARJUN, if addressed directly about his chest: 'Yeah, when I "
+            "run a lot it gets really tight and then I start coughing and it "
+            "sounds funny. It is embarrassing in front of my friends.'\n"
+        ),
+        "accepted_diagnoses": [
+            "asthma", "bronchial asthma", "atopic asthma", "allergic asthma",
+            "childhood asthma", "first presentation of asthma",
+            "exercise induced asthma", "exercise-induced asthma",
+            "exercise induced bronchoconstriction", "reversible airway",
+            "reversible airways disease", "reversible airflow obstruction",
+        ],
+        "partial_diagnoses": [
+            "atopy", "allergy", "allergic rhinitis", "recurrent wheeze",
+            "viral induced wheeze", "bronchospasm", "airway "
+            "hyperresponsiveness",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well-grown 10-year-old, alert, comfortable at "
+                           "rest, speaking in full sentences. No cyanosis, no "
+                           "nasal flaring, no recession, no accessory muscle "
+                           "use.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 92 bpm · RR 20 (normal 15-25 at age 10) · "
+                           "SpO₂ 98% on air · Temp 36.8°C — AFEBRILE. Nothing "
+                           "in the observations supports an active infection.",
+                "key": True},
+            "respiratory": {"label": "Respiratory exam",
+                "finding": "Chest expansion equal, percussion resonant. "
+                           "Scattered high-pitched EXPIRATORY WHEEZE "
+                           "throughout, brought out by forced expiration. NO "
+                           "crackles, no bronchial breathing, no focal "
+                           "dullness. Mild hyperinflation.",
+                "key": True},
+            "peak_flow_exam": {"label": "Bedside peak expiratory flow",
+                "finding": "Best of three: 190 L/min. Predicted for height "
+                           "138 cm: 260 L/min — 73% of predicted (< 80% is "
+                           "abnormal). 15 min after inhaled salbutamol: "
+                           "245 L/min, a rise of 29%.",
+                "key": True},
+            "ent": {"label": "Ear, nose and throat",
+                "finding": "Nasal mucosa PALE AND BOGGY with clear discharge "
+                           "— allergic, not infective. Tonsils not enlarged "
+                           "or inflamed, no exudate. Tympanic membranes "
+                           "normal. Pharynx NOT injected.",
+                "key": True},
+            "skin": {"label": "Skin examination",
+                "finding": "Mild dry, lichenified FLEXURAL ECZEMA in both "
+                           "antecubital fossae. No urticaria, no rash.",
+                "key": True},
+            "lymph_nodes": {"label": "Lymph node examination",
+                "finding": "No cervical, axillary or supraclavicular "
+                           "lymphadenopathy — no reactive nodes.",
+                "key": False},
+            "hands_nails": {"label": "Hands and nails",
+                "finding": "NO finger clubbing, no cyanosis. The absence of "
+                           "clubbing argues against bronchiectasis and cystic "
+                           "fibrosis.",
+                "key": False},
+        },
+        "investigations": {
+            "spirometry": {"label": "Spirometry with reversibility",
+                "result": "Pre-bronchodilator: FEV₁ 1.32 L (71% predicted) · "
+                          "FVC 1.92 L (93% predicted) · FEV₁/FVC 0.69 "
+                          "(ref > 0.80 in a child) — OBSTRUCTIVE pattern. "
+                          "15 min after 400 µg salbutamol: FEV₁ 1.58 L, an "
+                          "increase of 260 mL and 20%. SIGNIFICANT "
+                          "REVERSIBILITY (≥ 12%). This is the test that makes "
+                          "the diagnosis.",
+                "category": "key"},
+            "peak_flow": {"label": "Two-week peak flow diary",
+                "result": "Mean diurnal variability 23% (ref < 20%), with "
+                          "consistent morning dipping and the lowest readings "
+                          "after PE. Variability of this degree is diagnostic "
+                          "of asthma.",
+                "category": "key"},
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 128 g/L (ref 115-155 at this age) · WCC 7.4 "
+                          "×10⁹/L (ref 4.5-13.5) — NOT raised · Neutrophils "
+                          "3.6 · EOSINOPHILS 0.58 ×10⁹/L (ref 0.0-0.4) — "
+                          "MILDLY RAISED, consistent with atopy · Platelets "
+                          "290.",
+                "category": "reasonable"},
+            "crp": {"label": "C-reactive protein",
+                "result": "2 mg/L (ref < 5). NOT RAISED. No biochemical "
+                          "evidence of bacterial infection — three courses of "
+                          "antibiotics would have had nothing to treat.",
+                "category": "reasonable"},
+            "cxr": {"label": "Chest X-ray",
+                "result": "Clear lung fields. No consolidation, no collapse, "
+                          "no bronchiectasis, no inhaled foreign body, normal "
+                          "cardiac silhouette. Mild hyperinflation only. "
+                          "NORMAL — and a normal film during a third episode "
+                          "is itself the finding.",
+                "category": "reasonable"},
+            "pcr_covid_flu": {"label": "Respiratory viral PCR",
+                "result": "Negative for influenza A/B, RSV and SARS-CoV-2. No "
+                          "current viral infection.",
+                "category": "low_value"},
+            "culture_sputum": {"label": "Sputum culture",
+                "result": "No sample — the cough is dry and a 10-year-old "
+                          "does not expectorate. That fact is worth more than "
+                          "the test would have been.",
+                "category": "low_value"},
+            "blood_cultures": {"label": "Blood cultures",
+                "result": "Not indicated — afebrile, systemically well, no "
+                          "signs of sepsis. No growth at 48 hours.",
+                "category": "low_value"},
+            "procalcitonin": {"label": "Procalcitonin",
+                "result": "0.03 µg/L (ref < 0.1). Not indicated; adds nothing "
+                          "the CRP and the observations have not settled.",
+                "category": "low_value"},
+        },
+    },
 }
 
 # Merge the clinical data layer into the base CASES definitions.
@@ -1315,7 +1873,7 @@ for _cid, _extra in CLINICAL_DATA.items():
 # ══════════════════════════════════════════════════════════════════════
 # MASTER INVESTIGATIONS — Universal panel shown to students on EVERY case
 # ----------------------------------------------------------------------
-# All 5 cases share this identical list of ~80 tests so students cannot
+# All cases share this identical list of ~80 tests so students cannot
 # infer the diagnosis from which tests are available.
 #
 # Each entry has:
@@ -2421,6 +2979,8 @@ CASE_SLUGS: dict[str, str] = {
     "case_3": "confusion-delirium-uti",
     "case_4": "fatigue-hypothyroidism",
     "case_5": "vomiting-diabetic-ketoacidosis",
+    "case_6": "headache-hypertension",
+    "case_7": "wheezing-child-asthma",
 }
 
 

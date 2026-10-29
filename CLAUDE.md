@@ -20,8 +20,11 @@ engineering**, so onboarding them is worth more than starting the next task.
 **Next: Phase 3 — the API and the web app** (8 tasks, 28 d). T-030 (JSON API,
 Vraj) and T-032 (Next.js scaffold, Yogesh) have no dependency on each other and
 can start together. But `BUILD_PLAN` §11.1 still rates **content authoring the
-real critical path**: five cases remain to be written and clinically reviewed,
-and no amount of engineering removes that.
+real critical path**: three cases remain to be written and all ten reviewed,
+and no amount of engineering removes that. Cases 6 and 7 were written on
+29 Oct 2026 from designs that had been sitting in `docs/cases_design.md`
+since May; **three remain, and they need new topic-lexicon entries**, which
+T-044 does not exist to provide yet — so each is a migration as well as a case.
 
 ---
 
@@ -48,7 +51,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 25 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 26 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
@@ -139,6 +142,13 @@ all 16 pilot sessions. When it fails, regenerate with
 the diff with the change. Regenerating to make a red build green throws away the
 only record of what moved.
 
+**A new case is a new migration, never a regenerated one.** `019_seed_cases`
+and `026_seed_cases` are both produced by `scripts/generate_case_migration.py`
+from `cases.py`. Re-running it over an applied revision rewrites a migration
+no database will ever run again — and the file still looks generated and still
+imports cleanly, so nothing fails. The script refuses without `--force`.
+(`DATA_MODEL` §9.1)
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -149,7 +159,7 @@ fails the build below that. Do not "fix" a detector without re-running it.
 ```
 nidan/
   domain/               pure logic — no Flask, no Groq, no I/O
-    content/cases.py      the 5 clinical cases + master exam/investigation lists
+    content/cases.py      the 7 clinical cases + master exam/investigation lists
     assessment/bias.py    the three detectors  ← the core IP
     assessment/engine.py  assess(events, case, engine) — pure, replayable
     assessment/thresholds.py  the constants, as data (engine_versions)
@@ -189,7 +199,8 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    25 hand-written Alembic migrations ← the schema's source of truth
+migrations/versions/    26 Alembic migrations ← the schema's source of truth
+                        (019 and 026 are generated from cases.py)
 docs/build-log/         what was actually built, one doc per finished task
 docs/spec/              the build contract — 6 docs + adr/  ← the source of truth
 docs/design/            superseded design docs (historical)
@@ -227,7 +238,7 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 25 migrations
+alembic upgrade head               # apply all 26 migrations
 alembic downgrade base             # tear the schema down
 pytest tests/db -q --no-cov        # 241 schema, repository and route tests, real Postgres
 ```
@@ -254,7 +265,7 @@ pytest tests/db -q --no-cov        # 241 schema, repository and route tests, rea
 | | |
 |---|---|
 | Persona | Clinical-phase students and early trainees, years 3–5 |
-| Launch cases | 10 — **5 still to author**, the critical path |
+| Launch cases | 10 — 7 authored, **3 still to write**, the critical path |
 | Free tier | 3 sessions/month, configured not schema |
 | Price | $8–12/mo, $60–80/yr — exact figure at T-041 |
 | Regional pricing | Yes, at launch |
@@ -305,5 +316,5 @@ branch with no shared history with `main`: no pull request, no CI.
   group**, so no causal claim. Do not overstate it.
 - Two clinician reviewers are available but **blocked until the case editor and
   Playtest exist** (`BUILD_PLAN` T-021 → T-023). That gate matters more than it looks.
-- **Content authoring is the real critical path**, not engineering. Five more cases
-  must be written and clinically reviewed before launch.
+- **Content authoring is the real critical path**, not engineering. Three more
+  cases must be written, and all ten clinically reviewed, before launch.

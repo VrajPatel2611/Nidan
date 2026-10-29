@@ -152,9 +152,17 @@ class TestEngineVersion:
 
 
 class TestSeededCases:
-    def test_all_five_cases_are_seeded(self, db):
+    def test_every_case_in_cases_py_is_seeded(self, db):
+        """
+        Compared against `len(CASES)`, not a literal: cases 6 and 7 were added
+        on 29 October 2026 by migration 026, and three more are planned. A
+        pinned number would make every new case start by editing a test.
+        """
         n = db.execute(sa.text("SELECT count(*) FROM cases")).scalar()
-        assert n == len(CASES)
+        assert n == len(CASES), (
+            f"{len(CASES)} cases in cases.py but {n} in the database. A case "
+            f"authored without a seed migration is invisible to every learner "
+            f"and to the review queue — run scripts/generate_case_migration.py")
 
     def test_every_case_is_a_draft(self, db):
         """
