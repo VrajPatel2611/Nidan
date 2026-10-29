@@ -208,9 +208,56 @@ project's files, and switching to it would look like the whole repo vanished.
 
   Vraj to decide the host. Flag it if it blocks you.
 
+- [ ] **Y-8** (2026-10-29, from Vraj) · **All ten cases now exist.** Branch
+  `feat/final-three-cases`, three commits, stacked on nothing — it branches
+  from `main` at PR #32. Migrations 027-032: three new cases plus the lexicon
+  and master-list rows they needed.
+
+  | slug | title | the trap |
+  |---|---|---|
+  | `syncope-aortic-stenosis` | The Faint That Was Not a Faint | the patient offers it himself, and his two drugs support it |
+  | `rectal-bleeding-colorectal-cancer` | The Bleeding That Was Already Explained | **the anchor is TRUE** — he really has haemorrhoids |
+  | `back-pain-axial-spondyloarthritis` | The Back Pain That Was Better By Lunchtime | no single answer gives it away; it is a pattern |
+
+  Nothing for you to build. Two things to know:
+
+  1. **The review queue now has ten drafts in it, not seven.** Worth a look at
+     `/admin/reviews` to check the list still reads well at that length — it
+     was designed when there were five.
+  2. **`rectal-bleeding-colorectal-cancer` is the one to Playtest.** Its rectal
+     examination deliberately returns two findings in one block of text —
+     haemorrhoids AND a mass. If the examination panel truncates, collapses or
+     summarises that text, the case stops working entirely, and it is the only
+     case where the formatting carries the teaching point.
+
 ---
 
 ## Notes
+
+### The case bank is complete (2026-10-29)
+
+Ten cases, all `draft`, none publishable until a clinician approves one —
+migration 007's trigger, not a convention.
+
+Two things learnt doing the last five that are worth knowing before anyone
+touches content again:
+
+- **The cost per case rose sharply at case 8.** Migration 017 seeded 40 topics
+  and the first seven cases used every one, so each case after that needed new
+  `topic_lexicon` rows, and two needed investigation keys that did not exist
+  (colonoscopy, FIT, HLA-B27, two imaging keys). T-044 is the task that turns
+  this back into a screen. Until then, a case is two migrations.
+- **Both seed generators used to rewrite an applied migration.**
+  `generate_case_migration.py` always wrote 019 and
+  `generate_seed_migration.py` always wrote 017, and both have been applied
+  since September. Rewriting one produces a file that still looks generated,
+  still imports, and that no database will ever run. Both now require
+  `--revision` / `--down-revision` and refuse to overwrite without `--force`.
+
+`docs/cases_design.md` now holds a design section for all eight cases that
+have one, the mapping between its numbering and the code's, and a comparison
+table whose last row — "solved by" — is the one worth reading across: the bank
+was built so no two cases fail the same way.
 
 ### Onboarding a clinical reviewer (2026-10-29)
 
