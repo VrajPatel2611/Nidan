@@ -1123,14 +1123,27 @@ Alembic, hand-written, reviewed (`PLATFORM_SPEC` §3.5). Order is dependency-dri
 | 024 | `clinical_review` | `nidan_reviewer`, `review_assignments`, rubric constraints |
 | 025 | `privileged_profiles_are_mutually_visible` | SELECT policy so admins and reviewers can see each other |
 | 026 | `seed_cases` | Cases 6-7 as v1, status `draft` |
+| 027 | `seed_topics_syncope` | 5 topics and 68 phrases for case 10 |
+| 028 | `seed_cases` | Case 10 as v1, status `draft` |
 
 **Migration 007 must follow 006**, since the trigger references `clinical_reviews`.
 
-**019 and 026 are generated**, by `scripts/generate_case_migration.py`, from
-`nidan/domain/content/cases.py`. A new case is a new revision, never a
-regeneration of an applied one: the file would still look generated and still
-be valid Python, and no database that already ran 019 would ever see the
-change. The script refuses to overwrite without `--force` for that reason.
+**017, 019 and 026-028 are generated** — cases by
+`scripts/generate_case_migration.py`, master content and the topic lexicon by
+`scripts/generate_seed_migration.py`, both reading
+`nidan/domain/content/cases.py` and `nidan/domain/assessment/topics.py`.
+
+**New content is a new revision, never a regeneration of an applied one.** The
+file would still look generated and still be valid Python, and no database that
+already ran 017 or 019 would ever see the change. Both scripts now require
+`--revision` and `--down-revision` and refuse to overwrite without `--force`.
+
+**An additive seed migration must delete only its own rows.** 027's downgrade
+names its five topic keys. The table-wide `DELETE FROM topic_lexicon` that 017
+can afford — it seeded everything there was — would, in 027, take the 40 topics
+017 seeded with it, and the damage would surface much later as coverage scoring
+that silently credits nothing. Verified by round trip: 028 ↓ 027 ↓ leaves
+exactly 40 topics and 523 phrases standing.
 
 ## 9.2 Seed data
 
@@ -1138,10 +1151,10 @@ change. The script refuses to overwrite without `--force` for that reason.
 |---|---|---|
 | `examinations` | 27 | `MASTER_EXAMINATIONS` in the existing `cases.py` |
 | `investigations` | 86 | `MASTER_INVESTIGATIONS` |
-| `topic_lexicon` | 40 | `TOPIC_KEYWORDS` keys |
-| `topic_phrases` | 523 | `TOPIC_KEYWORDS` values |
+| `topic_lexicon` | 45 | `TOPIC_KEYWORDS` keys — 40 in 017, 5 in 027 |
+| `topic_phrases` | 591 | `TOPIC_KEYWORDS` values — 523 in 017, 68 in 027 |
 | `engine_versions` | 1 | Current thresholds, `is_current = true` |
-| `cases` / `case_versions` | 7 | 5 in migration 019, 2 in migration 026; all v1, status `draft` |
+| `cases` / `case_versions` | 8 | 5 in migration 019, 2 in 026, 1 in 028; all v1, status `draft` |
 
 **Every seeded case enters as `draft`, not `published`.** They must pass clinical review before going live (FR-12.5) — including the ones that already ran in the pilot. Publishing them without review would make the trigger a formality.
 

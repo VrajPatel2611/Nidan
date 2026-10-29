@@ -1,7 +1,7 @@
 """
 cases.py
 --------
-Defines all 7 clinical case configurations for the virtual patient
+Defines all 8 clinical case configurations for the virtual patient
 simulator. Each case contains the patient persona, Gemini system
 prompt, correct diagnosis, and bias detection configuration.
 
@@ -20,6 +20,9 @@ Case list:
           (examination-required: the diagnosis is on the blood pressure cuff)
   case_7: Arjun Shah,   10M — Cough and wheeze — Asthma vs chest infection
           (two voices: the child and his mother Sunita)
+  case_10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a simple faint
+          (ids 8 and 9 are reserved for the two cases still to be written;
+           the number names the content, not the order it was authored)
 """
 
 from nidan.domain.types import Case, CaseSummary
@@ -759,6 +762,128 @@ CASES = {
              "allergy", "atopic", "antihistamine"],
             ["wheeze", "wheezing", "whistling", "tight chest", "chest tight",
              "tightness"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a faint
+    # The patient offers the trap himself in his opening line. Three of
+    # the five discriminating features are history; two need the hands.
+    # ──────────────────────────────────────────────────────────────────
+    "case_10": {
+        "id": "case_10",
+        "title": "The Faint That Was Not a Faint",
+        "patient_intro": (
+            "A 68-year-old retired postmaster named Harbans Singh attends with "
+            "his wife, who insisted he come. He has blacked out twice in the "
+            "past six weeks. He looks well and is faintly embarrassed to be "
+            "taking up anyone's time."
+        ),
+        "opening_line": (
+            "I passed out twice in the last few weeks. My wife made me come. "
+            "I expect I just stood up too quickly — that happens at my age, "
+            "does it not?"
+        ),
+        "system_prompt": (
+            "You are playing Harbans Singh, a 68-year-old retired postmaster "
+            "who has had two blackouts in six weeks. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are mildly "
+            "embarrassed and keen not to make a fuss.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOU BELIEVE this was just standing up too fast, and you will say "
+            "so if given the chance. You are not hiding anything — nobody has "
+            "asked you the right questions yet.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Circumstances: BOTH times you were WALKING UPHILL — once on the "
+            "stairs at home carrying washing, once on the slope to the market. "
+            "Neither time were you getting up from a chair. Say this ONLY if "
+            "asked what you were doing.\n"
+            "- Warning: NONE AT ALL. No dizziness, no sickness, no sweating, "
+            "no ringing in the ears, no going dark at the edges. 'One moment I "
+            "was walking, the next I was on the ground.' Share ONLY if asked "
+            "about warning.\n"
+            "- Recovery: awake within a minute, knew exactly where you were. "
+            "No confusion, no sleepiness, no bitten tongue, no wetting "
+            "yourself. Your wife saw the second one: no shaking, no jerking. "
+            "Share ONLY if asked about afterwards.\n"
+            "- On exertion: for about 6 MONTHS you have been breathless "
+            "walking up the slope and have to stop halfway. A TIGHT BAND "
+            "across the chest when you push on, gone within two minutes of "
+            "stopping. Never at rest. Share ONLY if asked.\n"
+            "- Palpitations: NONE. No racing, no skipped beats, no fluttering. "
+            "Share ONLY if asked.\n"
+            "- Medications: TAMSULOSIN for the prostate, started 8 months ago. "
+            "AMLODIPINE for blood pressure for 5 years. Nothing else. "
+            "Disclose ONLY if asked about medication or tablets.\n"
+            "- Past: a doctor mentioned a HEART MURMUR years ago and said to "
+            "keep an eye on it. You forgot about it. Share ONLY if asked about "
+            "past medical history or the heart.\n"
+            "- Family: father died at 70 of 'heart trouble'. No young or "
+            "sudden deaths in the family.\n"
+            "- NOT present: no chest pain at rest, no breathlessness lying "
+            "flat, no waking at night short of breath, no ankle swelling, no "
+            "weight loss, no fever, no head injury, no alcohol, no drugs.\n\n"
+            "PERSONALITY: Understated, polite, inclined to minimise. Answers "
+            "exactly what is asked and no more."
+        ),
+        "correct_diagnosis": (
+            "Severe calcific aortic stenosis causing exertional syncope"
+        ),
+        "anchor_topic": "vasovagal faint / postural hypotension / old age",
+        # NOTE. The drug names are deliberately NOT anchor keywords, even
+        # though blaming the tamsulosin is the trap's strongest branch.
+        # "What are you taking?" is the `medications` required topic and is
+        # good history; scoring it as fixation would punish the question and
+        # reward skipping it. The fixation is in the conclusion, not the
+        # question, so only "medication side effect" is listed.
+        "anchor_keywords": [
+            "vasovagal", "faint", "fainting", "simple faint", "blackout spell",
+            "stood up too", "standing up too", "getting up quickly",
+            "postural", "orthostatic", "dehydration", "dehydrated",
+            "drink more water", "fluid intake", "low blood sugar",
+            "hypoglycaemia", "skipped a meal", "missed breakfast",
+            "hot weather", "overheated", "anxiety", "panic",
+            "medication side effect", "old age", "getting older",
+            "compression stockings", "get up slowly", "reassurance",
+            "nothing to worry",
+        ],
+        "alternative_topics": [
+            "aortic stenosis", "murmur", "heart murmur", "valve",
+            "echocardiogram", "on exertion", "exertional", "uphill",
+            "climbing stairs", "angina", "chest tightness", "slow rising",
+            "carotid", "pulse character", "narrow pulse pressure",
+            "arrhythmia", "holter", "left ventricular", "no warning",
+            "sudden collapse", "auscultate",
+        ],
+        "required_topics": [
+            "syncope_circumstances",
+            "prodrome_warning",
+            "recovery_pattern",
+            "exertional_symptoms",
+            "palpitations_rhythm",
+            "medications",
+            "family_history",
+            "duration_recurrence",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets (arguing AGAINST a simple faint,
+        # for cardiac syncope). The first four are history and the fifth needs
+        # a stethoscope, which is the shape of the case: a learner who asks
+        # well gets most of the way, and examining finishes it.
+        "contradictory_clues": [
+            ["what were you doing", "doing when", "climbing", "uphill",
+             "walking up", "on the stairs", "at the time"],
+            ["warning", "no warning", "beforehand", "before you fell",
+             "feel it coming", "any warning at all"],
+            ["came round", "afterwards", "confused", "tongue", "jerking",
+             "witness", "anyone see", "back to normal"],
+            ["breathless", "short of breath", "chest tightness",
+             "tight chest", "angina", "how far can you walk"],
+            ["murmur", "heart murmur", "valve", "listen to the heart",
+             "auscultate", "echocardiogram"],
+            ["palpitation", "racing heart", "irregular", "skipped beat",
+             "heart rhythm", "fluttering"],
         ],
     },
 }
@@ -1859,6 +1984,192 @@ CLINICAL_DATA = {
             "procalcitonin": {"label": "Procalcitonin",
                 "result": "0.03 µg/L (ref < 0.1). Not indicated; adds nothing "
                           "the CRP and the observations have not settled.",
+                "category": "low_value"},
+        },
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 10: Severe aortic stenosis presenting as syncope. Two findings
+    # kill the trap and neither can be asked for: no postural drop despite
+    # two drugs that cause one, and a slow-rising pulse with an ejection
+    # systolic murmur radiating to the carotids.
+    # ──────────────────────────────────────────────────────────────────
+    "case_10": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Harbans Singh, a 68-year-old retired postmaster. "
+            "Understated, polite, inclined to minimise, mildly embarrassed to "
+            "be here. Your wife insisted. You believe you simply stood up too "
+            "quickly and you will offer that explanation if given room to.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Episodes: TWO blackouts in 6 weeks. Episode 1: climbing the "
+            "stairs at home carrying a basket of washing. Episode 2: walking "
+            "up the slope to the market. BOTH DURING EXERTION. Neither on "
+            "standing up from a chair or a bed.\n"
+            "• Warning: NONE. No dizziness, no light-headedness, no nausea, "
+            "no sweating, no clamminess, no tunnel vision, no ringing in the "
+            "ears. 'One moment I was walking, the next I was on the ground.'\n"
+            "• Recovery: came round inside a minute, orientated immediately. "
+            "NO confusion, NO drowsiness afterwards, NO tongue biting, NO "
+            "incontinence. Your wife witnessed the second: NO jerking, NO "
+            "shaking, and you were pale then flushed as you came round.\n"
+            "• On exertion, 6 months: breathless walking up the slope, must "
+            "stop halfway where you used to walk it straight. A TIGHT BAND "
+            "across the chest when you push on, settling within 2 minutes of "
+            "stopping. Never at rest, never at night, never lying flat.\n"
+            "• Palpitations: NONE — no racing, no skipped beats, no "
+            "fluttering, no awareness of your heartbeat at any time.\n"
+            "• Medications: TAMSULOSIN 400 µg nightly for the prostate, "
+            "started 8 months ago. AMLODIPINE 5 mg daily for blood pressure "
+            "for 5 years. Nothing else, no over-the-counter, no herbal, no "
+            "nitrates, no diuretics.\n"
+            "• PMH: a doctor mentioned a HEART MURMUR 'years ago' and said to "
+            "keep an eye on it; nothing was arranged and you forgot. Benign "
+            "prostatic hyperplasia. No diabetes, no previous heart attack, no "
+            "stroke, no epilepsy, no rheumatic fever as a child that you know "
+            "of.\n"
+            "• Family: father died at 70 of 'heart trouble', details unknown. "
+            "No sudden death in anyone young, no inherited heart condition.\n"
+            "• Social: non-smoker for 20 years, 10 a day before that. No "
+            "alcohol. Lives with his wife, independent, walks daily — or did "
+            "until the slope became difficult. Still drives.\n"
+        ),
+        "accepted_diagnoses": [
+            "aortic stenosis", "severe aortic stenosis", "aortic valve "
+            "stenosis", "calcific aortic stenosis", "critical aortic stenosis",
+            "exertional syncope", "cardiac syncope", "aortic valve disease",
+            "outflow tract obstruction", "valvular heart disease",
+        ],
+        "partial_diagnoses": [
+            "heart murmur", "valve problem", "structural heart disease",
+            "cardiac cause", "arrhythmia",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well, comfortable at rest, not breathless sitting. "
+                           "No pallor, no cyanosis, no clubbing, no oedema. "
+                           "Nothing here suggests how ill he is.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 68 bpm regular · BP 118/82 mmHg — NARROW PULSE "
+                           "PRESSURE of 36 mmHg (normal 40-60) · RR 14 · "
+                           "SpO₂ 97% on air · Temp 36.5°C · capillary glucose "
+                           "5.4 mmol/L (ref 4.0-7.8).",
+                "key": True},
+            "cardiovascular": {"label": "Cardiovascular exam",
+                "finding": "HARSH EJECTION SYSTOLIC MURMUR, grade 4/6, loudest "
+                           "at the right second intercostal space, RADIATING "
+                           "TO BOTH CAROTIDS, louder on expiration. SECOND "
+                           "HEART SOUND SOFT AND SINGLE — the aortic component "
+                           "is almost inaudible. Apex beat heaving but not "
+                           "displaced. No diastolic murmur. JVP not raised, no "
+                           "sacral or ankle oedema.",
+                "key": True},
+            "peripheral_pulses": {"label": "Peripheral pulses",
+                "finding": "Carotid pulse SLOW-RISING AND LOW VOLUME (pulsus "
+                           "parvus et tardus). All peripheral pulses present "
+                           "and equal, no radio-radial or radio-femoral delay. "
+                           "No carotid bruit distinguishable from the "
+                           "radiating murmur.",
+                "key": True},
+            "postural_bp": {"label": "Lying and standing blood pressure",
+                "finding": "Lying 120/82 mmHg · standing at 1 min 116/80 · at "
+                           "3 min 118/80. NO POSTURAL DROP (a fall of ≥ 20 "
+                           "systolic or ≥ 10 diastolic defines one). He is on "
+                           "tamsulosin and amlodipine, which both cause "
+                           "postural hypotension — and he does not have it.",
+                "key": True},
+            "neuro_focal": {"label": "Focal neurological exam",
+                "finding": "Power 5/5, tone, sensation and coordination "
+                           "normal, plantars downgoing, no neglect, speech "
+                           "normal. NO focal deficit — this was not a stroke "
+                           "or a TIA.",
+                "key": True},
+            "hydration": {"label": "Hydration assessment",
+                "finding": "Mucous membranes moist, skin turgor normal, no "
+                           "sunken eyes, capillary refill < 2 s. NOT "
+                           "dehydrated.",
+                "key": False},
+            "respiratory": {"label": "Respiratory exam",
+                "finding": "Chest clear, no crackles, no wheeze, percussion "
+                           "resonant, expansion equal. No pulmonary oedema.",
+                "key": False},
+            "abdomen": {"label": "Abdominal exam",
+                "finding": "Soft, non-tender. No pulsatile mass, no bruit — "
+                           "no abdominal aortic aneurysm palpable.",
+                "key": False},
+        },
+        "investigations": {
+            "ecg": {"label": "ECG (12-lead)",
+                "result": "Sinus rhythm 66 bpm. LEFT VENTRICULAR HYPERTROPHY "
+                          "by voltage criteria (S in V1 + R in V5 = 39 mm; "
+                          "Sokolow-Lyon threshold 35 mm) with lateral ST "
+                          "depression and T-wave inversion — a strain "
+                          "pattern. PR 168 ms, QRS 96 ms, no heart block, no "
+                          "delta wave, QTc 420 ms. No acute ischaemia.",
+                "category": "key"},
+            "echo": {"label": "Transthoracic echocardiogram",
+                "result": "SEVERE CALCIFIC AORTIC STENOSIS. Trileaflet valve, "
+                          "heavily calcified, markedly restricted opening. "
+                          "Peak gradient 76 mmHg · MEAN GRADIENT 48 mmHg "
+                          "(severe ≥ 40) · valve area 0.8 cm² (severe < 1.0) · "
+                          "dimensionless index 0.21. Concentric LV "
+                          "hypertrophy, wall 14 mm. LV ejection fraction 58% "
+                          "— still preserved. Mild aortic regurgitation, no "
+                          "mitral disease. THIS IS THE DIAGNOSIS, and "
+                          "exertional syncope in severe aortic stenosis is an "
+                          "indication for urgent valve referral.",
+                "category": "key"},
+            "holter": {"label": "48-hour ambulatory ECG",
+                "result": "Sinus rhythm throughout, rate 52-108 bpm. "
+                          "Occasional ventricular ectopics (0.3% of beats). "
+                          "NO pauses > 2 s, no AV block, no ventricular or "
+                          "supraventricular tachycardia. Reasonable, and the "
+                          "negative result matters: it excludes the OTHER "
+                          "cardiac cause of syncope.",
+                "category": "reasonable"},
+            "bnp": {"label": "NT-proBNP",
+                "result": "486 ng/L (ref < 125 under 75 years) — RAISED. "
+                          "Evidence of cardiac wall stress. Not specific to "
+                          "the valve, but not the result of a simple faint.",
+                "category": "reasonable"},
+            "troponin_0h": {"label": "High-sensitivity troponin",
+                "result": "6 ng/L (ref < 14) — negative. No myocardial "
+                          "injury; the exertional chest tightness is demand "
+                          "ischaemia from the valve, not a coronary event.",
+                "category": "reasonable"},
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 141 g/L (ref 130-170) · WCC 6.8 · Platelets "
+                          "232 · MCV 89 fL. Normal — anaemia excluded as a "
+                          "cause of exertional breathlessness.",
+                "category": "reasonable"},
+            "u_e": {"label": "Urea & electrolytes",
+                "result": "Na 139 mmol/L · K 4.3 · Urea 5.6 · Creatinine "
+                          "88 µmol/L · eGFR > 60. Normal — no dehydration, no "
+                          "electrolyte cause for collapse.",
+                "category": "reasonable"},
+            "cxr": {"label": "Chest X-ray",
+                "result": "Heart size normal. Lung fields clear, no pulmonary "
+                          "oedema. CALCIFIED AORTIC VALVE visible on the "
+                          "lateral film.",
+                "category": "reasonable"},
+            "hba1c_glucose": {"label": "HbA1c & fasting glucose",
+                "result": "HbA1c 39 mmol/mol (ref < 42), fasting glucose "
+                          "5.1 mmol/L. Normal — hypoglycaemia excluded.",
+                "category": "reasonable"},
+            "ct_head": {"label": "CT head",
+                "result": "No haemorrhage, no infarct, no mass. NORMAL. "
+                          "Syncope with full immediate recovery and no focal "
+                          "signs does not need brain imaging, and ordering it "
+                          "is the commonest way this diagnosis is delayed.",
+                "category": "low_value"},
+            "eeg": {"label": "EEG",
+                "result": "Normal, no epileptiform activity. There were no "
+                          "seizure features: no aura, no jerking, no tongue "
+                          "biting, no post-ictal confusion.",
+                "category": "low_value"},
+            "d_dimer": {"label": "D-dimer",
+                "result": "Not indicated. No features of pulmonary embolism "
+                          "or venous thromboembolism.",
                 "category": "low_value"},
         },
     },
@@ -2981,6 +3292,7 @@ CASE_SLUGS: dict[str, str] = {
     "case_5": "vomiting-diabetic-ketoacidosis",
     "case_6": "headache-hypertension",
     "case_7": "wheezing-child-asthma",
+    "case_10": "syncope-aortic-stenosis",
 }
 
 

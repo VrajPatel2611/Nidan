@@ -232,7 +232,7 @@ python scripts/build_status.py
 |---|---|
 | **COMMANDS.md** ★ | **Every terminal command, grouped by what you want to do.** §7 is the troubleshooting section — every error we have actually hit, with its fix |
 | **WINDOWS_SETUP.md** | **Yogesh's onboarding — install, configure, and the PR workflow now that `main` is protected** |
-| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 26 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
+| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 28 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
 | **LOCAL_ADMIN_ACCESS.md** | Signing in to `/admin` on a laptop. Every refusal is an identical 404 by design, so the steps are ordered and the diagnosis is a table at the end |
 | **REVIEWER_ONBOARDING.md** | Taking a clinician from "has agreed" to "has reviewed a case" — account, role, assignment, and the check that it worked |
 | **REVIEWER_GUIDE.md** ★ | **What the clinician receives.** The only document here written for someone outside the team, and the only one that explains that the trap in each case is deliberate |

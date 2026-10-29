@@ -19,7 +19,7 @@ validation traced here. See ADR-0013 for the embedding upgrade.
 # Matching is case-insensitive substring matching.
 
 TOPIC_KEYWORDS = {
-    # ── Case 1: GERD / Chest pain ──────────────────────────────────
+    # ── case_1: GERD / Chest pain ──────────────────────────────────
     "pain_character": [
         "burning", "crushing", "sharp", "dull", "aching",
         "character", "describe", "feel like", "what kind",
@@ -62,7 +62,8 @@ TOPIC_KEYWORDS = {
         "rest", "position", "makes it", "alleviate",
     ],
 
-    # ── Case 2: Hypertension / Headache ───────────────────────────
+    # ── case_6: Hypertension / Headache ───────────────────────────
+    # (design CASE 2 in docs/cases_design.md; built 2026-10-29)
     "headache_character": [
         "throbbing", "pressure", "tight", "band", "one side",
         "both sides", "where", "location", "pulsating",
@@ -94,7 +95,7 @@ TOPIC_KEYWORDS = {
         "worry", "anxious", "stressful", "trigger the",
     ],
 
-    # ── Case 3: UTI/Delirium / Elderly confusion ───────────────────
+    # ── case_3: UTI/Delirium / Elderly confusion ───────────────────
     "onset_timing": [
         "when", "how long", "started", "sudden", "gradual",
         "yesterday", "this morning", "last week", "always",
@@ -133,7 +134,7 @@ TOPIC_KEYWORDS = {
         "drinking enough", "how much water", "oral intake",
     ],
 
-    # ── Case 4: Hypothyroidism / Fatigue ──────────────────────────
+    # ── case_4: Hypothyroidism / Fatigue ──────────────────────────
     "mood_vs_physical": [
         "mood", "sad", "hopeless", "happy", "emotional",
         "how do you feel emotionally", "crying", "enjoying",
@@ -179,7 +180,8 @@ TOPIC_KEYWORDS = {
         "time of day", "energy", "most tired", "wakes up tired",
     ],
 
-    # ── Case 5: Asthma / Wheezing child ───────────────────────────
+    # ── case_7: Asthma / Wheezing child ───────────────────────────
+    # (design CASE 5 in docs/cases_design.md; built 2026-10-29)
     "fever_infection_signs": [
         "fever", "temperature", "runny nose", "sore throat",
         "ear", "tonsils", "sick", "ill", "unwell", "hot",
@@ -216,7 +218,7 @@ TOPIC_KEYWORDS = {
         "cannot", "affected school", "keeping up", "impact",
     ],
 
-    # ── Case 2 (PE): travel history + leg/DVT symptoms ────────────
+    # ── case_2 (PE): travel history + leg/DVT symptoms ────────────
     "travel_history": [
         "flight", "flew", "plane", "airport", "travel", "travelled",
         "holiday", "trip", "abroad", "long journey", "long haul",
@@ -230,7 +232,7 @@ TOPIC_KEYWORDS = {
         "leg aching", "tight calf", "leg oedema",
     ],
 
-    # ── Case 5 (DKA): polydipsia/polyuria + weight loss ───────────
+    # ── case_5 (DKA): polydipsia/polyuria + weight loss ───────────
     "thirst_polyuria": [
         "thirst", "thirsty", "drinking more", "polydipsia",
         "urinating more", "peeing more", "polyuria", "passing more",
@@ -244,6 +246,46 @@ TOPIC_KEYWORDS = {
         "thinner", "clothes", "lost kg", "weight change",
         "lighter", "heavier", "gaining weight", "weight going",
         "noticed weight",
+    ],
+
+    # ── case_10: Aortic stenosis / Syncope ────────────────────────
+    # The first topics added since migration 017 seeded the original 40.
+    # A syncope history is five questions, and which five is not a matter
+    # of taste: circumstances, prodrome, recovery, what else happens on
+    # exertion, and palpitations. A learner who asks all five cannot call
+    # this a simple faint, which is exactly why they are the required set.
+    #
+    # Seeded by migration 027. Adding a topic here without a migration
+    # leaves the database disagreeing with the code, and
+    # tests/db/test_seed.py is what says so.
+    "syncope_circumstances": [
+        "what were you doing", "doing when", "doing at the time",
+        "happened when", "where were you", "at the time",
+        "before you collapsed", "leading up", "circumstance",
+        "standing", "sitting", "lying down", "what brought it on",
+    ],
+    "prodrome_warning": [
+        "warning", "any warning", "before it happened", "beforehand",
+        "dizzy", "light headed", "lightheaded", "nausea", "sweaty",
+        "clammy", "vision went", "tunnel", "ringing in",
+        "feel it coming", "prodrome",
+    ],
+    "recovery_pattern": [
+        "afterwards", "came round", "came to", "recovery", "recovered",
+        "confused", "how long were you", "tongue", "bitten",
+        "incontinen", "jerking", "shaking", "witness", "anyone see",
+        "sleepy after", "back to normal",
+    ],
+    "exertional_symptoms": [
+        "on exertion", "exertion", "walking up", "uphill", "stairs",
+        "breathless", "short of breath", "chest tightness",
+        "tight chest", "angina", "when you walk", "how far can you",
+        "limited by", "stop and rest",
+    ],
+    "palpitations_rhythm": [
+        "palpitation", "racing", "irregular", "skipped", "fluttering",
+        "heart rhythm", "pounding heart", "heart racing",
+        "aware of your heart", "thumping",
     ],
 }
 
