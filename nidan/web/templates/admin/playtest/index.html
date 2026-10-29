@@ -40,7 +40,11 @@
 
 <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
   <div>
+    {% if review %}
+    <a href="/admin/reviews" style="color: #94a3b8; text-decoration: none; font-size: 13px;">← Review queue</a>
+    {% else %}
     <a href="/admin/cases/{{ meta.case_id }}/versions/{{ meta.version_id }}" style="color: #94a3b8; text-decoration: none; font-size: 13px;">← Back to the editor</a>
+    {% endif %}
     <h1 style="font-size: 24px; font-weight: 700; margin: 4px 0 0 0; color: #f8fafc;">
       Playtest · {{ meta.title }} &nbsp;<span style="font-size: 16px; font-weight: 400; color: #94a3b8;">v{{ meta.version }} ({{ meta.status }})</span>
     </h1>
@@ -86,11 +90,16 @@
     <div id="pt-error" class="pt-error" role="alert"></div>
   </div>
 
+  <div>
+  {% if review %}
+    {% include "admin/reviews/_form.html" %}
+  {% endif %}
   <div class="card">
     <div class="pt-panel-title">Instrumentation</div>
     <div id="pt-panel">
       {% include "admin/playtest/_instrumentation.html" %}
     </div>
+  </div>
   </div>
 </div>
 

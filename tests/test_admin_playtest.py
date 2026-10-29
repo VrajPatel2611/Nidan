@@ -104,11 +104,12 @@ def _ask(client, case, headers, events, message):
 
 # ── 1. Access ────────────────────────────────────────────────────────
 
-def test_playtest_404s_identically_for_anyone_but_an_admin(
+def test_playtest_404s_identically_for_anyone_but_a_reviewer_or_admin(
         client, chest_pain, account, authority, admin_headers):
     """
-    Anonymous, a learner, a reviewer, an expired admin token — and an admin
-    asking for a version that does not exist. One status, one body.
+    Anonymous, a learner, an expired admin token — and an admin asking for a
+    version that does not exist. One status, one body. Reviewers are let in:
+    T-023 has them judge a case by playing it.
     """
     admin = account("admin")
     learner = authority.token(sub=str(account("user")))
@@ -116,10 +117,12 @@ def test_playtest_404s_identically_for_anyone_but_an_admin(
     expired = authority.token(sub=str(admin), expires_in=-60)
     missing = dict(chest_pain, id=uuid.uuid4())
 
+    assert client.get(_url(chest_pain), headers={
+        "Authorization": f"Bearer {reviewer}"}).status_code == 200
+
     responses = [
         client.get(_url(chest_pain)),
         client.get(_url(chest_pain), headers={"Authorization": f"Bearer {learner}"}),
-        client.get(_url(chest_pain), headers={"Authorization": f"Bearer {reviewer}"}),
         client.get(_url(chest_pain), headers={"Authorization": f"Bearer {expired}"}),
         client.get(_url(missing), headers=admin_headers),
         client.post(_url(chest_pain, "ask"), json={"events": [], "message": "hi"}),

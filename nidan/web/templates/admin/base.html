@@ -223,7 +223,7 @@
           <a href="/admin" class="{% if active_section == 'dashboard' %}active{% endif %}">Dashboard</a>
           <a href="/admin/cases" class="{% if active_section == 'case_bank' %}active{% endif %}">Case bank</a>
           <a href="/admin/reviews" class="{% if active_section == 'review_queue' %}active{% endif %}">
-            Review <span class="sidebar-count">({{ pending_reviews|default(3) }})</span>
+            Review <span class="sidebar-count">{% if pending_reviews is not none and pending_reviews is defined %}({{ pending_reviews }}){% endif %}</span>
           </a>
         </nav>
       {% elif active_nav == 'content' %}

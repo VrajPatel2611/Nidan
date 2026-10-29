@@ -66,9 +66,11 @@ def create_app(config: dict | None = None) -> Flask:
     from nidan.web.admin import bp as admin_bp
     from nidan.web.admin.cases import cases_bp
     from nidan.web.admin.playtest import playtest_bp
+    from nidan.web.admin.reviews import reviews_bp
     app.register_blueprint(admin_bp)
     app.register_blueprint(cases_bp)
     app.register_blueprint(playtest_bp)
+    app.register_blueprint(reviews_bp)
     # The JSON API (T-014). Mounted at /v1 to match openapi.yaml's
     # servers block; the prototype's server-rendered routes keep the
     # root until T-030 replaces them.

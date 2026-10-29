@@ -19,7 +19,10 @@ see different playtests. The event list is the author's own working state, and
 the only thing it can mislead is the author's own panel.
 
 Draft versions are playtestable — that is the point. The version is loaded with
-`for_editing`, which returns any status, behind `@require_admin`.
+`for_review`, which returns any status, behind `@require_reviewer`: clinical
+reviewers open a version here to judge it (T-023), and administrators get the
+same reviewer scope — playtesting reads, and never needs the right to author.
+Opened with `?review=1`, the page carries the review form beside the panel.
 """
 
 from __future__ import annotations
@@ -30,13 +33,14 @@ from uuid import UUID
 
 from flask import Blueprint, jsonify, render_template, request
 
-from nidan.api.auth import current_admin, error, require_admin
+from nidan.api.auth import current_reviewer, error, require_reviewer
 from nidan.domain.content.cases import MASTER_EXAMINATIONS, MASTER_INVESTIGATIONS
 from nidan.domain.events import Event, validate_payload
 from nidan.domain.session import conversation_from, mentions_early_diagnosis
 from nidan.infra.db.repositories import repo_scope
 from nidan.infra.llm import gateway
 from nidan.web.admin.playtest import instrumentation
+from nidan.web.admin.reviews.routes import form_context
 
 playtest_bp = Blueprint("admin_playtest", __name__, url_prefix="/admin/cases")
 
@@ -58,7 +62,7 @@ class BadEvents(ValueError):
 
 
 def _not_found():
-    # The same body `require_admin` returns, so a missing version and a missing
+    # The same body `require_reviewer` returns, so a missing version and a missing
     # privilege cannot be told apart.
     return error("not_found", "Not found.", 404)
 
@@ -70,8 +74,8 @@ def _load_case(case_id: UUID, version_id: UUID) -> tuple[dict[str, Any] | None, 
     Returns (None, None) if the version does not exist or belongs to another
     case. `id` is added because `assess()` needs one and stored content has none.
     """
-    with repo_scope(current_admin()) as db:
-        row = db.cases.for_editing(version_id)
+    with repo_scope(current_reviewer()) as db:
+        row = db.cases.for_review(version_id)
         if row is None or row["case_id"] != case_id:
             return None, None
         engine = db.engines.current()
@@ -162,22 +166,24 @@ def _grouped(master: Mapping[str, Mapping[str, Any]]) -> dict[str, list[tuple[st
 # ── the page ─────────────────────────────────────────────────────────
 
 @playtest_bp.get("/<uuid:case_id>/versions/<uuid:version_id>/playtest")
-@require_admin
+@require_reviewer
 def index(case_id: UUID, version_id: UUID):
     """Playtest (A-04): an empty consultation and the panel for it."""
     case, engine = _load_case(case_id, version_id)
     if case is None:
         return _not_found()
 
-    with repo_scope(current_admin()) as db:
+    with repo_scope(current_reviewer()) as db:
         profile = db.profiles.get()
     user_email = (profile.get("display_name") if profile else None) or "admin@nidan.internal"
 
+    reviewing = request.args.get("review") == "1"
     return render_template(
         "admin/playtest/index.html",
         active_nav="cases",
-        active_section="case_bank",
+        active_section="review_queue" if reviewing else "case_bank",
         user_email=user_email,
+        review=form_context(version_id) if reviewing else None,
         case=case,
         meta=case["_meta"],
         events=[],
@@ -188,7 +194,7 @@ def index(case_id: UUID, version_id: UUID):
 
 
 @playtest_bp.post("/<uuid:case_id>/versions/<uuid:version_id>/playtest/state")
-@require_admin
+@require_reviewer
 def state(case_id: UUID, version_id: UUID):
     """Re-render both panels for the posted events. Reset posts an empty list."""
     case, engine, events, error = _request_context(case_id, version_id)
@@ -198,7 +204,7 @@ def state(case_id: UUID, version_id: UUID):
 
 
 @playtest_bp.post("/<uuid:case_id>/versions/<uuid:version_id>/playtest/ask")
-@require_admin
+@require_reviewer
 def ask(case_id: UUID, version_id: UUID):
     """Put a question to the patient. The reply comes from the persona prompt."""
     case, engine, events, error = _request_context(case_id, version_id)
@@ -282,19 +288,19 @@ def _order(case_id: UUID, version_id: UUID, kind: str):
 
 
 @playtest_bp.post("/<uuid:case_id>/versions/<uuid:version_id>/playtest/examine")
-@require_admin
+@require_reviewer
 def examine(case_id: UUID, version_id: UUID):
     return _order(case_id, version_id, "examination")
 
 
 @playtest_bp.post("/<uuid:case_id>/versions/<uuid:version_id>/playtest/investigate")
-@require_admin
+@require_reviewer
 def investigate(case_id: UUID, version_id: UUID):
     return _order(case_id, version_id, "investigation")
 
 
 @playtest_bp.post("/<uuid:case_id>/versions/<uuid:version_id>/playtest/diagnose")
-@require_admin
+@require_reviewer
 def diagnose(case_id: UUID, version_id: UUID):
     """Give a diagnosis. The panel then shows the verdict and the C1 rule."""
     case, engine, events, error = _request_context(case_id, version_id)
