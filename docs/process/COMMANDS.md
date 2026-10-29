@@ -350,6 +350,27 @@ had drifted from the Markdown they were made from.
 `python-docx` is an optional extra, not a dev dependency: CI has no reason to
 install it, and a `.docx` is never a build artefact.
 
+### Giving someone the reviewer or admin role
+
+```bash
+python scripts/provision_reviewer.py --uid <supabase-user-uid> \
+  --name "Dr Asha Nair" --timezone Asia/Kolkata --by <your-admin-uid>
+```
+
+Add `--dry-run` to see what it would do. The full procedure — creating the
+account, assigning a case, checking it worked — is
+`docs/process/REVIEWER_ONBOARDING.md`.
+
+It replaces the two-statement `psql` in `LOCAL_ADMIN_ACCESS.md` §3, which is
+fine for granting yourself admin on a laptop and wrong for onboarding a person:
+that one writes to `auth.users` (Supabase's table, not ours), changes an
+existing account's privilege without saying so, and records nothing. This
+refuses all three and writes an `audit_log` row.
+
+On a laptop there is no identity provider, so `--create-auth-user` inserts the
+stub row as well. It refuses to do that unless it can prove the table is the
+three-column stub from migration 001.
+
 ### Reading data as the application sees it
 
 The application never issues a bare query. Everything goes through

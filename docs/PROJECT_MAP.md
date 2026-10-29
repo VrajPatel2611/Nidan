@@ -232,7 +232,10 @@ python scripts/build_status.py
 |---|---|
 | **COMMANDS.md** ★ | **Every terminal command, grouped by what you want to do.** §7 is the troubleshooting section — every error we have actually hit, with its fix |
 | **WINDOWS_SETUP.md** | **Yogesh's onboarding — install, configure, and the PR workflow now that `main` is protected** |
-| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 21 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
+| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 25 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
+| **LOCAL_ADMIN_ACCESS.md** | Signing in to `/admin` on a laptop. Every refusal is an identical 404 by design, so the steps are ordered and the diagnosis is a table at the end |
+| **REVIEWER_ONBOARDING.md** | Taking a clinician from "has agreed" to "has reviewed a case" — account, role, assignment, and the check that it worked |
+| **REVIEWER_GUIDE.md** ★ | **What the clinician receives.** The only document here written for someone outside the team, and the only one that explains that the trap in each case is deliberate |
 | AI_BUILD_PROMPT.md | The reusable brief for working with an AI on a project: spec first, one task at a time, stop and report |
 | USAGE.md | How to adapt that prompt, and why `CLAUDE.md` matters more than any pasted prompt |
 
@@ -319,6 +322,7 @@ repository — silently becomes wrong.
 | **Understand what was already built** | `docs/build-log/T-xxx-*.md` |
 | **Run something** | `docs/process/COMMANDS.md` |
 | **Deploy the database** | `docs/process/SUPABASE_DEPLOYMENT.md` |
+| **Onboard a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` |
 | **Explain the research** | `report/main.tex`, `docs/detector_validation.md`, ADR-0004 and ADR-0005 |
 | **Prepare for a viva** | ADR-0004, ADR-0005, `TEST_STRATEGY.md` §6, `docs/detector_validation.md` |
 
