@@ -1174,9 +1174,18 @@ ALTER TABLE subscriptions    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_progress    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_case_history ENABLE ROW LEVEL SECURITY;
 
--- Users see only themselves
+-- Users see only themselves.
+-- NOTE the absent `TO`: this binds every role, nidan_admin included. That is
+-- what migration 025 below exists to work around.
 CREATE POLICY own_profile ON profiles
   FOR ALL USING (id = auth.uid());
+
+-- Privileged accounts can see each other, and only each other (migration 025).
+-- The review queue names reviewers; without this, `own_profile` reduced even an
+-- administrator to a single row and listing them needed the RLS bypass.
+CREATE POLICY privileged_profiles_are_mutually_visible ON profiles
+  FOR SELECT TO nidan_admin, nidan_reviewer
+  USING (platform_role IN ('reviewer', 'admin') AND deleted_at IS NULL);
 
 CREATE POLICY own_sessions ON sessions
   FOR ALL USING (user_id = auth.uid());
@@ -1223,6 +1232,16 @@ CREATE POLICY admin_manages_case_versions ON case_versions
 CREATE POLICY reviewer_reads_case_versions ON case_versions
   FOR SELECT TO nidan_reviewer USING (true);
 ```
+
+**A policy with no `TO` clause binds every role, and `own_profile` is the
+cautionary example.** It reads as "users see only themselves", which is exactly
+right for a learner — but `nidan_admin` is a user as far as PostgreSQL is
+concerned, so the case for a privileged role was silently the same. The symptom
+was an empty assign dropdown in T-023, with the grant present and correct, which
+points at everything except the policy. Migration 025 adds a second permissive
+policy rather than amending `own_profile`, because permissive policies are OR-ed
+and narrowing the original would have meant restating a rule that is correct for
+everyone it was written for.
 
 **`case_versions` carried exactly one policy until T-021, and it was a `SELECT`
 policy.** For a role RLS applies to that meant drafts were invisible and no

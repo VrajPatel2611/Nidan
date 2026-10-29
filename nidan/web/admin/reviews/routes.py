@@ -35,7 +35,7 @@ from nidan.api.auth import (
     require_admin,
     require_reviewer,
 )
-from nidan.infra.db.repositories import ServiceActor, repo_scope
+from nidan.infra.db.repositories import repo_scope
 from nidan.infra.db.repositories.cases import AlreadyPublished, PublicationBlocked
 from nidan.infra.db.repositories.reviews import (
     APPROVAL_FLOOR,
@@ -62,11 +62,6 @@ DECISION_LABELS: dict[str, str] = {
 
 TABS: tuple[str, ...] = ("mine", "pending", "completed")
 
-_LISTING_REASON = (
-    "listing the reviewer and admin accounts a case can be assigned to; "
-    "profiles RLS shows each user only their own row (T-023, handoff V-6)")
-
-
 def _not_found():
     return error("not_found", "Not found.", 404)
 
@@ -88,7 +83,15 @@ def _ago(when: datetime | None) -> str:
 
 
 def _reviewer_names() -> dict[UUID, str]:
-    with repo_scope(ServiceActor(_LISTING_REASON)) as db:
+    """
+    `reviewer_id` → display name, for every privileged account.
+
+    `current_reviewer()`, not `current_admin()`: the queue resolves names for
+    reviewers as well as administrators, and on a `@require_reviewer` route an
+    administrator holds a `ReviewerUser` too. Migration 025 is what permits the
+    read; before it this needed a `ServiceActor` with RLS off (handoff V-6).
+    """
+    with repo_scope(current_reviewer()) as db:
         people = db.reviews.reviewers()
     return {p["id"]: p["display_name"] or f"{p['platform_role']} {str(p['id'])[:8]}"
             for p in people}

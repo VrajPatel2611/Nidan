@@ -107,23 +107,27 @@ class ReviewRepository(Repository):
         """
         Everyone who may be assigned a review: id, name and role, nothing else.
 
-        **Needs a `ServiceActor`, because RLS allows nothing narrower.**
-        `profiles` has one policy, `own_profile` (migration 016), and it applies
-        to `nidan_admin` like everyone else -- so an administrator cannot see a
-        reviewer's row to assign them. The alternatives were a new policy (a
-        migration) or this: one bypassing read, returning three columns of
-        privileged accounts and no learner data. The caller's reason string says
-        so at the call site.
+        **No longer bypasses RLS.** It used to need a `ServiceActor`, because
+        `own_profile` (migration 016) has no `TO` clause and so reduced even an
+        administrator to their own row. Migration 025 adds
+        `privileged_profiles_are_mutually_visible`, and the policy now does the
+        narrowing the query used to assert: a learner's row is unreadable to
+        this scope whatever SQL is written here.
 
-        Added by Yogesh in T-023 with Vraj to review (handoff V-6). A policy
-        letting `nidan_admin` read privileged profiles would replace it.
+        That matters beyond tidiness. `ADR-0016` confined the bypass to one
+        module, and this was a second — one more place where a mistake is
+        invisible because nothing is enforcing anything.
+
+        `AdminUser` or `ReviewerUser`: assigning is admin-only, but the queue
+        resolves `reviewer_id` to a name for both (`UX_SPEC` §12.6).
         """
-        from nidan.infra.db.actor import ServiceActor
+        from nidan.infra.db.actor import AdminUser, ReviewerUser
 
-        if not isinstance(self._actor, ServiceActor):
+        if not isinstance(self._actor, AdminUser | ReviewerUser):
             raise PermissionError(
-                "listing reviewers reads other people's profiles and needs a "
-                f"ServiceActor; this scope was opened as {type(self._actor).__name__}")
+                "listing reviewers needs an AdminUser or ReviewerUser (use "
+                "current_admin() or current_reviewer()); this scope was opened "
+                f"as {type(self._actor).__name__}")
         return self._conn.execute(sa.text("""
             SELECT id, display_name, platform_role
             FROM profiles

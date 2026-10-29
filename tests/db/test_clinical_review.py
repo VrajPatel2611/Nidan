@@ -376,3 +376,96 @@ def test_a_reviewer_cannot_publish(app_db, reviewer, draft):
     with repo_scope(ReviewerUser(reviewer)) as db:
         with pytest.raises(PermissionError, match="AdminUser"):
             db.cases.publish(version_id)
+
+
+# ── V-6 · listing reviewers, without the RLS bypass (migration 025) ──────
+
+def test_an_admin_can_see_the_reviewers_they_may_assign(
+        app_db, admin, reviewer):
+    """
+    The gap migration 025 closes.
+
+    `own_profile` (migration 016) has no `TO` clause, so it bound
+    `nidan_admin` like everyone else and the assign dropdown came back with
+    only the administrator in it. The grant was never missing — migration 023
+    gave `nidan_admin` SELECT on every table — so this failed in a way that
+    looks nothing like a permissions problem.
+    """
+    with repo_scope(AdminUser(admin)) as db:
+        ids = {p["id"] for p in db.reviews.reviewers()}
+    assert reviewer in ids, "the reviewer to assign is invisible"
+    assert admin in ids, "admins are assignable too"
+
+
+def test_a_reviewer_can_resolve_their_colleagues_names(
+        app_db, reviewer, admin):
+    """
+    Why the policy names `nidan_reviewer` as well.
+
+    `UX_SPEC` §12.6 shows who reviewed a version on the Completed tab, so a
+    reviewer resolves `reviewer_id` to a name on rows they already see.
+    Admin-only would have meant keeping the bypass or rendering 'a reviewer'.
+    """
+    with repo_scope(ReviewerUser(reviewer)) as db:
+        ids = {p["id"] for p in db.reviews.reviewers()}
+    assert {reviewer, admin} <= ids
+
+
+def test_the_policy_is_the_boundary_not_the_python_check(
+        app_db, admin, learner):
+    """
+    **The test that matters.** Round the repository, straight at the role.
+
+    If this passed only because `reviewers()` writes `WHERE platform_role IN
+    (...)`, the narrowing would be a convention — one forgotten clause away
+    from an admin screen listing every learner. The policy must refuse the
+    row even when the SQL asks for everything.
+    """
+    with app_db.connect() as c:
+        with c.begin():
+            c.exec_driver_sql("SET LOCAL ROLE nidan_admin")
+            c.execute(sa.text(
+                "SELECT set_config('request.jwt.claim.sub', :me, true)"),
+                {"me": str(admin)})
+            visible = {r[0] for r in c.execute(sa.text("SELECT id FROM profiles"))}
+
+    assert learner not in visible, (
+        "a learner's profile is readable by nidan_admin — the policy is not "
+        "doing the narrowing and the repository's WHERE clause is all that "
+        "stands between an admin screen and everyone's row")
+    assert admin in visible, "own_profile should still apply"
+
+
+def test_a_learner_cannot_enumerate_privileged_accounts(
+        app_db, learner, reviewer):
+    """Migration 025 is scoped to two roles and widens nothing for `nidan_app`."""
+    with app_db.connect() as c:
+        with c.begin():
+            c.exec_driver_sql("SET LOCAL ROLE nidan_app")
+            c.execute(sa.text(
+                "SELECT set_config('request.jwt.claim.sub', :me, true)"),
+                {"me": str(learner)})
+            visible = {r[0] for r in c.execute(sa.text("SELECT id FROM profiles"))}
+    assert visible == {learner}
+
+
+def test_a_soft_deleted_reviewer_is_not_assignable(app_db, admin, reviewer):
+    """A dropdown is the wrong place to learn that an account once existed."""
+    with app_db.begin() as c:
+        c.execute(sa.text(
+            "UPDATE profiles SET deleted_at = now() WHERE id = :id"),
+            {"id": reviewer})
+    with repo_scope(AdminUser(admin)) as db:
+        assert reviewer not in {p["id"] for p in db.reviews.reviewers()}
+
+
+def test_listing_reviewers_no_longer_takes_a_service_actor(app_db, learner):
+    """
+    The bypass is gone, and an ordinary scope still cannot do this.
+
+    `ADR-0016` confined the RLS bypass to one module; this was briefly a
+    second. The guard is now a plain refusal rather than an escalation.
+    """
+    with repo_scope(AuthenticatedUser(learner)) as db:
+        with pytest.raises(PermissionError, match="AdminUser or ReviewerUser"):
+            db.reviews.reviewers()

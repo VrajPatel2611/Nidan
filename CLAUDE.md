@@ -4,19 +4,24 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0 and 1 complete, Phase 2 is 3 of 4 — **19 of 34
-tasks, 36 days of 83.** The research is published and validated; the platform
-now has a schema, a repository layer with tenant scoping, event-sourced
-sessions, authentication, anonymous trials, a replayable assessment engine, the
-free-tier allowance, the 16 pilot sessions imported into it, the case editor,
-Playtest, and the clinical-review backend.
+**Current state:** Phases 0, 1 and **2 complete — 20 of 34 tasks, 38 days of
+83.** The research is published and validated; the platform has a schema, a
+repository layer with tenant scoping, event-sourced sessions, authentication,
+anonymous trials, a replayable assessment engine, the free-tier allowance, the
+16 pilot sessions imported into it, and the whole admin console: case editor,
+Playtest, and the clinical review workflow.
 
-**Next: Phase 2 — the admin console.** `BUILD_PLAN` calls it the milestone that
-matters most, and its goal is one sentence: *clinicians can review cases without
-reading code.* **T-023 is the gate** — until it exists no case can be published,
-case selection has nothing to select, and the two clinician reviewers cannot
-look at a case at all. Content authoring, which `BUILD_PLAN` §11.1 rates the
-real critical path, starts there.
+**The gate is open.** Phase 2's goal was one sentence — *clinicians can review
+cases without reading code* — and T-023 met it on 29 Oct 2026. The two
+clinician reviewers are no longer blocked, which matters more than the task
+count suggests: **their turnaround is calendar time that runs in parallel with
+engineering**, so onboarding them is worth more than starting the next task.
+
+**Next: Phase 3 — the API and the web app** (8 tasks, 28 d). T-030 (JSON API,
+Vraj) and T-032 (Next.js scaffold, Yogesh) have no dependency on each other and
+can start together. But `BUILD_PLAN` §11.1 still rates **content authoring the
+real critical path**: five cases remain to be written and clinically reviewed,
+and no amount of engineering removes that.
 
 ---
 
@@ -43,7 +48,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 24 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 25 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 
@@ -169,7 +174,7 @@ nidan/
       reviews.py            review assignments and the rubric; T-023
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
-      anonymous.py          ⚠️ the one path where RLS is OFF
+      anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
     storage.py            session JSON read/write (the research export)
     feedback.py           calls the gateway with domain-built prompts
   api/routes.py         Flask blueprint "web" — the prototype
@@ -183,7 +188,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    24 hand-written Alembic migrations ← the schema's source of truth
+migrations/versions/    25 hand-written Alembic migrations ← the schema's source of truth
 docs/build-log/         what was actually built, one doc per finished task
 docs/spec/              the build contract — 6 docs + adr/  ← the source of truth
 docs/design/            superseded design docs (historical)
@@ -207,7 +212,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 654 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 714 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -221,9 +226,9 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 24 migrations
+alembic upgrade head               # apply all 25 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 235 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 241 schema, repository and route tests, real Postgres
 ```
 
 ---
