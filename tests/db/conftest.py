@@ -80,7 +80,7 @@ def db(pg_url, seeded_case_slugs):
             # means an FK we have forgotten fails loudly instead.
             conn.exec_driver_sql("TRUNCATE " + ", ".join(_DATA_TABLES))
 
-            # Cases a test created, never the seeded five.
+            # Cases a test created, never the ones a migration seeded.
             conn.exec_driver_sql(
                 "DELETE FROM cases WHERE slug <> ALL(%s)", (seeded_case_slugs,))
             # After the cases, because cases.created_by references profiles.

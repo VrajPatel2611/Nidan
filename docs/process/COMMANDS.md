@@ -350,6 +350,28 @@ had drifted from the Markdown they were made from.
 `python-docx` is an optional extra, not a dev dependency: CI has no reason to
 install it, and a `.docx` is never a build artefact.
 
+### Adding a clinical case
+
+Author it in `nidan/domain/content/cases.py` — both layers, the stub in `CASES`
+and the enrichment in `CLINICAL_DATA` — add a `CASE_SLUGS` entry, then:
+
+```bash
+pytest tests/test_case_invariants.py -q --no-cov
+python scripts/generate_case_migration.py --revision 027 --down-revision 026 --cases case_8
+alembic upgrade head
+```
+
+Invariants first. C-1 … C-9 only see cases that are in `CASES`, which is why
+content is authored there rather than straight into the database — a case
+written directly as JSON would skip every one of them, C-4 included.
+
+**A new case is a new revision.** Never regenerate 019 or 026: the file would
+still look generated and still import cleanly, and no database that already ran
+them would ever see the change. The script refuses without `--force`.
+
+Cases 8-10 additionally need new `topic_lexicon` entries, and T-044 (the
+lexicon editor) does not exist yet — so each one is a seed migration as well.
+
 ### Giving someone the reviewer or admin role
 
 ```bash
@@ -510,6 +532,17 @@ You edited a case and broke a rule. The message names the offending terms. The
 fix is almost always to make the **anchor keyword more specific**, not to weaken
 the clue — the clue vocabulary is what a learner naturally says when reasoning
 correctly.
+
+Three real examples, all from writing cases 6 and 7 in October 2026:
+
+| Broke | Why | Fix |
+|---|---|---|
+| anchor `tension` | inside `hyperTENSION`, which is the clue | `tension headache` |
+| anchor `fever` | the clue is the *absence* of fever; it is the single most discriminating question in the case | removed from the anchor list |
+| anchor `cold` | inside `cold air` and `cold weather` | `common cold` |
+
+Each would have scored the question that solves the case as evidence of
+fixating on the trap.
 
 ---
 

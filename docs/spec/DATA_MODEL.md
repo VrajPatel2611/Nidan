@@ -1115,8 +1115,22 @@ Alembic, hand-written, reviewed (`PLATFORM_SPEC` §3.5). Order is dependency-dri
 | 016 | `rls` | Row-Level Security policies (§10) |
 | 017 | `seed_content` | 27 examinations, 86 investigations, 40 topics, 523 phrases |
 | 018 | `seed_engine` | Engine version `1.0.0` with current thresholds |
+| 019 | `seed_cases` | Cases 1-5 as v1, status `draft` |
+| 020 | `app_roles` | `nidan_app`, `nidan_service` and their grants |
+| 021 | `rls_missing_policies` | Policies for the tables 016 left uncovered |
+| 022 | `platform_role` | `profiles.platform_role` + partial index |
+| 023 | `content_authoring` | `nidan_admin`; write grants on `cases`, `case_versions` |
+| 024 | `clinical_review` | `nidan_reviewer`, `review_assignments`, rubric constraints |
+| 025 | `privileged_profiles_are_mutually_visible` | SELECT policy so admins and reviewers can see each other |
+| 026 | `seed_cases` | Cases 6-7 as v1, status `draft` |
 
 **Migration 007 must follow 006**, since the trigger references `clinical_reviews`.
+
+**019 and 026 are generated**, by `scripts/generate_case_migration.py`, from
+`nidan/domain/content/cases.py`. A new case is a new revision, never a
+regeneration of an applied one: the file would still look generated and still
+be valid Python, and no database that already ran 019 would ever see the
+change. The script refuses to overwrite without `--force` for that reason.
 
 ## 9.2 Seed data
 
@@ -1127,11 +1141,13 @@ Alembic, hand-written, reviewed (`PLATFORM_SPEC` §3.5). Order is dependency-dri
 | `topic_lexicon` | 40 | `TOPIC_KEYWORDS` keys |
 | `topic_phrases` | 523 | `TOPIC_KEYWORDS` values |
 | `engine_versions` | 1 | Current thresholds, `is_current = true` |
-| `cases` / `case_versions` | 5 | Existing cases, migrated as v1, status `draft` |
+| `cases` / `case_versions` | 7 | 5 in migration 019, 2 in migration 026; all v1, status `draft` |
 
-**The 5 migrated cases enter as `draft`, not `published`.** They must pass clinical review before going live (FR-12.5) — including the ones that already ran in the pilot. Publishing them without review would make the trigger a formality.
+**Every seeded case enters as `draft`, not `published`.** They must pass clinical review before going live (FR-12.5) — including the ones that already ran in the pilot. Publishing them without review would make the trigger a formality.
 
 **Development seed additionally creates:** 3 test users (free, pro, admin), 1 approving clinical review per case so cases can be published locally, and ~10 synthetic sessions for dashboard development.
+
+**Cases 6 and 7 were designed long before they were built.** `docs/cases_design.md` specified them in May 2026 as "CASE 2: The Headache That Is Not Stress" and "CASE 5: The Wheezing Child"; the first pass of `cases.py` filled those two slots with other presentations and the designs waited. The evidence is in migration 017: of the 40 topics it seeds, 13 were used by no case at all until 29 October 2026, and they are exactly the ones those two designs name.
 
 ## 9.3 Migrating the 16 pilot sessions
 
