@@ -46,7 +46,7 @@ A-bias-aware-vp-simulator/
 │
 ├── nidan/ ★                THE APPLICATION
 │   ├── domain/             pure logic — no Flask, no Groq, no I/O
-│   │   ├── content/cases.py      5 clinical cases, 27 exams, 86 investigations
+│   │   ├── content/cases.py      10 clinical cases, 27 exams, 91 investigations
 │   │   ├── assessment/
 │   │   │   ├── bias.py ★         the three detectors — the core IP
 │   │   │   ├── engine.py ★       assess() — pure, replayable
@@ -274,7 +274,7 @@ behind a decision that was reversed.
 | File | What it is |
 |---|---|
 | `detector_validation.md` | **Generated** by `validate_detectors.py`. The 94% result, per detector, per transcript |
-| `cases_design.md` | Early design notes on how the 5 clinical cases were constructed |
+| `cases_design.md` | **The source of truth for case content** — design sections for 8 of the 10 cases, the mapping between its numbering and `cases.py`'s, and the Case Update Log. Not historical: `cases.py` says never to change a case without updating this first |
 | `pseudocode.md` | Early algorithm sketches for the detectors |
 | `references.md` | Bibliography for the research paper |
 | `journal.md` | Working notes from the research phase |

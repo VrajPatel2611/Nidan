@@ -17,17 +17,24 @@ clinician reviewers are no longer blocked, which matters more than the task
 count suggests: **their turnaround is calendar time that runs in parallel with
 engineering**, so onboarding them is worth more than starting the next task.
 
-**Next: Phase 3 — the API and the web app** (8 tasks, 28 d), with clinical
-review running beside it rather than after it. T-030 (JSON API,
-Vraj) and T-032 (Next.js scaffold, Yogesh) have no dependency on each other and
-can start together. But `BUILD_PLAN` §11.1 still rates **content authoring the
-real critical path**: three cases remain to be written and all ten reviewed,
-and no amount of engineering removes that. Cases 6, 7, 8, 9 and 10 were written on
-29 Oct 2026 — 6 and 7 from designs that had been sitting in
-`docs/cases_design.md` since May. **All ten now exist**, five of them
-written in one day from designs and master-list entries that had been
-waiting since May. What remains is review, and the two clinicians cannot
-start until the console has a URL — see `REVIEWER_ONBOARDING.md`.
+**All ten cases are written.** D-2 closed on 29 Oct 2026, with cases 6-10
+authored in a day. **6 and 7 came from designs that had been sitting in
+`docs/cases_design.md` since May** — the evidence they were always meant to be
+built is in migration 017, which seeded 13 topics that no case used until that
+day. 8, 9 and 10 were designed from scratch and their design sections added to
+the same file. Every case is `draft`, and none can be published until a
+clinician approves it — migration 007's trigger, not a convention.
+
+**So `BUILD_PLAN` §11.1's critical path has moved rather than closed.** It is
+no longer writing cases; it is **review turnaround**, and the two clinicians
+cannot start because the console only runs on `localhost` and no task in any
+of the seven phases deploys it. That is the single thing standing between ten
+finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
+
+**Next: Phase 3 — the API and the web app** (8 tasks, 28 d), with review
+running beside it rather than after it. T-030 (JSON API, Vraj) and T-032
+(Next.js scaffold, Yogesh) have no dependency on each other and can start
+together.
 
 ---
 
@@ -53,7 +60,7 @@ read only those sections.
 | What was done on a finished task | `docs/build-log/T-xxx-*.md` |
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
-| **Picking up a Phase 2 task** | `docs/process/phase-2-briefs/` — the brief for T-023, the last task in the phase |
+| **Picking up a Phase 3 task** | `BUILD_PLAN` §7 — T-030 … T-037. There are no Phase 3 briefs; `docs/process/phase-2-briefs/` is historical |
 | **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 32 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
@@ -239,7 +246,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 714 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 811 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -255,7 +262,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 241 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 253 schema, repository and route tests, real Postgres
 ```
 
 ---
@@ -290,9 +297,10 @@ pytest tests/db -q --no-cov        # 241 schema, repository and route tests, rea
 
 **D-9 clinical convention** — settled 12 Sep 2026: **Commonwealth, unchanged.**
 Every lab value already carries its interpretation and reference range, so the
-units are not a barrier. When authoring cases 6–10, follow that pattern: SI
-units, annotated with meaning and normal range. Add a US equivalent only where
-a value has no annotation to carry it — blood gases are the one such case.
+units are not a barrier. Cases 6–10 followed that pattern and any future case
+must: SI units, annotated with meaning and normal range. Add a US equivalent
+only where a value has no annotation to carry it — blood gases are the one
+such case.
 
 **S-4 Supabase region** — settled 28 Oct 2026, `ADR-0017`: **Central EU
 (Frankfurt), `eu-central-1`.** Keeping the data in the EEA removes the GDPR
@@ -329,8 +337,10 @@ branch with no shared history with `main`: no pull request, no CI.
 - The research is **complete and published** — do not redo it.
 - The pilot found coverage rose 45.3 % → 79.7 % (*p* = 0.036) but had **no control
   group**, so no causal claim. Do not overstate it.
-- Two clinician reviewers are available but **blocked until the case editor and
-  Playtest exist** (`BUILD_PLAN` T-021 → T-023). That gate matters more than it looks.
+- Two clinician reviewers are available. The T-021 → T-023 gate that blocked
+  them is **open** as of 29 Oct 2026. **What blocks them now is hosting**: the
+  console runs on `localhost` and `BUILD_PLAN` has no deployment task in any
+  phase. Ten reviewed cases is the launch gate, and nobody can start.
 - **Content authoring is done, review is not.** All ten cases exist as
   drafts. None can be published until a clinician approves it — the gate is
   a database trigger, not a convention. **Clinical review is now the whole
