@@ -46,7 +46,7 @@ A-bias-aware-vp-simulator/
 │
 ├── nidan/ ★                THE APPLICATION
 │   ├── domain/             pure logic — no Flask, no Groq, no I/O
-│   │   ├── content/cases.py      5 clinical cases, 27 exams, 86 investigations
+│   │   ├── content/cases.py      10 clinical cases, 27 exams, 91 investigations
 │   │   ├── assessment/
 │   │   │   ├── bias.py ★         the three detectors — the core IP
 │   │   │   ├── engine.py ★       assess() — pure, replayable
@@ -232,7 +232,7 @@ python scripts/build_status.py
 |---|---|
 | **COMMANDS.md** ★ | **Every terminal command, grouped by what you want to do.** §7 is the troubleshooting section — every error we have actually hit, with its fix |
 | **WINDOWS_SETUP.md** | **Yogesh's onboarding — install, configure, and the PR workflow now that `main` is protected** |
-| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 26 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
+| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 32 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
 | **LOCAL_ADMIN_ACCESS.md** | Signing in to `/admin` on a laptop. Every refusal is an identical 404 by design, so the steps are ordered and the diagnosis is a table at the end |
 | **REVIEWER_ONBOARDING.md** | Taking a clinician from "has agreed" to "has reviewed a case" — account, role, assignment, and the check that it worked |
 | **REVIEWER_GUIDE.md** ★ | **What the clinician receives.** The only document here written for someone outside the team, and the only one that explains that the trap in each case is deliberate |
@@ -274,7 +274,7 @@ behind a decision that was reversed.
 | File | What it is |
 |---|---|
 | `detector_validation.md` | **Generated** by `validate_detectors.py`. The 94% result, per detector, per transcript |
-| `cases_design.md` | Early design notes on how the 5 clinical cases were constructed |
+| `cases_design.md` | **The source of truth for case content** — design sections for 8 of the 10 cases, the mapping between its numbering and `cases.py`'s, and the Case Update Log. Not historical: `cases.py` says never to change a case without updating this first |
 | `pseudocode.md` | Early algorithm sketches for the detectors |
 | `references.md` | Bibliography for the research paper |
 | `journal.md` | Working notes from the research phase |

@@ -19,7 +19,7 @@ validation traced here. See ADR-0013 for the embedding upgrade.
 # Matching is case-insensitive substring matching.
 
 TOPIC_KEYWORDS = {
-    # ── Case 1: GERD / Chest pain ──────────────────────────────────
+    # ── case_1: GERD / Chest pain ──────────────────────────────────
     "pain_character": [
         "burning", "crushing", "sharp", "dull", "aching",
         "character", "describe", "feel like", "what kind",
@@ -62,7 +62,8 @@ TOPIC_KEYWORDS = {
         "rest", "position", "makes it", "alleviate",
     ],
 
-    # ── Case 2: Hypertension / Headache ───────────────────────────
+    # ── case_6: Hypertension / Headache ───────────────────────────
+    # (design CASE 2 in docs/cases_design.md; built 2026-10-29)
     "headache_character": [
         "throbbing", "pressure", "tight", "band", "one side",
         "both sides", "where", "location", "pulsating",
@@ -94,7 +95,7 @@ TOPIC_KEYWORDS = {
         "worry", "anxious", "stressful", "trigger the",
     ],
 
-    # ── Case 3: UTI/Delirium / Elderly confusion ───────────────────
+    # ── case_3: UTI/Delirium / Elderly confusion ───────────────────
     "onset_timing": [
         "when", "how long", "started", "sudden", "gradual",
         "yesterday", "this morning", "last week", "always",
@@ -133,7 +134,7 @@ TOPIC_KEYWORDS = {
         "drinking enough", "how much water", "oral intake",
     ],
 
-    # ── Case 4: Hypothyroidism / Fatigue ──────────────────────────
+    # ── case_4: Hypothyroidism / Fatigue ──────────────────────────
     "mood_vs_physical": [
         "mood", "sad", "hopeless", "happy", "emotional",
         "how do you feel emotionally", "crying", "enjoying",
@@ -179,7 +180,8 @@ TOPIC_KEYWORDS = {
         "time of day", "energy", "most tired", "wakes up tired",
     ],
 
-    # ── Case 5: Asthma / Wheezing child ───────────────────────────
+    # ── case_7: Asthma / Wheezing child ───────────────────────────
+    # (design CASE 5 in docs/cases_design.md; built 2026-10-29)
     "fever_infection_signs": [
         "fever", "temperature", "runny nose", "sore throat",
         "ear", "tonsils", "sick", "ill", "unwell", "hot",
@@ -216,7 +218,7 @@ TOPIC_KEYWORDS = {
         "cannot", "affected school", "keeping up", "impact",
     ],
 
-    # ── Case 2 (PE): travel history + leg/DVT symptoms ────────────
+    # ── case_2 (PE): travel history + leg/DVT symptoms ────────────
     "travel_history": [
         "flight", "flew", "plane", "airport", "travel", "travelled",
         "holiday", "trip", "abroad", "long journey", "long haul",
@@ -230,7 +232,7 @@ TOPIC_KEYWORDS = {
         "leg aching", "tight calf", "leg oedema",
     ],
 
-    # ── Case 5 (DKA): polydipsia/polyuria + weight loss ───────────
+    # ── case_5 (DKA): polydipsia/polyuria + weight loss ───────────
     "thirst_polyuria": [
         "thirst", "thirsty", "drinking more", "polydipsia",
         "urinating more", "peeing more", "polyuria", "passing more",
@@ -244,6 +246,108 @@ TOPIC_KEYWORDS = {
         "thinner", "clothes", "lost kg", "weight change",
         "lighter", "heavier", "gaining weight", "weight going",
         "noticed weight",
+    ],
+
+    # ── case_10: Aortic stenosis / Syncope ────────────────────────
+    # The first topics added since migration 017 seeded the original 40.
+    # A syncope history is five questions, and which five is not a matter
+    # of taste: circumstances, prodrome, recovery, what else happens on
+    # exertion, and palpitations. A learner who asks all five cannot call
+    # this a simple faint, which is exactly why they are the required set.
+    #
+    # Seeded by migration 027. Adding a topic here without a migration
+    # leaves the database disagreeing with the code, and
+    # tests/db/test_seed.py is what says so.
+    "syncope_circumstances": [
+        "what were you doing", "doing when", "doing at the time",
+        "happened when", "where were you", "at the time",
+        "before you collapsed", "leading up", "circumstance",
+        "standing", "sitting", "lying down", "what brought it on",
+    ],
+    "prodrome_warning": [
+        "warning", "any warning", "before it happened", "beforehand",
+        "dizzy", "light headed", "lightheaded", "nausea", "sweaty",
+        "clammy", "vision went", "tunnel", "ringing in",
+        "feel it coming", "prodrome",
+    ],
+    "recovery_pattern": [
+        "afterwards", "came round", "came to", "recovery", "recovered",
+        "confused", "how long were you", "tongue", "bitten",
+        "incontinen", "jerking", "shaking", "witness", "anyone see",
+        "sleepy after", "back to normal",
+    ],
+    "exertional_symptoms": [
+        "on exertion", "exertion", "walking up", "uphill", "stairs",
+        "breathless", "short of breath", "chest tightness",
+        "tight chest", "angina", "when you walk", "how far can you",
+        "limited by", "stop and rest",
+    ],
+    "palpitations_rhythm": [
+        "palpitation", "racing", "irregular", "skipped", "fluttering",
+        "heart rhythm", "pounding heart", "heart racing",
+        "aware of your heart", "thumping",
+    ],
+
+    # ── case_8: Colorectal cancer / Rectal bleeding ───────────────
+    # Seeded by migration 029. `bowel_habits`, `weight_history`,
+    # `family_history` and `duration_pattern` are reused unchanged.
+    #
+    # Note what is NOT here: constipation and straining. They belong to
+    # `bowel_habits` already, and they are also the vocabulary of the
+    # trap — but asking about them is good history, so they stay a
+    # coverage topic and the anchor list uses the words of the
+    # CONCLUSION ("piles", "cream", "banding") instead of the question.
+    "bleeding_character": [
+        "mixed in", "mixed with", "mixed through", "in the stool",
+        "on the paper", "colour of the blood", "dark blood", "bright red",
+        "how much blood", "clots", "mucus", "what does the blood",
+        "separate from",
+    ],
+    "tenesmus_incomplete": [
+        "tenesmus", "incomplete", "not finished", "fully empty",
+        "need to go again", "still need to go", "emptied properly",
+        "urge to go", "feeling of wanting",
+    ],
+    "anaemia_symptoms": [
+        "tired", "tiredness", "fatigue", "breathless", "pale",
+        "short of breath", "dizzy on standing", "palpitations",
+        "lacking energy", "anaemia", "anaemic", "iron",
+    ],
+    "change_from_baseline": [
+        "different from", "different to", "same as usual", "like before",
+        "changed", "new for you", "worse than usual", "unlike",
+        "compared with", "is this the same",
+    ],
+
+    # ── case_9: Axial spondyloarthritis / Back pain ───────────────
+    # Seeded by migration 031. `relieving_factors` is reused rather than
+    # duplicated: it already asks what makes the pain better or worse,
+    # and the inflammatory answer — better with movement, worse with
+    # rest — is the answer to that question, not a different question.
+    #
+    # This case is diagnosed by a PATTERN, so the topics are the
+    # components of the pattern. A learner who covers all four has the
+    # ASAS inflammatory back pain criteria whether they know it or not.
+    "morning_stiffness": [
+        "morning stiffness", "stiff in the morning", "stiffness",
+        "how long does the stiffness", "loosen up", "stiff when you wake",
+        "first thing", "take to ease",
+    ],
+    "night_pain": [
+        "at night", "night pain", "wakes you", "waking at night",
+        "second half of the night", "early hours", "get up and walk",
+        "disturb your sleep", "middle of the night",
+    ],
+    "nsaid_response": [
+        "anti-inflammatory", "anti inflammatory", "ibuprofen", "naproxen",
+        "nsaid", "does it help", "how well does", "what have you tried",
+        "any relief from", "works for the pain",
+    ],
+    "extra_articular_features": [
+        "red eye", "sore eye", "uveitis", "iritis", "eye problem",
+        "psoriasis", "skin rash", "scaly", "nail changes",
+        "bowel", "diarrhoea", "blood in the stool", "heel", "achilles",
+        "tendon",
     ],
 }
 

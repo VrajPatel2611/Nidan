@@ -369,8 +369,28 @@ written directly as JSON would skip every one of them, C-4 included.
 still look generated and still import cleanly, and no database that already ran
 them would ever see the change. The script refuses without `--force`.
 
-Cases 8-10 additionally need new `topic_lexicon` entries, and T-044 (the
-lexicon editor) does not exist yet — so each one is a seed migration as well.
+### Adding a topic to the lexicon
+
+Every case from 10 onwards needs new topics: cases 6 and 7 used the last of the
+40 that migration 017 seeded. Add them to `TOPIC_KEYWORDS` in
+`nidan/domain/assessment/topics.py`, then:
+
+```bash
+python scripts/generate_seed_migration.py --revision 029 --down-revision 028 \
+  --name seed_topics_<what> --topics topic_one,topic_two
+alembic upgrade head
+```
+
+The generated downgrade deletes **only the topics it added**. A table-wide
+`DELETE FROM topic_lexicon` — which is what migration 017's downgrade does, and
+can afford to, because it seeded everything there was — would take the other 40
+with it, and nothing would fail at the time. Coverage scoring would just
+silently credit nothing.
+
+`tests/db/test_seed.py` compares the database against `TOPIC_KEYWORDS`, so a
+topic added to the code with no migration fails there and nowhere else.
+
+T-044 is the screen that would replace all of this. It is Phase 4.
 
 ### Giving someone the reviewer or admin role
 

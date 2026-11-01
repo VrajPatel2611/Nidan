@@ -67,6 +67,12 @@ PATIENT = {
                "presenting_complaint": "Daily headaches for 2 weeks"},
     "case_7": {"name": "Arjun Shah", "age": 10, "sex": "male",
                "presenting_complaint": "Cough and wheeze for several days"},
+    "case_8": {"name": "Naveen Reddy", "age": 58, "sex": "male",
+               "presenting_complaint": "Rectal bleeding for 4 months"},
+    "case_9": {"name": "Tanvir Ahmed", "age": 26, "sex": "male",
+               "presenting_complaint": "Low back pain for 10 months"},
+    "case_10": {"name": "Harbans Singh", "age": 68, "sex": "male",
+                "presenting_complaint": "Two blackouts in six weeks"},
 }
 
 # The slugs live in domain/content/cases.py as CASE_SLUGS, imported above as

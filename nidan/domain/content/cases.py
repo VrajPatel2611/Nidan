@@ -1,7 +1,7 @@
 """
 cases.py
 --------
-Defines all 7 clinical case configurations for the virtual patient
+Defines all 10 clinical case configurations for the virtual patient
 simulator. Each case contains the patient persona, Gemini system
 prompt, correct diagnosis, and bias detection configuration.
 
@@ -20,6 +20,13 @@ Case list:
           (examination-required: the diagnosis is on the blood pressure cuff)
   case_7: Arjun Shah,   10M — Cough and wheeze — Asthma vs chest infection
           (two voices: the child and his mother Sunita)
+  case_8: Naveen Reddy, 58M — Rectal bleeding — Colorectal cancer vs piles
+          (the anchor is TRUE: he has haemorrhoids, and they are not the cause)
+  case_9: Tanvir Ahmed, 26M — Back pain — Axial spondyloarthritis vs strain
+          (diagnosed by a pattern: no single answer gives it away)
+  case_10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a simple faint
+          (ids name the content, not the order the cases were authored:
+           10 was written before 8 and 9)
 """
 
 from nidan.domain.types import Case, CaseSummary
@@ -759,6 +766,370 @@ CASES = {
              "allergy", "atopic", "antihistamine"],
             ["wheeze", "wheezing", "whistling", "tight chest", "chest tight",
              "tightness"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 10: Harbans Singh, 68M — Collapse — Aortic stenosis vs a faint
+    # The patient offers the trap himself in his opening line. Three of
+    # the five discriminating features are history; two need the hands.
+    # ──────────────────────────────────────────────────────────────────
+    "case_10": {
+        "id": "case_10",
+        "title": "The Faint That Was Not a Faint",
+        "patient_intro": (
+            "A 68-year-old retired postmaster named Harbans Singh attends with "
+            "his wife, who insisted he come. He has blacked out twice in the "
+            "past six weeks. He looks well and is faintly embarrassed to be "
+            "taking up anyone's time."
+        ),
+        "opening_line": (
+            "I passed out twice in the last few weeks. My wife made me come. "
+            "I expect I just stood up too quickly — that happens at my age, "
+            "does it not?"
+        ),
+        "system_prompt": (
+            "You are playing Harbans Singh, a 68-year-old retired postmaster "
+            "who has had two blackouts in six weeks. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are mildly "
+            "embarrassed and keen not to make a fuss.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOU BELIEVE this was just standing up too fast, and you will say "
+            "so if given the chance. You are not hiding anything — nobody has "
+            "asked you the right questions yet.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Circumstances: BOTH times you were WALKING UPHILL — once on the "
+            "stairs at home carrying washing, once on the slope to the market. "
+            "Neither time were you getting up from a chair. Say this ONLY if "
+            "asked what you were doing.\n"
+            "- Warning: NONE AT ALL. No dizziness, no sickness, no sweating, "
+            "no ringing in the ears, no going dark at the edges. 'One moment I "
+            "was walking, the next I was on the ground.' Share ONLY if asked "
+            "about warning.\n"
+            "- Recovery: awake within a minute, knew exactly where you were. "
+            "No confusion, no sleepiness, no bitten tongue, no wetting "
+            "yourself. Your wife saw the second one: no shaking, no jerking. "
+            "Share ONLY if asked about afterwards.\n"
+            "- On exertion: for about 6 MONTHS you have been breathless "
+            "walking up the slope and have to stop halfway. A TIGHT BAND "
+            "across the chest when you push on, gone within two minutes of "
+            "stopping. Never at rest. Share ONLY if asked.\n"
+            "- Palpitations: NONE. No racing, no skipped beats, no fluttering. "
+            "Share ONLY if asked.\n"
+            "- Medications: TAMSULOSIN for the prostate, started 8 months ago. "
+            "AMLODIPINE for blood pressure for 5 years. Nothing else. "
+            "Disclose ONLY if asked about medication or tablets.\n"
+            "- Past: a doctor mentioned a HEART MURMUR years ago and said to "
+            "keep an eye on it. You forgot about it. Share ONLY if asked about "
+            "past medical history or the heart.\n"
+            "- Family: father died at 70 of 'heart trouble'. No young or "
+            "sudden deaths in the family.\n"
+            "- NOT present: no chest pain at rest, no breathlessness lying "
+            "flat, no waking at night short of breath, no ankle swelling, no "
+            "weight loss, no fever, no head injury, no alcohol, no drugs.\n\n"
+            "PERSONALITY: Understated, polite, inclined to minimise. Answers "
+            "exactly what is asked and no more."
+        ),
+        "correct_diagnosis": (
+            "Severe calcific aortic stenosis causing exertional syncope"
+        ),
+        "anchor_topic": "vasovagal faint / postural hypotension / old age",
+        # NOTE. The drug names are deliberately NOT anchor keywords, even
+        # though blaming the tamsulosin is the trap's strongest branch.
+        # "What are you taking?" is the `medications` required topic and is
+        # good history; scoring it as fixation would punish the question and
+        # reward skipping it. The fixation is in the conclusion, not the
+        # question, so only "medication side effect" is listed.
+        "anchor_keywords": [
+            "vasovagal", "faint", "fainting", "simple faint", "blackout spell",
+            "stood up too", "standing up too", "getting up quickly",
+            "postural", "orthostatic", "dehydration", "dehydrated",
+            "drink more water", "fluid intake", "low blood sugar",
+            "hypoglycaemia", "skipped a meal", "missed breakfast",
+            "hot weather", "overheated", "anxiety", "panic",
+            "medication side effect", "old age", "getting older",
+            "compression stockings", "get up slowly", "reassurance",
+            "nothing to worry",
+        ],
+        "alternative_topics": [
+            "aortic stenosis", "murmur", "heart murmur", "valve",
+            "echocardiogram", "on exertion", "exertional", "uphill",
+            "climbing stairs", "angina", "chest tightness", "slow rising",
+            "carotid", "pulse character", "narrow pulse pressure",
+            "arrhythmia", "holter", "left ventricular", "no warning",
+            "sudden collapse", "auscultate",
+        ],
+        "required_topics": [
+            "syncope_circumstances",
+            "prodrome_warning",
+            "recovery_pattern",
+            "exertional_symptoms",
+            "palpitations_rhythm",
+            "medications",
+            "family_history",
+            "duration_recurrence",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets (arguing AGAINST a simple faint,
+        # for cardiac syncope). The first four are history and the fifth needs
+        # a stethoscope, which is the shape of the case: a learner who asks
+        # well gets most of the way, and examining finishes it.
+        "contradictory_clues": [
+            ["what were you doing", "doing when", "climbing", "uphill",
+             "walking up", "on the stairs", "at the time"],
+            ["warning", "no warning", "beforehand", "before you fell",
+             "feel it coming", "any warning at all"],
+            ["came round", "afterwards", "confused", "tongue", "jerking",
+             "witness", "anyone see", "back to normal"],
+            ["breathless", "short of breath", "chest tightness",
+             "tight chest", "angina", "how far can you walk"],
+            ["murmur", "heart murmur", "valve", "listen to the heart",
+             "auscultate", "echocardiogram"],
+            ["palpitation", "racing heart", "irregular", "skipped beat",
+             "heart rhythm", "fluttering"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 8: Naveen Reddy, 58M — Rectal bleeding — Colorectal cancer vs
+    # haemorrhoids. THE ANCHOR IS TRUE. He has haemorrhoids, they are
+    # visible on examination, and they explain some of the story and none
+    # of the rest. The only case in the bank where the trap is a correct
+    # finding rather than a wrong one.
+    # ──────────────────────────────────────────────────────────────────
+    "case_8": {
+        "id": "case_8",
+        "title": "The Bleeding That Was Already Explained",
+        "patient_intro": (
+            "A 58-year-old bus depot manager named Naveen Reddy attends about "
+            "bleeding from the back passage over the past four months. He was "
+            "diagnosed with haemorrhoids twelve years ago and has come mainly "
+            "because his wife kept asking him to."
+        ),
+        "opening_line": (
+            "I have had a bit of bleeding again, on and off for a few months. "
+            "I have had piles for years so I know what it is — but my wife "
+            "would not let it go, so here I am."
+        ),
+        "system_prompt": (
+            "You are playing Naveen Reddy, a 58-year-old bus depot manager "
+            "with four months of rectal bleeding. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are matter-of-fact "
+            "and slightly dismissive — you are certain this is your piles.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "YOU GENUINELY HAVE HAEMORRHOIDS and have had them for twelve "
+            "years. You are not wrong about that, and you will say so. What "
+            "you have NOT noticed is that this episode is different from "
+            "every previous one. You are not withholding it — the comparison "
+            "has simply never occurred to you. If asked directly whether this "
+            "bleeding is the same as before, you will think about it and "
+            "realise it is not.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- The blood NOW: MIXED THROUGH the stool, darker than before, "
+            "sometimes with slime. Describe it that way ONLY if asked what "
+            "the blood looks like or where it is.\n"
+            "- The blood BEFORE (your usual piles): bright red, on the paper "
+            "or a few drops in the pan, never mixed in, always with "
+            "straining. Share ONLY if asked to compare.\n"
+            "- Bowel habit: CHANGED about four months ago. Used to be once "
+            "every morning, now THREE OR FOUR TIMES A DAY and looser. Share "
+            "ONLY if asked about bowel habit.\n"
+            "- Tenesmus: often feels like you have not finished, and have to "
+            "go back within minutes. New. Share ONLY if asked.\n"
+            "- Weight: about 6 kg down over four months without trying. "
+            "Trousers loose. Share ONLY if asked about weight.\n"
+            "- Energy: tired, and breathless going up the depot stairs where "
+            "you were fine a year ago. Share ONLY if asked.\n"
+            "- Family: FATHER had bowel cancer at 71 and was treated. Share "
+            "ONLY if asked about family.\n"
+            "- NOT present: no abdominal pain to speak of, no vomiting, no "
+            "jaundice, no fever, no foreign travel, no new medication, no "
+            "NSAIDs, no anal pain, no lump you can feel outside.\n\n"
+            "PERSONALITY: Practical, understated, a little impatient. Will "
+            "repeat that he knows it is his piles unless something makes him "
+            "reconsider."
+        ),
+        "correct_diagnosis": (
+            "Colorectal carcinoma (rectal), with coexisting haemorrhoids and "
+            "iron-deficiency anaemia"
+        ),
+        "anchor_topic": "haemorrhoids / benign anorectal cause",
+        # NOTE. "constipation" and "straining" are deliberately absent, even
+        # though they are the vocabulary of the trap. They already belong to
+        # the `bowel_habits` required topic, and asking about them is good
+        # history. The anchor list uses the words of the CONCLUSION — piles,
+        # cream, banding, nothing serious — not the words of the question.
+        # Same reason case_10 excludes the drug names.
+        "anchor_keywords": [
+            "haemorrhoid", "hemorrhoid", "piles", "fissure", "anal fissure",
+            "fibre", "laxative", "stool softener", "haemorrhoid cream",
+            "suppositor", "witch hazel", "sitz bath", "banding",
+            "rubber band", "ointment", "irritable bowel", "spicy",
+            "nothing serious", "common at your age", "benign",
+            "reassure", "no need to worry", "old age", "just the piles",
+            "sit for too long", "driving all day",
+        ],
+        "alternative_topics": [
+            "colonoscopy", "cancer", "malignancy", "tumour", "bowel cancer",
+            "colorectal", "fit test", "faecal immunochemical", "red flag",
+            "weight loss", "anaemia", "iron deficiency", "ferritin",
+            "rectal examination", "per rectum", "tenesmus", "mucus",
+            "two week wait", "urgent referral", "mass", "staging",
+        ],
+        "required_topics": [
+            "bleeding_character",
+            "change_from_baseline",
+            "bowel_habits",
+            "tenesmus_incomplete",
+            "anaemia_symptoms",
+            "weight_history",
+            "family_history",
+            "duration_pattern",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets. Note clue[1]: the question that
+        # unlocks this case is not "do you have piles?" — he does — but
+        # "is this the same as your piles?", which he has never been asked.
+        # "usual piles" is absent from it because "piles" is an anchor
+        # keyword and the two would collide under C-4.
+        "contradictory_clues": [
+            ["mixed in", "mixed with", "mixed through", "in the stool",
+             "dark blood", "darker", "colour of the blood", "mucus",
+             "slime"],
+            ["different from", "same as usual", "like before", "changed",
+             "is this the same", "compared with", "new for you"],
+            ["bowel habit", "looser", "more often", "times a day",
+             "diarrhoea", "opening your bowels", "how often do you go"],
+            ["weight", "lost weight", "losing weight", "weight loss",
+             "trousers", "clothes looser"],
+            ["tired", "fatigue", "breathless", "pale", "anaemia",
+             "short of breath", "energy"],
+            ["tenesmus", "incomplete", "not finished", "need to go again",
+             "fully empty", "still need to go"],
+            ["family", "father", "bowel cancer", "relative",
+             "anyone in the family"],
+        ],
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # CASE 9: Tanvir Ahmed, 26M — Back pain — Axial spondyloarthritis vs
+    # mechanical strain. Diagnosed by a PATTERN, not a disclosure: no
+    # single answer gives it away, and four unremarkable ones together
+    # are the ASAS inflammatory back pain criteria.
+    # ──────────────────────────────────────────────────────────────────
+    "case_9": {
+        "id": "case_9",
+        "title": "The Back Pain That Was Better By Lunchtime",
+        "patient_intro": (
+            "A 26-year-old warehouse operative named Tanvir Ahmed attends "
+            "with low back pain he has had for about ten months. He puts it "
+            "down to the lifting at work and has come because his employer "
+            "asked for a note."
+        ),
+        "opening_line": (
+            "My back has been playing up for the best part of a year. It is "
+            "the lifting at work, I think — I shift boxes all day. Work want "
+            "something in writing."
+        ),
+        "system_prompt": (
+            "You are playing Tanvir Ahmed, a 26-year-old warehouse operative "
+            "with 10 months of low back pain. Speak plainly, no medical "
+            "jargon. Keep responses to 2-4 sentences. You are relaxed about "
+            "it and assume it is a work strain.\n\n"
+            "CRITICAL RULE: Only reveal information when DIRECTLY asked. "
+            "Do not volunteer clinical details not asked about.\n\n"
+            "NOTHING you say is dramatic. No single answer gives the "
+            "diagnosis away. Answer each question plainly and let the "
+            "learner assemble it.\n\n"
+            "YOUR HISTORY — reveal ONLY when asked:\n"
+            "- Onset: GRADUAL, over several weeks. You blame a particular "
+            "lift but cannot actually name a day it started. Say so ONLY if "
+            "asked how it began.\n"
+            "- What helps: MOVEMENT. A walk loosens it. What makes it worse: "
+            "SITTING STILL. After a film you can barely straighten up. Share "
+            "ONLY if asked what makes it better or worse.\n"
+            "- Morning stiffness: about NINETY MINUTES every morning before "
+            "you can move properly. Share ONLY if asked about stiffness.\n"
+            "- Night: wakes you at THREE OR FOUR most nights — the second "
+            "half of the night, not when you first go to bed. You get up and "
+            "walk around and it settles. Share ONLY if asked about nights.\n"
+            "- Anti-inflammatories: IBUPROFEN works remarkably well — almost "
+            "gone within a day. It comes back within hours of a dose wearing "
+            "off. Share ONLY if asked what you have tried.\n"
+            "- Buttock pain: ALTERNATES — left for a few weeks, then the "
+            "right. Share ONLY if asked where it is.\n"
+            "- Eye: two years ago you had a PAINFUL RED EYE, saw the eye "
+            "hospital, had drops for a few weeks. Nobody connected it to "
+            "anything. Share ONLY if asked about eyes.\n"
+            "- Heel: the back of your HEEL is tender on and off, worst "
+            "first thing. Share ONLY if asked.\n"
+            "- Bowels: occasionally loose for a week or two at a time, no "
+            "blood. Share ONLY if asked.\n"
+            "- Family: FATHER has psoriasis. An uncle has 'arthritis of the "
+            "spine' and a bent back. Share ONLY if asked about family.\n"
+            "- NOT present: no leg weakness, no numbness, no saddle "
+            "anaesthesia, no bladder or bowel incontinence, no trauma, no "
+            "fever, no weight loss, no night sweats, no cancer history, no "
+            "intravenous drug use.\n\n"
+            "PERSONALITY: Easy-going, slightly bored to be here, wants the "
+            "note and expects to be told to lift more carefully."
+        ),
+        "correct_diagnosis": (
+            "Axial spondyloarthritis (non-radiographic) — inflammatory back "
+            "pain with sacroiliitis on MRI"
+        ),
+        "anchor_topic": "mechanical back pain / work strain",
+        "anchor_keywords": [
+            "mechanical", "muscular", "muscle strain", "strain", "sprain",
+            "pulled", "lifting", "heavy lifting", "manual job", "warehouse",
+            "posture", "sciatica", "slipped disc", "disc", "nerve root",
+            "physiotherapy", "core strength", "bed rest", "mattress",
+            "ergonomic", "lifting technique", "gym injury", "wear and tear",
+            "rest it", "stop lifting", "lighter duties", "back support",
+        ],
+        "alternative_topics": [
+            "ankylosing spondylitis", "axial spondyloarthritis",
+            "spondyloarthritis", "inflammatory back pain", "sacroiliitis",
+            "sacroiliac", "hla b27", "enthesitis", "uveitis", "iritis",
+            "psoriasis", "inflammatory marker", "schober", "rheumatology",
+            "bone marrow oedema", "improves with exercise",
+            "worse with rest", "alternating buttock", "autoimmune",
+            "seronegative",
+        ],
+        "required_topics": [
+            "relieving_factors",
+            "morning_stiffness",
+            "night_pain",
+            "nsaid_response",
+            "extra_articular_features",
+            "onset_timing",
+            "family_history",
+            "duration_pattern",
+        ],
+        "minimum_questions": 8,
+        # Curated disconfirming keyword sets. Unusually, NO single clue here
+        # is alarming on its own — a young man with a stiff back who feels
+        # better for moving is unremarkable. Four of them together are the
+        # ASAS inflammatory back pain criteria, which is why this case
+        # rewards breadth rather than a lucky question.
+        "contradictory_clues": [
+            ["better when you move", "better with movement", "worse sitting",
+             "after sitting", "walk it off", "loosen", "worse with rest",
+             "improves with exercise"],
+            ["morning stiffness", "stiff in the morning", "stiffness",
+             "how long does it take", "loosen up"],
+            ["at night", "wakes you", "early hours", "second half of the",
+             "get up and walk", "middle of the night"],
+            ["anti-inflammatory", "anti inflammatory", "ibuprofen",
+             "naproxen", "does it help", "what have you tried"],
+            ["red eye", "sore eye", "uveitis", "iritis", "eye hospital",
+             "psoriasis", "scaly", "heel", "achilles"],
+            ["buttock", "alternating", "one side then the other",
+             "swaps sides", "both sides"],
+            ["gradual", "came on slowly", "insidious", "pin a day",
+             "exactly when", "specific injury"],
         ],
     },
 }
@@ -1862,6 +2233,564 @@ CLINICAL_DATA = {
                 "category": "low_value"},
         },
     },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 10: Severe aortic stenosis presenting as syncope. Two findings
+    # kill the trap and neither can be asked for: no postural drop despite
+    # two drugs that cause one, and a slow-rising pulse with an ejection
+    # systolic murmur radiating to the carotids.
+    # ──────────────────────────────────────────────────────────────────
+    "case_10": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Harbans Singh, a 68-year-old retired postmaster. "
+            "Understated, polite, inclined to minimise, mildly embarrassed to "
+            "be here. Your wife insisted. You believe you simply stood up too "
+            "quickly and you will offer that explanation if given room to.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Episodes: TWO blackouts in 6 weeks. Episode 1: climbing the "
+            "stairs at home carrying a basket of washing. Episode 2: walking "
+            "up the slope to the market. BOTH DURING EXERTION. Neither on "
+            "standing up from a chair or a bed.\n"
+            "• Warning: NONE. No dizziness, no light-headedness, no nausea, "
+            "no sweating, no clamminess, no tunnel vision, no ringing in the "
+            "ears. 'One moment I was walking, the next I was on the ground.'\n"
+            "• Recovery: came round inside a minute, orientated immediately. "
+            "NO confusion, NO drowsiness afterwards, NO tongue biting, NO "
+            "incontinence. Your wife witnessed the second: NO jerking, NO "
+            "shaking, and you were pale then flushed as you came round.\n"
+            "• On exertion, 6 months: breathless walking up the slope, must "
+            "stop halfway where you used to walk it straight. A TIGHT BAND "
+            "across the chest when you push on, settling within 2 minutes of "
+            "stopping. Never at rest, never at night, never lying flat.\n"
+            "• Palpitations: NONE — no racing, no skipped beats, no "
+            "fluttering, no awareness of your heartbeat at any time.\n"
+            "• Medications: TAMSULOSIN 400 µg nightly for the prostate, "
+            "started 8 months ago. AMLODIPINE 5 mg daily for blood pressure "
+            "for 5 years. Nothing else, no over-the-counter, no herbal, no "
+            "nitrates, no diuretics.\n"
+            "• PMH: a doctor mentioned a HEART MURMUR 'years ago' and said to "
+            "keep an eye on it; nothing was arranged and you forgot. Benign "
+            "prostatic hyperplasia. No diabetes, no previous heart attack, no "
+            "stroke, no epilepsy, no rheumatic fever as a child that you know "
+            "of.\n"
+            "• Family: father died at 70 of 'heart trouble', details unknown. "
+            "No sudden death in anyone young, no inherited heart condition.\n"
+            "• Social: non-smoker for 20 years, 10 a day before that. No "
+            "alcohol. Lives with his wife, independent, walks daily — or did "
+            "until the slope became difficult. Still drives.\n"
+        ),
+        "accepted_diagnoses": [
+            "aortic stenosis", "severe aortic stenosis", "aortic valve "
+            "stenosis", "calcific aortic stenosis", "critical aortic stenosis",
+            "exertional syncope", "cardiac syncope", "aortic valve disease",
+            "outflow tract obstruction", "valvular heart disease",
+        ],
+        "partial_diagnoses": [
+            "heart murmur", "valve problem", "structural heart disease",
+            "cardiac cause", "arrhythmia",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well, comfortable at rest, not breathless sitting. "
+                           "No pallor, no cyanosis, no clubbing, no oedema. "
+                           "Nothing here suggests how ill he is.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 68 bpm regular · BP 118/82 mmHg — NARROW PULSE "
+                           "PRESSURE of 36 mmHg (normal 40-60) · RR 14 · "
+                           "SpO₂ 97% on air · Temp 36.5°C · capillary glucose "
+                           "5.4 mmol/L (ref 4.0-7.8).",
+                "key": True},
+            "cardiovascular": {"label": "Cardiovascular exam",
+                "finding": "HARSH EJECTION SYSTOLIC MURMUR, grade 4/6, loudest "
+                           "at the right second intercostal space, RADIATING "
+                           "TO BOTH CAROTIDS, louder on expiration. SECOND "
+                           "HEART SOUND SOFT AND SINGLE — the aortic component "
+                           "is almost inaudible. Apex beat heaving but not "
+                           "displaced. No diastolic murmur. JVP not raised, no "
+                           "sacral or ankle oedema.",
+                "key": True},
+            "peripheral_pulses": {"label": "Peripheral pulses",
+                "finding": "Carotid pulse SLOW-RISING AND LOW VOLUME (pulsus "
+                           "parvus et tardus). All peripheral pulses present "
+                           "and equal, no radio-radial or radio-femoral delay. "
+                           "No carotid bruit distinguishable from the "
+                           "radiating murmur.",
+                "key": True},
+            "postural_bp": {"label": "Lying and standing blood pressure",
+                "finding": "Lying 120/82 mmHg · standing at 1 min 116/80 · at "
+                           "3 min 118/80. NO POSTURAL DROP (a fall of ≥ 20 "
+                           "systolic or ≥ 10 diastolic defines one). He is on "
+                           "tamsulosin and amlodipine, which both cause "
+                           "postural hypotension — and he does not have it.",
+                "key": True},
+            "neuro_focal": {"label": "Focal neurological exam",
+                "finding": "Power 5/5, tone, sensation and coordination "
+                           "normal, plantars downgoing, no neglect, speech "
+                           "normal. NO focal deficit — this was not a stroke "
+                           "or a TIA.",
+                "key": True},
+            "hydration": {"label": "Hydration assessment",
+                "finding": "Mucous membranes moist, skin turgor normal, no "
+                           "sunken eyes, capillary refill < 2 s. NOT "
+                           "dehydrated.",
+                "key": False},
+            "respiratory": {"label": "Respiratory exam",
+                "finding": "Chest clear, no crackles, no wheeze, percussion "
+                           "resonant, expansion equal. No pulmonary oedema.",
+                "key": False},
+            "abdomen": {"label": "Abdominal exam",
+                "finding": "Soft, non-tender. No pulsatile mass, no bruit — "
+                           "no abdominal aortic aneurysm palpable.",
+                "key": False},
+        },
+        "investigations": {
+            "ecg": {"label": "ECG (12-lead)",
+                "result": "Sinus rhythm 66 bpm. LEFT VENTRICULAR HYPERTROPHY "
+                          "by voltage criteria (S in V1 + R in V5 = 39 mm; "
+                          "Sokolow-Lyon threshold 35 mm) with lateral ST "
+                          "depression and T-wave inversion — a strain "
+                          "pattern. PR 168 ms, QRS 96 ms, no heart block, no "
+                          "delta wave, QTc 420 ms. No acute ischaemia.",
+                "category": "key"},
+            "echo": {"label": "Transthoracic echocardiogram",
+                "result": "SEVERE CALCIFIC AORTIC STENOSIS. Trileaflet valve, "
+                          "heavily calcified, markedly restricted opening. "
+                          "Peak gradient 76 mmHg · MEAN GRADIENT 48 mmHg "
+                          "(severe ≥ 40) · valve area 0.8 cm² (severe < 1.0) · "
+                          "dimensionless index 0.21. Concentric LV "
+                          "hypertrophy, wall 14 mm. LV ejection fraction 58% "
+                          "— still preserved. Mild aortic regurgitation, no "
+                          "mitral disease. THIS IS THE DIAGNOSIS, and "
+                          "exertional syncope in severe aortic stenosis is an "
+                          "indication for urgent valve referral.",
+                "category": "key"},
+            "holter": {"label": "48-hour ambulatory ECG",
+                "result": "Sinus rhythm throughout, rate 52-108 bpm. "
+                          "Occasional ventricular ectopics (0.3% of beats). "
+                          "NO pauses > 2 s, no AV block, no ventricular or "
+                          "supraventricular tachycardia. Reasonable, and the "
+                          "negative result matters: it excludes the OTHER "
+                          "cardiac cause of syncope.",
+                "category": "reasonable"},
+            "bnp": {"label": "NT-proBNP",
+                "result": "486 ng/L (ref < 125 under 75 years) — RAISED. "
+                          "Evidence of cardiac wall stress. Not specific to "
+                          "the valve, but not the result of a simple faint.",
+                "category": "reasonable"},
+            "troponin_0h": {"label": "High-sensitivity troponin",
+                "result": "6 ng/L (ref < 14) — negative. No myocardial "
+                          "injury; the exertional chest tightness is demand "
+                          "ischaemia from the valve, not a coronary event.",
+                "category": "reasonable"},
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 141 g/L (ref 130-170) · WCC 6.8 · Platelets "
+                          "232 · MCV 89 fL. Normal — anaemia excluded as a "
+                          "cause of exertional breathlessness.",
+                "category": "reasonable"},
+            "u_e": {"label": "Urea & electrolytes",
+                "result": "Na 139 mmol/L · K 4.3 · Urea 5.6 · Creatinine "
+                          "88 µmol/L · eGFR > 60. Normal — no dehydration, no "
+                          "electrolyte cause for collapse.",
+                "category": "reasonable"},
+            "cxr": {"label": "Chest X-ray",
+                "result": "Heart size normal. Lung fields clear, no pulmonary "
+                          "oedema. CALCIFIED AORTIC VALVE visible on the "
+                          "lateral film.",
+                "category": "reasonable"},
+            "hba1c_glucose": {"label": "HbA1c & fasting glucose",
+                "result": "HbA1c 39 mmol/mol (ref < 42), fasting glucose "
+                          "5.1 mmol/L. Normal — hypoglycaemia excluded.",
+                "category": "reasonable"},
+            "ct_head": {"label": "CT head",
+                "result": "No haemorrhage, no infarct, no mass. NORMAL. "
+                          "Syncope with full immediate recovery and no focal "
+                          "signs does not need brain imaging, and ordering it "
+                          "is the commonest way this diagnosis is delayed.",
+                "category": "low_value"},
+            "eeg": {"label": "EEG",
+                "result": "Normal, no epileptiform activity. There were no "
+                          "seizure features: no aura, no jerking, no tongue "
+                          "biting, no post-ictal confusion.",
+                "category": "low_value"},
+            "d_dimer": {"label": "D-dimer",
+                "result": "Not indicated. No features of pulmonary embolism "
+                          "or venous thromboembolism.",
+                "category": "low_value"},
+        },
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 8: Rectal carcinoma with coexisting haemorrhoids. The rectal
+    # examination returns BOTH findings in one report, on purpose — that
+    # is the clinical reality, and a learner who stops reading at the
+    # first one has made the same mistake inside the examination that
+    # the case is about.
+    # ──────────────────────────────────────────────────────────────────
+    "case_8": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Naveen Reddy, a 58-year-old bus depot manager. "
+            "Practical, understated, slightly impatient, certain this is "
+            "your piles. You have come about rectal bleeding for 4 months, "
+            "and only because your wife insisted.\n\n"
+            "YOU GENUINELY HAVE HAEMORRHOIDS, diagnosed 12 years ago. You "
+            "are not wrong about that. What you have not noticed is that "
+            "this episode differs from every previous one. If asked to "
+            "compare, you will think and realise it is different.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Bleeding NOW: present 4 months, most days. MIXED THROUGH the "
+            "stool rather than on the surface. DARKER than you remember, "
+            "sometimes almost maroon. SLIME or jelly with it on occasion. "
+            "Not related to straining.\n"
+            "• Bleeding BEFORE (your usual piles, 12 years): BRIGHT RED, on "
+            "the paper or a few drops in the pan, never mixed in, always "
+            "after straining, settles in a day or two with cream.\n"
+            "• Bowel habit: CHANGED 4 months ago. Was once every morning, "
+            "reliably. Now THREE TO FOUR TIMES A DAY and looser, never "
+            "properly formed. No nocturnal diarrhoea.\n"
+            "• Tenesmus: frequently feel you have not finished and must go "
+            "back within minutes, often passing little. New in 4 months.\n"
+            "• Weight: 6 kg down in 4 months, unintentionally. Trousers "
+            "loose on the same notch.\n"
+            "• Energy: tired most days. BREATHLESS climbing the depot "
+            "stairs, which you managed easily a year ago. No chest pain.\n"
+            "• Appetite: slightly reduced but you still eat normally. No "
+            "early satiety, no vomiting, no difficulty swallowing.\n"
+            "• PMH: haemorrhoids (12 years). Type 2 diabetes — diet "
+            "controlled, diagnosed 4 years ago. Nothing else. No previous "
+            "colonoscopy, never invited for bowel screening that you "
+            "recall, no inflammatory bowel disease.\n"
+            "• Medications: metformin 500 mg twice daily. Occasional "
+            "haemorrhoid cream. NO NSAIDs, NO aspirin, NO anticoagulant, NO "
+            "iron tablets.\n"
+            "• Family: FATHER had bowel cancer at 71, treated with surgery, "
+            "lived another decade. No other cancers in the family.\n"
+            "• Social: non-smoker. Alcohol 8 units/week. Sits for long "
+            "periods at work, which is what you blame the piles on.\n"
+            "• NOT present: no abdominal pain of note, no jaundice, no "
+            "fever, no night sweats, no foreign travel, no anal pain, no "
+            "external lump you can feel.\n"
+        ),
+        "accepted_diagnoses": [
+            "colorectal cancer", "bowel cancer", "rectal cancer",
+            "colorectal carcinoma", "rectal carcinoma", "colon cancer",
+            "adenocarcinoma of the rectum", "large bowel malignancy",
+            "colorectal malignancy", "bowel malignancy", "rectal tumour",
+        ],
+        "partial_diagnoses": [
+            "malignancy", "cancer", "iron deficiency anaemia",
+            "lower gi bleeding", "needs colonoscopy", "two week wait",
+            "inflammatory bowel disease",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "PALE conjunctivae. Comfortable, not jaundiced, "
+                           "no clubbing, no lymphoedema. Looks slightly "
+                           "thinner than his recorded weight from last year.",
+                "key": True},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 92 bpm regular · BP 128/76 mmHg · RR 14 · "
+                           "SpO₂ 98% on air · Temp 36.6°C. Mild resting "
+                           "tachycardia; otherwise unremarkable.",
+                "key": False},
+            "rectal": {"label": "Digital rectal examination",
+                "finding": "TWO findings, and both are real. "
+                           "(1) EXTERNAL HAEMORRHOIDS at 3 and 7 o'clock, "
+                           "non-thrombosed, non-tender — exactly as he "
+                           "describes, and they do bleed. "
+                           "(2) A FIRM, IRREGULAR, FIXED MASS palpable on "
+                           "the posterior rectal wall about 7 cm from the "
+                           "anal verge, roughly 4 cm across, not tender. "
+                           "Dark altered blood and mucus on the glove. "
+                           "Finding (1) does not account for finding (2).",
+                "key": True},
+            "abdomen": {"label": "Abdominal exam",
+                "finding": "Soft, non-distended, non-tender. No palpable "
+                           "mass, no hepatomegaly, no ascites. Bowel sounds "
+                           "normal. A normal abdomen does not exclude a "
+                           "rectal tumour that sits below the reach of "
+                           "palpation.",
+                "key": True},
+            "hands_nails": {"label": "Hands and nails",
+                "finding": "KOILONYCHIA — spoon-shaped nails — with pale "
+                           "nail beds. No clubbing. Signs of chronic iron "
+                           "deficiency.",
+                "key": True},
+            "lymph_nodes": {"label": "Lymph node examination",
+                "finding": "No inguinal, cervical or supraclavicular "
+                           "lymphadenopathy. No Virchow's node.",
+                "key": False},
+            "weight_bmi": {"label": "Weight and BMI",
+                "finding": "78 kg, 1.74 m, BMI 25.8 kg/m². Recorded weight "
+                           "14 months ago was 84 kg — a 6 kg fall, "
+                           "documented rather than reported.",
+                "key": False},
+            "mental_state": {"label": "Mental state",
+                "finding": "Calm, orientated, no anxiety or low mood. Keen "
+                           "to be reassured and to get back to work.",
+                "key": False},
+        },
+        "investigations": {
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 94 g/L (ref 130-170) — ANAEMIC · MCV 71 fL "
+                          "(ref 80-100) — MICROCYTIC · WCC 7.6 · Platelets "
+                          "468 ×10⁹/L (ref 150-400) — raised. Microcytic "
+                          "anaemia in a man of 58 is a red flag in its own "
+                          "right and is never explained by haemorrhoids "
+                          "bleeding a few drops onto the paper.",
+                "category": "key"},
+            "colonoscopy": {"label": "Colonoscopy",
+                "result": "A FUNGATING, CIRCUMFERENTIAL TUMOUR at 8 cm from "
+                          "the anal verge, partially obstructing the lumen; "
+                          "the scope passed with difficulty. Biopsies taken. "
+                          "Internal haemorrhoids also seen on retroflexion — "
+                          "present, and not the cause. Histology: moderately "
+                          "differentiated adenocarcinoma. THIS IS THE "
+                          "DIAGNOSIS.",
+                "category": "key"},
+            "iron_ferritin": {"label": "Iron studies & ferritin",
+                "result": "Ferritin 7 µg/L (ref 30-400) — VERY LOW · serum "
+                          "iron 4 µmol/L · transferrin saturation 6%. "
+                          "Confirmed iron deficiency from chronic blood "
+                          "loss.",
+                "category": "key"},
+            "fit": {"label": "Faecal Immunochemical Test (FIT)",
+                "result": "Faecal haemoglobin 340 µg Hb/g faeces (referral "
+                          "threshold 10 in symptomatic patients) — STRONGLY "
+                          "POSITIVE. Useful, but note what it cannot do: a "
+                          "negative FIT would not have excluded this, and "
+                          "the rectal examination had already found the "
+                          "mass.",
+                "category": "reasonable"},
+            "cea_ca199": {"label": "CEA & CA 19-9",
+                "result": "CEA 18.4 µg/L (ref < 5) — raised · CA 19-9 "
+                          "32 U/mL (ref < 37). CEA is for monitoring after "
+                          "treatment, not for diagnosis; a normal CEA would "
+                          "have excluded nothing.",
+                "category": "reasonable"},
+            "ct_abdomen": {"label": "CT chest, abdomen and pelvis",
+                "result": "A 4.2 cm rectal mass with extension through the "
+                          "muscularis propria and three enlarged mesorectal "
+                          "nodes. NO liver or lung metastases. Staging "
+                          "cT3 N1 M0.",
+                "category": "reasonable"},
+            "u_e_lft": {"label": "U&E and liver function",
+                "result": "Na 139 · K 4.1 · Creatinine 84 µmol/L · eGFR "
+                          "> 60 · ALT 24 · ALP 88 · Bilirubin 11 · Albumin "
+                          "36 g/L (ref 35-50). Essentially normal.",
+                "category": "reasonable"},
+            "crp": {"label": "C-reactive protein",
+                "result": "14 mg/L (ref < 5) — mildly raised. Non-specific, "
+                          "and not enough to point anywhere on its own.",
+                "category": "reasonable"},
+            "stool_mc_s": {"label": "Stool microscopy, culture & sensitivity",
+                "result": "No growth. No ova, cysts or parasites. No "
+                          "Clostridioides difficile toxin. Negative — and "
+                          "four months of altered bowel habit with weight "
+                          "loss was never going to be an infection.",
+                "category": "low_value"},
+            "abdo_uss": {"label": "Abdominal ultrasound",
+                "result": "Liver, gallbladder, pancreas, spleen and kidneys "
+                          "normal. No free fluid. Ultrasound does not image "
+                          "the rectum; a normal scan here is reassurance "
+                          "about nothing that was asked.",
+                "category": "low_value"},
+            "psa": {"label": "Prostate specific antigen",
+                "result": "1.8 µg/L (ref < 4 at this age). Normal. Not "
+                          "indicated — nothing in the history points at the "
+                          "prostate.",
+                "category": "low_value"},
+            "coeliac_screen": {"label": "Coeliac serology",
+                "result": "Anti-tTG IgA < 1 U/mL (ref < 7), total IgA "
+                          "normal. Negative. Reasonable in young patients "
+                          "with altered bowel habit; not in a man of 58 with "
+                          "rectal bleeding and weight loss.",
+                "category": "low_value"},
+        },
+    },
+
+    # ──────────────────────────────────────────────────────────────────
+    # Case 9: Axial spondyloarthritis, non-radiographic. Two findings
+    # that only turn up if looked for: a psoriatic plaque in the natal
+    # cleft he has never mentioned, and a modified Schober of 3.2 cm.
+    # The plain X-ray is NORMAL, deliberately — believing it excludes
+    # the diagnosis is the second trap, and the commoner one.
+    # ──────────────────────────────────────────────────────────────────
+    "case_9": {
+        "system_prompt": _RULES + (
+            "YOU ARE: Tanvir Ahmed, a 26-year-old warehouse operative. "
+            "Easy-going, slightly bored to be here, certain this is a work "
+            "strain, mainly after a note for your employer. Low back pain "
+            "for 10 months.\n\n"
+            "NOTHING you say is dramatic and no single answer gives it away. "
+            "Answer plainly and let the learner assemble the picture.\n\n"
+            "YOUR CHART — COMPLETE (reveal only what is asked):\n"
+            "• Onset: GRADUAL over several weeks, starting around age 25. "
+            "You blame a heavy lift but cannot name the day — pressed, you "
+            "admit it crept up rather than started.\n"
+            "• Site: low back and BUTTOCKS, ALTERNATING — left for a few "
+            "weeks, then the right. Does not shoot down the leg past the "
+            "knee. No numbness, no weakness, no pins and needles.\n"
+            "• Better with: MOVEMENT, walking, the first hour of a shift. "
+            "Worse with: SITTING STILL, long drives, sitting through a "
+            "film — you can barely straighten afterwards. Rest makes it "
+            "worse, not better.\n"
+            "• Morning stiffness: about 90 MINUTES before you move "
+            "properly. Better by lunchtime most days.\n"
+            "• Night: wakes you at 3-4 am MOST NIGHTS, in the SECOND HALF "
+            "of the night. Getting up and walking about settles it. Not a "
+            "problem falling asleep.\n"
+            "• Anti-inflammatories: IBUPROFEN works remarkably well, almost "
+            "gone within a day of starting it, back within hours of a dose "
+            "wearing off. Paracetamol does nothing.\n"
+            "• Eye: 2 years ago, a PAINFUL RED EYE with light sensitivity. "
+            "Seen at the eye hospital, given drops for a few weeks, "
+            "resolved. Nobody connected it to your back and nor did you.\n"
+            "• Heel: the back of the right HEEL is tender on and off, worst "
+            "on the first steps of the morning.\n"
+            "• Bowels: loose for a week or two at a time, a few times a "
+            "year. No blood, no mucus, no weight loss.\n"
+            "• PMH: nothing else. No psoriasis that YOU know of.\n"
+            "• Family: FATHER has psoriasis on his elbows. An UNCLE has "
+            "'arthritis of the spine' and a stooped back.\n"
+            "• Social: non-smoker. Lifts boxes all day, which is what you "
+            "blame it on. Plays five-a-side, which actually helps.\n"
+            "• NO RED FLAGS: no leg weakness, no saddle numbness, no "
+            "bladder or bowel incontinence, no trauma, no fever, no weight "
+            "loss, no night sweats, no cancer, no steroids, no IV drugs.\n"
+        ),
+        "accepted_diagnoses": [
+            "axial spondyloarthritis", "spondyloarthritis",
+            "ankylosing spondylitis", "non-radiographic axial "
+            "spondyloarthritis", "axial spa", "sacroiliitis",
+            "inflammatory back pain", "seronegative spondyloarthropathy",
+            "spondyloarthropathy", "psoriatic spondyloarthritis",
+        ],
+        "partial_diagnoses": [
+            "inflammatory arthritis", "autoimmune", "rheumatological",
+            "enthesitis", "reactive arthritis", "needs rheumatology",
+        ],
+        "examination": {
+            "general": {"label": "General inspection",
+                "finding": "Well, comfortable, moves easily once up. No "
+                           "obvious deformity, posture normal on standing. "
+                           "Nothing here suggests ten months of disease.",
+                "key": False},
+            "vitals": {"label": "Vital signs",
+                "finding": "HR 68 · BP 122/74 mmHg · RR 14 · SpO₂ 99% · "
+                           "Temp 36.6°C — afebrile. Unremarkable.",
+                "key": False},
+            "spine": {"label": "Spinal examination",
+                "finding": "Lumbar lordosis preserved. MODIFIED SCHOBER'S "
+                           "TEST 3.2 cm (normal > 5 cm) — REDUCED LUMBAR "
+                           "FLEXION. Lateral flexion reduced bilaterally. "
+                           "Chest expansion 3.8 cm (normal > 5 cm at this "
+                           "age). TENDERNESS over both sacroiliac joints. "
+                           "No midline bony tenderness, no step.",
+                "key": True},
+            "joints": {"label": "Joint examination",
+                "finding": "No peripheral synovitis, no swollen or hot "
+                           "joints, no dactylitis. TENDERNESS AND SLIGHT "
+                           "SWELLING AT THE RIGHT ACHILLES INSERTION — "
+                           "enthesitis. Plantar fascia not tender.",
+                "key": True},
+            "skin": {"label": "Skin examination",
+                "finding": "A SMALL SCALY PLAQUE IN THE NATAL CLEFT and a "
+                           "second behind the right ear. He has never "
+                           "mentioned them and does not consider them "
+                           "anything — they are psoriasis, and they are only "
+                           "found by looking in the places people do not "
+                           "look. Nails: no pitting, no onycholysis.",
+                "key": True},
+            "gait": {"label": "Gait assessment",
+                "finding": "Normal heel-toe gait, no antalgia, no "
+                           "Trendelenburg. Walks comfortably — consistent "
+                           "with pain that improves on moving.",
+                "key": False},
+            "neuro_focal": {"label": "Focal neurological exam",
+                "finding": "Power 5/5 in both legs, reflexes normal and "
+                           "symmetrical, plantars downgoing, sensation "
+                           "intact including perianally. STRAIGHT LEG RAISE "
+                           "NEGATIVE to 80° bilaterally. No radiculopathy, "
+                           "no cauda equina.",
+                "key": True},
+            "eyes_fundoscopy": {"label": "Eye examination",
+                "finding": "Anterior segment QUIET today — no injection, no "
+                           "cells, pupils regular and reactive. Fundi "
+                           "normal. The episode two years ago is in the "
+                           "history, not on the slit lamp now.",
+                "key": False},
+        },
+        "investigations": {
+            "mri_sacroiliac": {"label": "MRI — sacroiliac joints (STIR)",
+                "result": "BONE MARROW OEDEMA in the subchondral bone of "
+                          "both sacroiliac joints, more marked on the left, "
+                          "with early erosion of the iliac cortex. Meets the "
+                          "ASAS definition of a positive MRI for "
+                          "sacroiliitis. THIS IS THE DIAGNOSIS, and it is "
+                          "the only imaging that could have made it.",
+                "category": "key"},
+            "xray_sacroiliac": {"label": "X-ray — pelvis and sacroiliac joints",
+                "result": "NORMAL. Joint spaces preserved, no erosion, no "
+                          "sclerosis, no ankylosis. Reasonable to order — "
+                          "and the result is a trap of its own. Structural "
+                          "change takes years to appear on plain film; this "
+                          "is non-radiographic axial spondyloarthritis, and "
+                          "a normal X-ray excludes nothing.",
+                "category": "key"},
+            "crp": {"label": "C-reactive protein",
+                "result": "22 mg/L (ref < 5) — RAISED. Elevated in only "
+                          "about half of axial spondyloarthritis, so a "
+                          "normal CRP would not have excluded it either.",
+                "category": "key"},
+            "esr": {"label": "Erythrocyte sedimentation rate",
+                "result": "34 mm/hr (ref < 15 in men under 50) — RAISED.",
+                "category": "reasonable"},
+            "hla_b27": {"label": "HLA-B27",
+                "result": "POSITIVE. Supportive, not diagnostic: around 8% "
+                          "of the general population carry it and most never "
+                          "develop anything. It raises the probability; the "
+                          "MRI is what settles it.",
+                "category": "reasonable"},
+            "rf_anti_ccp": {"label": "Rheumatoid factor & anti-CCP",
+                "result": "RF < 10 IU/mL (ref < 14) · anti-CCP < 7 U/mL "
+                          "(ref < 17). BOTH NEGATIVE — which is expected. "
+                          "The spondyloarthritides are seronegative, so "
+                          "these results support the diagnosis rather than "
+                          "arguing against it.",
+                "category": "reasonable"},
+            "fbc": {"label": "Full blood count",
+                "result": "Hb 139 g/L · WCC 8.1 · Platelets 352 ×10⁹/L "
+                          "(ref 150-400) · MCV 86 fL. Essentially normal, "
+                          "platelets at the upper end with the "
+                          "inflammation.",
+                "category": "reasonable"},
+            "ana": {"label": "Antinuclear antibody",
+                "result": "Negative at 1:80. Reasonable to send when "
+                          "screening for connective tissue disease, though "
+                          "it was never going to confirm this one.",
+                "category": "reasonable"},
+            "urate": {"label": "Serum urate",
+                "result": "320 µmol/L (ref 200-430). Normal — gout excluded, "
+                          "and it was never likely in the sacroiliac joints "
+                          "of a 26-year-old.",
+                "category": "low_value"},
+            "vitamin_d": {"label": "Vitamin D (25-OH)",
+                "result": "48 nmol/L (ref > 50 sufficient) — marginally low. "
+                          "Common, worth correcting, and not the cause of "
+                          "ten months of inflammatory back pain.",
+                "category": "low_value"},
+            "bone_dexa": {"label": "DEXA bone densitometry",
+                "result": "Lumbar spine Z-score -0.4, femoral neck -0.2. "
+                          "Normal for age. Relevant years into established "
+                          "disease, not at presentation.",
+                "category": "low_value"},
+            "anca": {"label": "ANCA",
+                "result": "Negative. No indication — there is nothing here "
+                          "suggesting vasculitis.",
+                "category": "low_value"},
+        },
+    },
 }
 
 # Merge the clinical data layer into the base CASES definitions.
@@ -2664,6 +3593,56 @@ MASTER_INVESTIGATIONS = {
             "MMSE 30/30. Normal orientation, memory, and executive function."
         ),
     },
+
+    # ── Added 2026-10-29 for case_8, seeded by migration 029 ─────────
+    # The first additions to this list since migration 017. Appended, never
+    # inserted: `display_order` is position in this dict, and renumbering the
+    # menu would move every chip a learner has learnt the place of.
+    "fit": {
+        "label": "Faecal Immunochemical Test (FIT)",
+        "group": "Stool & GI",
+        "normal_result": (
+            "Faecal haemoglobin < 10 µg Hb/g faeces (threshold for urgent "
+            "referral is 10 in symptomatic patients). Negative."
+        ),
+    },
+    "colonoscopy": {
+        "label": "Colonoscopy",
+        "group": "Endoscopy",
+        "normal_result": (
+            "Caecum reached, good bowel preparation. Normal mucosa "
+            "throughout the colon and rectum. No polyps, no mass, no "
+            "inflammation. Normal examination."
+        ),
+    },
+
+    # ── Added 2026-10-29 for case_9, seeded by migration 031 ─────────
+    "hla_b27": {
+        "label": "HLA-B27",
+        "group": "Immunology & Autoantibodies",
+        "normal_result": (
+            "HLA-B27 NEGATIVE. Note that this allele is carried by roughly "
+            "8% of people of northern European descent and far fewer "
+            "elsewhere, so a positive result supports a diagnosis and a "
+            "negative one does not exclude it."
+        ),
+    },
+    "xray_sacroiliac": {
+        "label": "X-ray — pelvis and sacroiliac joints",
+        "group": "Imaging",
+        "normal_result": (
+            "Sacroiliac joints normal, joint spaces preserved, no erosion, "
+            "no sclerosis, no ankylosis. No fracture. Normal plain film."
+        ),
+    },
+    "mri_sacroiliac": {
+        "label": "MRI — sacroiliac joints (STIR sequences)",
+        "group": "Imaging",
+        "normal_result": (
+            "No bone marrow oedema in either sacroiliac joint. No erosion, "
+            "no fatty metaplasia, no ankylosis. Normal study."
+        ),
+    },
 }
 
 
@@ -2981,6 +3960,9 @@ CASE_SLUGS: dict[str, str] = {
     "case_5": "vomiting-diabetic-ketoacidosis",
     "case_6": "headache-hypertension",
     "case_7": "wheezing-child-asthma",
+    "case_8": "rectal-bleeding-colorectal-cancer",
+    "case_9": "back-pain-axial-spondyloarthritis",
+    "case_10": "syncope-aortic-stenosis",
 }
 
 

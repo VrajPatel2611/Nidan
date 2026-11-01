@@ -10,6 +10,7 @@
 ## DOCUMENT PURPOSE
 
 This file is the single source of truth for the clinical cases.
+All ten launch cases are designed and built as of 29 October 2026.
 Every field in this file maps directly to a field in cases.py.
 Never change cases.py without first updating this file.
 The Case Update Log at the bottom tracks every change and why.
@@ -27,10 +28,16 @@ of the list:
   Design CASE 3  The Confused Elderly Man      -> cases.py case_3
   Design CASE 4  The Tired Teacher             -> cases.py case_4
   Design CASE 5  The Wheezing Child            -> cases.py case_7
+  Design CASE 6  The Faint That Was Not a Faint -> cases.py case_10
+  Design CASE 7  The Bleeding That Was Already Explained -> case_8
+  Design CASE 8  The Back Pain That Was Better By Lunchtime -> case_9
 
   (cases.py case_2 is pulmonary embolism and case_5 is diabetic
    ketoacidosis. Neither was designed here; both were written directly
-   into cases.py during the pilot build.)
+   into cases.py during the pilot build. The ten cases
+   are complete as of 29 October 2026, and the ids name the content
+   rather than the order they were authored: case_10 was written
+   before case_8 and case_9.)
 
 The one piece of hard evidence that these designs were always meant to
 be built: every topic key and every detection keyword listed under
@@ -1233,19 +1240,698 @@ regardless of the diagnosis. Anchor trap is solid. PASS.
 ---
 ---
 
+## CASE 6 (code `case_10`): The Faint That Was Not a Faint
+
+### Status: Designed and IMPLEMENTED 29 Oct 2026 as cases.py `case_10`,
+### slug `syncope-aortic-stenosis`, seeded as draft by migration 028.
+### The first case designed AFTER the audience changed from CS students
+### to clinical-phase medical students (PRD D-1), and it shows: the trap
+### is one a medical student falls into, not one a layperson falls into.
+
+---
+
+### Patient Persona
+Name: Harbans Singh
+Age / Gender: 68-year-old male
+Occupation: Retired postmaster
+Presenting complaint: Two blackouts in the past six weeks
+
+Opening line shown to user on chat screen:
+"A 68-year-old retired postmaster named Harbans Singh attends with his
+wife, who insisted he come. He has blacked out twice in the past six
+weeks. He looks well and is faintly embarrassed to be taking up
+anyone's time."
+
+---
+
+### Correct Diagnosis
+Severe calcific aortic stenosis causing exertional syncope
+
+Why this works as a case: syncope is common, benign nine times out of
+ten, and the tenth time is this. The history is short and the patient
+volunteers a plausible explanation unprompted. Every other case in the
+bank rewards asking more questions; this one also requires putting a
+stethoscope on the chest, because two of the five discriminating
+findings cannot be asked for.
+
+---
+
+### Anchor Trap
+Elderly man + collapse + "I stood up too quickly" = vasovagal faint or
+postural hypotension. The trap is unusually well defended:
+
+1. **The patient offers it himself**, in his opening line, before any
+   question is asked.
+2. **He is on two drugs that cause postural hypotension** — tamsulosin
+   started eight months ago and amlodipine for five years. A learner
+   who takes a careful drug history finds strong support for the wrong
+   answer. This is the only case in the bank where good history-taking
+   makes the trap *more* convincing.
+3. **He looks well.** General inspection is normal, and so are the
+   observations apart from one number most people do not calculate.
+
+The way out is the postural blood pressure: he has every reason to drop
+and does not.
+
+---
+
+### Anchor Keywords
+vasovagal, faint, fainting, simple faint, blackout spell, stood up too,
+standing up too, getting up quickly, postural, orthostatic, dehydration,
+dehydrated, drink more water, fluid intake, low blood sugar,
+hypoglycaemia, skipped a meal, missed breakfast, hot weather, overheated,
+anxiety, panic, medication side effect, old age, getting older,
+compression stockings, get up slowly, reassurance, nothing to worry
+
+**Drug names are deliberately excluded.** Blaming the tamsulosin is the
+trap's strongest branch, but "what are you taking?" is the `medications`
+required topic and is good history. Scoring it as fixation would punish
+the question and reward skipping it. The fixation is in the conclusion,
+not the question, so only "medication side effect" is listed.
+
+---
+
+### Alternative Topics Keywords
+aortic stenosis, murmur, heart murmur, valve, echocardiogram, on
+exertion, exertional, uphill, climbing stairs, angina, chest tightness,
+slow rising, carotid, pulse character, narrow pulse pressure, arrhythmia,
+holter, left ventricular, no warning, sudden collapse, auscultate
+
+---
+
+### Required Topics
+(all five syncope topics were NEW — seeded by migration 027)
+
+1. syncope_circumstances — what he was doing at the time        [NEW]
+2. prodrome_warning — whether there was any warning              [NEW]
+3. recovery_pattern — how he came round, and what a witness saw  [NEW]
+4. exertional_symptoms — breathlessness and chest tightness      [NEW]
+5. palpitations_rhythm — the other cardiac cause                 [NEW]
+6. medications — existing
+7. family_history — existing
+8. duration_recurrence — existing
+
+A syncope history is five questions and which five is not a matter of
+taste. A learner who asks all five cannot call this a simple faint,
+which is exactly why they are the required set.
+
+---
+
+### Minimum Questions Before Concluding: 8
+
+---
+
+### Contradictory Clues
+(reveal only when directly asked)
+
+1. BOTH episodes happened WALKING UPHILL — the stairs at home, the
+   slope to the market. Neither on standing up from a chair.
+   (Syncope during exertion is cardiac until proven otherwise.
+   Vasovagal syncope essentially never happens mid-exertion.)
+
+2. NO PRODROME AT ALL — no dizziness, nausea, sweating, tunnel vision
+   or ringing in the ears.
+   (Vasovagal syncope has a warning. Its absence points at an abrupt
+   drop in cardiac output.)
+
+3. IMMEDIATE, COMPLETE RECOVERY — awake within a minute, orientated at
+   once, no confusion, no tongue biting, no incontinence, and his wife
+   witnessed no jerking.
+   (Excludes seizure, and excludes the post-ictal state that would
+   otherwise be the competing explanation.)
+
+4. SIX MONTHS of exertional breathlessness and chest tightness that
+   settle within two minutes of stopping.
+   (Angina, syncope and dyspnoea are the triad of aortic stenosis.
+   He has all three and has mentioned none of them.)
+
+5. A HEART MURMUR was noted years ago and never followed up.
+   (The diagnosis has been available for years.)
+
+6. NO PALPITATIONS — no racing, no skipped beats, no fluttering.
+   (Argues against the other cardiac cause, arrhythmia, which the
+   Holter then confirms.)
+
+---
+
+### What cannot be asked for — examination and investigation
+
+Clues 1-4 and 6 are history. Two more findings are not:
+
+- **Pulsus parvus et tardus** — a slow-rising, low-volume carotid
+  pulse, with a narrow pulse pressure of 36 mmHg.
+- **An ejection systolic murmur radiating to both carotids**, with a
+  soft single second heart sound.
+
+And the finding that breaks the trap outright: **no postural drop**,
+in a man on two drugs that cause one.
+
+The diagnosis is confirmed on echocardiography — mean gradient
+48 mmHg, valve area 0.8 cm². Exertional syncope in severe aortic
+stenosis is an indication for urgent valve referral, so this is also
+the first case in the bank where the right answer is time-critical.
+
+---
+
+### Bias Detection Summary for This Case
+
+Anchoring fires if:
+- The learner asks 3+ questions in the faint/postural/dehydration
+  vocabulary AND never asks what he was doing or whether there was a
+  warning.
+
+Premature closure fires if:
+- "Vasovagal", "postural hypotension" or "dehydration" is submitted
+  after fewer than 8 questions, or covering fewer than 5 topics.
+
+Confirmation bias fires if:
+- The learner advises getting up slowly, fluids, or a medication
+  review AND never asked about exertion, warning, or the murmur.
+
+---
+
+### Patient Voice Notes
+
+Q: "What happened?"
+A: "I passed out twice in the last few weeks. My wife made me come.
+    I expect I just stood up too quickly — that happens at my age,
+    does it not?"
+
+Q: "What were you doing when it happened?"
+A: "Walking up, both times. Once on the stairs at home with the
+    washing, once on the slope going to the market."
+
+Q: "Did you have any warning?"
+A: "None at all. One moment I was walking, the next I was on the
+    ground. My wife saw the second one."
+
+Q: "How were you afterwards?"
+A: "Up within a minute. I knew where I was straight away. No
+    confusion, nothing bitten, nothing like that."
+
+Q: "Do you get breathless walking up that slope?"
+A: "Now that you ask — yes, for about six months. I have to stop
+    halfway. I used to walk it straight up."
+
+Q: "Any chest discomfort?"
+A: "A tightness, like a band, when I push on. It goes in a couple of
+    minutes if I stand still. Never when I am sitting."
+
+Q: "What tablets are you on?"
+A: "One for the prostate, started about eight months ago. And one for
+    blood pressure, for years now."
+
+Q: "Any heart problems in the past?"
+A: "A doctor mentioned a murmur years ago. Said to keep an eye on it.
+    I forgot all about it, to be honest."
+
+---
+
+### Anchor Test — medical student perspective
+
+This section is written from a YEAR 3-5 MEDICAL STUDENT's perspective,
+not a CS student's. Every earlier case in this document predates that
+change (PRD D-1, September 2026).
+
+Imagined first 5 questions:
+1. "How long have you been having these?" — NEUTRAL
+2. "Were you standing up when it happened?" — ANCHOR (postural)
+3. "What medications are you on?" — CORRECT, and makes the trap worse
+4. "Have you been drinking enough?" — ANCHOR (dehydration)
+5. "Do you feel dizzy when you stand?" — ANCHOR (postural)
+
+A medical student will reliably take the blood pressure, and it is
+118/82 — normal, unless the pulse pressure is calculated. They will
+reliably ask about medications, and the answer supports the trap. The
+specific question that breaks it — "what were you doing at the time?" —
+is standard teaching and still commonly skipped when the patient has
+already supplied an explanation.
+
+Anchor trap is solid for the current audience. PASS.
+
+---
+---
+
+## CASE 7 (code `case_8`): The Bleeding That Was Already Explained
+
+### Status: Designed and IMPLEMENTED 29 Oct 2026 as cases.py `case_8`,
+### slug `rectal-bleeding-colorectal-cancer`, seeded as draft by
+### migration 030. The only case in the bank where the anchor is TRUE.
+
+---
+
+### Patient Persona
+Name: Naveen Reddy
+Age / Gender: 58-year-old male
+Occupation: Bus depot manager
+Presenting complaint: Rectal bleeding, on and off, for four months
+
+Opening line shown to user on chat screen:
+"A 58-year-old bus depot manager named Naveen Reddy attends about
+bleeding from the back passage over the past four months. He was
+diagnosed with haemorrhoids twelve years ago and has come mainly
+because his wife kept asking him to."
+
+---
+
+### Correct Diagnosis
+Colorectal carcinoma (rectal), with coexisting haemorrhoids and
+iron-deficiency anaemia
+
+---
+
+### Anchor Trap — and why this one is different
+
+In every other case in this document the anchor is simply wrong. Here
+**the anchor is correct and insufficient.**
+
+Naveen has haemorrhoids. He has had them for twelve years. They are
+visible on examination, at 3 and 7 o'clock, and they do bleed. Nothing
+he believes is false. What is false is the inference that because they
+explain *some* of the bleeding they explain *all* of it — and nothing
+in his account draws attention to the gap, because he has never
+compared this episode with the previous ones.
+
+This is satisfaction of search: the first finding that fits ends the
+search, and the second finding is never looked for. It is one of the
+commonest ways a real diagnosis is missed, and no other case here
+teaches it.
+
+The rectal examination therefore returns **both findings in one
+report**, deliberately. A learner who stops reading at the
+haemorrhoids has made the same mistake inside the examination that
+the case is about.
+
+---
+
+### Anchor Keywords
+haemorrhoid, hemorrhoid, piles, fissure, anal fissure, fibre, laxative,
+stool softener, haemorrhoid cream, suppositor, witch hazel, sitz bath,
+banding, rubber band, ointment, irritable bowel, spicy, nothing serious,
+common at your age, benign, reassure, no need to worry, old age,
+just the piles, sit for too long, driving all day
+
+**"Constipation" and "straining" are deliberately excluded**, although
+they are the vocabulary of the trap. They already belong to the
+`bowel_habits` required topic, and asking about them is good history.
+The anchor list uses the words of the CONCLUSION, not of the question —
+the same decision as `case_10` and its drug names.
+
+---
+
+### Alternative Topics Keywords
+colonoscopy, cancer, malignancy, tumour, bowel cancer, colorectal,
+fit test, faecal immunochemical, red flag, weight loss, anaemia,
+iron deficiency, ferritin, rectal examination, per rectum, tenesmus,
+mucus, two week wait, urgent referral, mass, staging
+
+---
+
+### Required Topics
+(four were NEW — seeded by migration 029)
+
+1. bleeding_character — mixed through, or on the paper?     [NEW]
+2. change_from_baseline — is this the same as before?       [NEW]
+3. bowel_habits — existing, reused unchanged
+4. tenesmus_incomplete — the feeling of not having finished [NEW]
+5. anaemia_symptoms — tired, breathless, pale               [NEW]
+6. weight_history — existing
+7. family_history — existing
+8. duration_pattern — existing
+
+**Topic 2 is the one that unlocks the case.** The question is not "do
+you have piles?" — he does, and he will say so in his opening line.
+It is "is this the same as your piles?", which nobody has asked him
+in four months.
+
+---
+
+### Minimum Questions Before Concluding: 8
+
+---
+
+### Contradictory Clues
+(reveal only when directly asked)
+
+1. The blood is MIXED THROUGH the stool and DARKER, sometimes with
+   mucus. His usual piles bleed bright red onto the paper, never
+   mixed in, always after straining.
+
+2. He has NEVER COMPARED the two. Asked directly, he thinks about it
+   and realises this episode is different. He is not withholding it;
+   the comparison has simply not occurred to him.
+
+3. BOWEL HABIT CHANGED four months ago — once every morning, now
+   three or four times a day and looser.
+
+4. TENESMUS — frequently feels he has not finished and must go back
+   within minutes, often passing little. New.
+
+5. SIX KILOGRAMS of unintentional weight loss over four months, and
+   the clinic has a recorded weight from fourteen months ago to
+   confirm it rather than rely on his estimate.
+
+6. TIRED AND BREATHLESS on the depot stairs, which he managed easily
+   a year ago.
+
+7. FATHER had bowel cancer at 71.
+
+---
+
+### What cannot be asked for
+
+- **Digital rectal examination**: external haemorrhoids AND a firm,
+  irregular, fixed mass on the posterior wall at 7 cm.
+- **Koilonychia and pale conjunctivae** — chronic iron deficiency,
+  visible before any blood test.
+- **A normal abdomen**, which excludes nothing: a rectal tumour sits
+  below the reach of abdominal palpation.
+
+Hb 94 g/L with an MCV of 71 settles it even before the colonoscopy.
+Microcytic anaemia in a man of 58 is a red flag on its own and is never
+explained by a few drops of blood on the paper.
+
+---
+
+### Bias Detection Summary for This Case
+
+Anchoring fires if:
+- The learner asks 3+ questions in the piles/fissure/fibre vocabulary
+  AND never asks what the blood looks like or whether it has changed.
+
+Premature closure fires if:
+- "Haemorrhoids" is submitted after fewer than 8 questions, or
+  covering fewer than 5 topics.
+
+Confirmation bias fires if:
+- The learner recommends cream, fibre or banding AND never asked
+  about weight, bowel habit or the character of the bleeding.
+
+---
+
+### Patient Voice Notes
+
+Q: "What has been happening?"
+A: "I have had a bit of bleeding again, on and off for a few months.
+    I have had piles for years so I know what it is."
+
+Q: "What does the blood look like?"
+A: "Darker than it used to be, I suppose. And it is through the
+    motion rather than just on the paper. Sometimes a bit of slime."
+
+Q: "Is this the same as your piles have been before?"
+A: "... No, actually. Before it was bright red, on the paper, after
+    straining. This is not like that. I had not thought about it."
+
+Q: "Has your bowel habit changed?"
+A: "Yes — I was once every morning like clockwork. Now it is three or
+    four times a day and looser."
+
+Q: "Any weight change?"
+A: "My trousers are loose. I have not been trying to lose anything."
+
+Q: "Anyone in the family with bowel trouble?"
+A: "My father had bowel cancer. He was 71. They operated and he was
+    fine for years afterwards."
+
+---
+
+### Anchor Test — medical student perspective
+
+Imagined first 5 questions:
+1. "How long has the bleeding been going on?" — NEUTRAL
+2. "Do you have a history of haemorrhoids?" — ANCHOR, and he says yes
+3. "Is it bright red on the paper?" — leading, and he will agree if
+   not pressed
+4. "Are you constipated or straining?" — coverage, but reinforces it
+5. "Have you tried a cream?" — ANCHOR
+
+The trap is self-confirming: the patient supplies it, the history
+supports it, and the examination finds it. The case can only be broken
+by a learner who keeps looking after finding it.
+
+Anchor trap is solid. PASS.
+
+---
+---
+
+## CASE 8 (code `case_9`): The Back Pain That Was Better By Lunchtime
+
+### Status: Designed and IMPLEMENTED 29 Oct 2026 as cases.py `case_9`,
+### slug `back-pain-axial-spondyloarthritis`, seeded as draft by
+### migration 032. The TENTH AND LAST case of the launch set.
+
+---
+
+### Patient Persona
+Name: Tanvir Ahmed
+Age / Gender: 26-year-old male
+Occupation: Warehouse operative
+Presenting complaint: Low back pain for about ten months
+
+Opening line shown to user on chat screen:
+"A 26-year-old warehouse operative named Tanvir Ahmed attends with low
+back pain he has had for about ten months. He puts it down to the
+lifting at work and has come because his employer asked for a note."
+
+---
+
+### Correct Diagnosis
+Axial spondyloarthritis, non-radiographic — inflammatory back pain with
+sacroiliitis on MRI
+
+Average real-world delay from first symptom to this diagnosis is
+measured in years, and the reason is in the presentation: a young man
+in a lifting job with a sore back is the most ordinary thing a
+clinician sees all week.
+
+---
+
+### Anchor Trap
+Young man + manual job + back pain = mechanical strain. Reinforced by
+the patient, who blames a specific lift, and by the setting — he has
+come for a note, not for a diagnosis.
+
+---
+
+### What makes this case different from every other one here
+
+**No single answer gives it away.** Every other case in this document
+turns on a disclosure: the ibuprofen in case 1, the blood pressure in
+case 2, the absence of fever in case 5. Ask the right question and the
+case opens.
+
+Here there is no such question. Each answer is unremarkable on its own:
+
+- it came on gradually — so do plenty of strains
+- it is better for moving — rest is overrated for back pain anyway
+- he is stiff in the morning — so is everyone with a bad back
+- ibuprofen helps — ibuprofen helps most things
+- it wakes him at night — plenty of back pain does
+
+**Four of those together are the ASAS inflammatory back pain
+criteria.** The case is diagnosed by assembling a pattern, which means
+it rewards breadth of history rather than a lucky question — and it is
+the only case in the bank that does.
+
+---
+
+### The second trap: the normal X-ray
+
+Plain films are normal, and they are *supposed* to be. Structural
+change in the sacroiliac joints takes years to appear; this is
+**non-radiographic** axial spondyloarthritis, which is a real
+diagnosis and not an early version of one.
+
+A learner who orders the X-ray, sees "normal", and stops has been
+caught by a second trap that has nothing to do with the first. The
+result text says so explicitly, because the point of the case is
+undermined if the learner never learns why the film was clear.
+
+---
+
+### Anchor Keywords
+mechanical, muscular, muscle strain, strain, sprain, pulled, lifting,
+heavy lifting, manual job, warehouse, posture, sciatica, slipped disc,
+disc, nerve root, physiotherapy, core strength, bed rest, mattress,
+ergonomic, lifting technique, gym injury, wear and tear, rest it,
+stop lifting, lighter duties, back support
+
+---
+
+### Alternative Topics Keywords
+ankylosing spondylitis, axial spondyloarthritis, spondyloarthritis,
+inflammatory back pain, sacroiliitis, sacroiliac, hla b27, enthesitis,
+uveitis, iritis, psoriasis, inflammatory marker, schober, rheumatology,
+bone marrow oedema, improves with exercise, worse with rest,
+alternating buttock, autoimmune, seronegative
+
+---
+
+### Required Topics
+(four were NEW — seeded by migration 031)
+
+1. relieving_factors — existing, reused rather than duplicated. It
+   already asks what makes the pain better or worse, and "better with
+   movement, worse with rest" is the ANSWER to that question, not a
+   different question.
+2. morning_stiffness — and crucially, how long               [NEW]
+3. night_pain — second half of the night, relieved by getting up [NEW]
+4. nsaid_response — dramatic and short-lived                 [NEW]
+5. extra_articular_features — eye, skin, bowel, heel         [NEW]
+6. onset_timing — existing. Gradual, and he cannot name a day.
+7. family_history — existing
+8. duration_pattern — existing
+
+---
+
+### Minimum Questions Before Concluding: 8
+
+---
+
+### Contradictory Clues
+(reveal only when directly asked — note that none is alarming alone)
+
+1. BETTER WITH MOVEMENT, WORSE WITH REST. After sitting through a film
+   he can barely straighten. A walk loosens it. This is the inverse of
+   mechanical back pain.
+
+2. MORNING STIFFNESS OF NINETY MINUTES. Mechanical stiffness lasts
+   minutes. Over 30 minutes is the inflammatory threshold.
+
+3. WAKES AT 3-4 AM, in the SECOND HALF of the night, and getting up to
+   walk settles it. Not difficulty falling asleep.
+
+4. IBUPROFEN WORKS DRAMATICALLY — almost gone within a day, back
+   within hours of a dose wearing off. A near-complete NSAID response
+   is itself a diagnostic feature.
+
+5. ALTERNATING BUTTOCK PAIN — left for weeks, then right. Nerve roots
+   do not alternate.
+
+6. A PAINFUL RED EYE two years ago, treated at the eye hospital with
+   drops. Anterior uveitis. Nobody connected it to his back, including
+   him.
+
+7. ONSET WAS GRADUAL. He blames a lift but cannot name the day;
+   pressed, he admits it crept up over weeks.
+
+8. FATHER has psoriasis; an UNCLE has "arthritis of the spine".
+
+---
+
+### What cannot be asked for
+
+- **Modified Schober's test 3.2 cm** (normal > 5) and chest expansion
+  3.8 cm — objective restriction in a man who looks fine standing.
+- **Achilles enthesitis** on the right.
+- **A small psoriatic plaque in the natal cleft**, and another behind
+  the ear. He has never mentioned them because he does not consider
+  them anything. They are found only by looking where people do not
+  look.
+- **A negative straight leg raise**, which quietly removes the
+  radicular explanation.
+
+---
+
+### Bias Detection Summary for This Case
+
+Anchoring fires if:
+- The learner asks 3+ questions in the strain/lifting/posture
+  vocabulary AND never asks about stiffness, nights, or what helps.
+
+Premature closure fires if:
+- "Mechanical back pain" or "muscular strain" is submitted after fewer
+  than 8 questions, or covering fewer than 5 topics.
+
+Confirmation bias fires if:
+- The learner advises physiotherapy, lifting technique or lighter
+  duties AND never asked about morning stiffness, night pain or the
+  NSAID response.
+
+---
+
+### Patient Voice Notes
+
+Q: "How did it start?"
+A: "I think it was a heavy lift, but honestly I could not tell you
+    which day. It sort of crept up over a few weeks."
+
+Q: "What makes it better or worse?"
+A: "Moving helps. Sitting still is the worst — after a film I can
+    barely straighten up."
+
+Q: "Are you stiff in the mornings?"
+A: "Very. It takes an hour and a half before I can move properly.
+    By lunchtime I am usually all right."
+
+Q: "Does it wake you at night?"
+A: "Three or four in the morning, most nights. I get up and walk
+    about and then it settles."
+
+Q: "What have you tried for it?"
+A: "Ibuprofen. It works really well — almost gone the next day. But
+    when it wears off it comes straight back."
+
+Q: "Have you ever had a problem with your eyes?"
+A: "Two years back I had a red eye, really painful. The eye hospital
+    gave me drops. Nothing since."
+
+Q: "Anyone in the family with joint or skin problems?"
+A: "My dad has psoriasis on his elbows. And an uncle has arthritis in
+    his spine — he is quite bent over now."
+
+---
+
+### Anchor Test — medical student perspective
+
+Imagined first 5 questions:
+1. "Do you lift at work?" — ANCHOR, and the answer is yes
+2. "Did it start after a particular lift?" — ANCHOR, leading, and he
+   will agree unless pressed
+3. "Any numbness or weakness in the legs?" — CORRECT red-flag screen,
+   and all negative, which reassures in the wrong direction
+4. "Have you tried physiotherapy?" — ANCHOR
+5. "How long have you had it?" — NEUTRAL
+
+The red-flag screen is the subtle part. It is good practice, it is
+taught, and every answer is negative — so a learner who does it
+properly comes away MORE confident this is mechanical. The features
+that matter are not red flags; they are the pattern, and nothing
+prompts a learner to ask for it.
+
+Anchor trap is solid. PASS.
+
+---
+---
+
 ## CASE COMPARISON TABLE
 ## Quick reference for verifying coverage and balance
 
-| Field                | Case 1      | Case 2       | Case 3      | Case 4        | Case 5     |
-|----------------------|-------------|--------------|-------------|---------------|------------|
-| Patient              | 48M         | 28F          | 74M         | 35F           | 10M        |
-| Correct Dx           | GERD        | Hypertension | UTI/Delirium| Hypothyroid   | Asthma     |
-| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression | Infection  |
-| Min Questions        | 7           | 7            | 8           | 8             | 7          |
-| Required Topics      | 8           | 8            | 8           | 8             | 7          |
-| Contradictory Clues  | 8           | 8            | 8           | 8             | 8          |
-| Anchor Keywords      | 28          | 28           | 26          | 26            | 26         |
-| Alt Topic Keywords   | 28          | 26           | 24          | 26            | 24         |
+| Field                | Case 1      | Case 2        | Case 3         | Case 4      | Case 5     | Case 6          | Case 7           | Case 8           |
+|----------------------|-------------|---------------|----------------|-------------|------------|-----------------|------------------|------------------|
+| cases.py id          | case_1      | case_6        | case_3         | case_4      | case_7     | case_10         | case_8           | case_9           |
+| Patient              | 48M         | 28F           | 74M            | 35F         | 10M        | 68M             | 58M              | 26M              |
+| Correct Dx           | GERD        | Hypertension  | UTI/Delirium   | Hypothyroid | Asthma     | Aortic stenosis | Colorectal cancer| Axial spondyloarthritis |
+| Anchor Dx            | MI/Cardiac  | Stress/Tension| Stroke/Dementia| Depression  | Infection  | Vasovagal faint | Haemorrhoids     | Mechanical strain|
+| Anchor is…           | wrong       | wrong         | wrong          | wrong       | wrong      | wrong           | **TRUE**         | wrong            |
+| Min Questions        | 7           | 7             | 8              | 8           | 7          | 8               | 8                | 8                |
+| Required Topics      | 8           | 8             | 8              | 8           | 7          | 8               | 8                | 8                |
+| Contradictory Clues  | 8           | 8 (6 built)   | 8              | 8           | 8 (7 built)| 6               | 7                | 7                |
+| Anchor Keywords      | 28          | 27            | 26             | 26          | 29         | 29              | 26               | 27               |
+| Alt Topic Keywords   | 28          | 20            | 24             | 26          | 22         | 21              | 21               | 20               |
+| Solved by            | history     | examination   | history        | history     | tests      | examination     | examination      | **pattern**      |
+
+The last row is the one worth reading across. The bank was not designed
+for variety of disease — it was designed so that no two cases fail the
+same way. Three are solved by asking more, two by examining, one by
+ordering the right test, one by not stopping at the first finding, and
+one only by assembling a pattern out of answers that are unremarkable
+individually.
+
+(cases.py `case_2`, pulmonary embolism, and `case_5`, diabetic
+ketoacidosis, are not in this table — they were written directly into
+cases.py during the pilot build and have no design section here.)
 
 ---
 

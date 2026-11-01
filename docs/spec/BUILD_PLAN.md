@@ -700,6 +700,10 @@ If launch must come sooner (`PLATFORM_SPEC` §11.1):
 
 **Start writing cases in week one.**
 
+> **Status, 29 October 2026 — half discharged.** All ten cases are written and seeded as drafts (migrations 019, 026, 028, 030, 032). **None is published, and none can be**: migration 007's trigger refuses a version with no approving clinical review, so the remaining half of this risk is entirely review turnaround.
+>
+> Two things are worth carrying forward from doing it. First, **the cost per case rose sharply at case 8**: migration 017 seeded 40 topics and the first seven cases used all of them, so every case after that needed new lexicon rows, and two needed investigation keys that did not exist. T-044 is the task that would have made this a screen instead of a migration. Second, **the binding constraint is now hosting, not writing** — the console runs on localhost and no task in any phase deploys it, so the two reviewers still cannot reach the cases that are waiting for them.
+
 ---
 
 *End of Build Plan. Task ids are stable; new work appends rather than renumbers.*
