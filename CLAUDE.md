@@ -218,6 +218,7 @@ nidan/
       audit.py              every admin action, append-only
       cases.py              reads for learners; authoring writes need AdminUser
       reviews.py            review assignments and the rubric; T-023
+      catalog.py            the universal menus; no case-specific column
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
@@ -229,8 +230,10 @@ nidan/
                         with the admin console, so it is not inside v1/
   api/v1/               the JSON API at /v1 (ADR-0006, T-030)
     blueprint.py          the Blueprint alone, so route modules import acyclically
-    identity.py           API_CONTRACT §4 · /me
-    sessions.py           §6 · /sessions, /trial/sessions
+    identity.py           API_CONTRACT §4 · /me (POST, GET, PATCH)
+    catalog.py            §5 · the two universal menus — CT-3 lives here
+    sessions.py           §6, §7 · POST /sessions, GET /sessions, /trial/sessions
+    pagination.py         §2.5 cursors — never offsets
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
   api/trial.py          the anonymous trial and its httpOnly cookie
@@ -267,7 +270,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 824 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 843 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -283,7 +286,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 253 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 272 schema, repository and route tests, real Postgres
 ```
 
 ---

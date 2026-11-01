@@ -9,6 +9,7 @@ so a reader can go from a section number to a file without a map.
     blueprint.py   the Blueprint object, alone, to keep imports acyclic
     errors         ../errors.py — the envelope and the §10 catalogue, shared
                    with the admin console
+    catalog.py     §5   · /catalog/examinations, /catalog/investigations
     identity.py    §4   · /me
     sessions.py    §6   · /sessions, /trial/sessions
     contract.py    the 501s openapi.yaml declares, and the JSON 404
@@ -23,7 +24,8 @@ from __future__ import annotations
 
 # Imported for their side effect: each module registers its routes on `bp`.
 from nidan.api.v1 import (  # noqa: F401,E402  (route registration)
-    contract,  # noqa: E402
+    catalog,
+    contract,
     identity,
     sessions,
 )

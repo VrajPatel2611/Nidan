@@ -50,6 +50,48 @@ class SessionRepository(Repository):
             f"ORDER BY started_at DESC LIMIT :limit"
         ), {"limit": limit}).mappings().all()
 
+    def page(self, *, limit: int, after: tuple[Any, UUID] | None = None,
+             ) -> Sequence[Mapping[str, Any]]:
+        """
+        One page of the actor's history, newest first, for `GET /v1/sessions`.
+
+        Returns `limit + 1` rows when there are more, so the caller can answer
+        `has_more` without a second query (`API_CONTRACT` §2.5). A COUNT would
+        be answering a different question anyway — rows can appear between the
+        two statements, which is the duplicate-and-gap problem §2.5 rejects
+        offsets for.
+
+        Ordered by `(started_at, id)` and not `started_at` alone. Two sessions
+        started in the same millisecond are possible — the backfill created
+        sixteen with synthesised timestamps (`DATA_MODEL` §9.3) — and a sort
+        key that is not unique makes a cursor ambiguous: the row it points at
+        is not the row it resumes after.
+
+        Joined to `case_versions` for the title and `session_results` for the
+        verdict, both of which the §7 payload carries. LEFT JOIN on results:
+        an active or abandoned session has none, and omitting it from history
+        would hide the learner's own unfinished work.
+        """
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        params: dict[str, Any] = {"limit": limit + 1}
+        where = ""
+        if after is not None:
+            params["after_at"], params["after_id"] = after
+            where = "WHERE (s.started_at, s.id) < (:after_at, :after_id)"
+        return self._conn.execute(sa.text(f"""
+            SELECT s.id, s.status, s.started_at, s.ended_at,
+                   cv.title            AS case_title,
+                   r.diagnosis_verdict AS verdict,
+                   r.coverage_pct
+            FROM sessions s
+            JOIN case_versions cv ON cv.id = s.case_version_id
+            LEFT JOIN session_results r ON r.session_id = s.id
+            {where}
+            ORDER BY s.started_at DESC, s.id DESC
+            LIMIT :limit
+        """), params).mappings().all()
+
     def active(self) -> Mapping[str, Any] | None:
         """The actor's in-progress session, if any."""
         return self._conn.execute(sa.text(

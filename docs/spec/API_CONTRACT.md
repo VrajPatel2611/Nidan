@@ -779,6 +779,7 @@ Stable identifiers. **Once shipped, a code is never renamed or repurposed.**
 | `idempotency_key_reused` | 422 | Same key, different body |
 | `confirmation_required` | 422 | Deletion confirmation missing |
 | `invalid_timezone` | 422 | Not an IANA zone |
+| `consent_version_required` | 422 | `consent_research: true` without `consent_version` (§4 `PATCH /v1/me`) |
 | `trial_expired` | 422 | Claim window passed |
 | `unknown_key` | 404 | Unknown examination/investigation |
 | `question_limit_reached` | 429 | 40-question cap |

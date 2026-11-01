@@ -34,11 +34,8 @@ from nidan.api.v1.blueprint import bp
 # (rule, methods) for every declared operation with no implementation yet.
 # Flask converter syntax, matching the paths in openapi.yaml.
 UNIMPLEMENTED: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
-    ("/me",                               ("PATCH", "DELETE")),
+    ("/me",                               ("DELETE",)),
     ("/me/export",                        ("POST",)),
-    ("/catalog/examinations",              ("GET",)),
-    ("/catalog/investigations",            ("GET",)),
-    ("/sessions",                          ("GET",)),
     ("/sessions/<uuid:session_id>",        ("GET",)),
     ("/sessions/<uuid:session_id>/questions",      ("POST",)),
     ("/sessions/<uuid:session_id>/examinations",   ("POST",)),

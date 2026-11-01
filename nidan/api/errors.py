@@ -57,6 +57,7 @@ CATALOGUE: Final[dict[str, int]] = {
     "idempotency_key_reused": 422,
     "confirmation_required":  422,
     "invalid_timezone":       422,
+    "consent_version_required": 422,
     "trial_expired":          422,
     # 429 — too much
     "question_limit_reached": 429,

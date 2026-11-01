@@ -196,3 +196,49 @@ def read_profile():
             free_limit=settings.FREE_TIER_SESSIONS_PER_MONTH)
 
     return jsonify(_profile_json(row, allowance.remaining)), 200
+
+
+@bp.patch("/me")
+@require_auth
+def update_profile():
+    """
+    `PATCH /v1/me` — change your own profile (`API_CONTRACT` §4).
+
+    **404, not an implicit create, when there is no profile.** A PATCH is a
+    request to change something that exists; §4 gives `POST /me` the job of
+    bringing one into being, and a PATCH that quietly created one would make
+    the two endpoints interchangeable for a client that got its order wrong.
+
+    `consent_research: true` requires `consent_version` — the identifier of
+    the document the user was actually shown. §4 says so and gives the refusal
+    its own code, `consent_version_required`, which was referenced there and
+    **missing from the §10 catalogue** until this endpoint was written. The
+    server stamps `consent_at` itself; a caller that could choose it could
+    backdate a consent.
+    """
+    body = request.get_json(silent=True) or {}
+
+    unknown = set(body) - _WRITABLE
+    if unknown:
+        return error("validation_failed",
+                     f"Unexpected field(s): {', '.join(sorted(unknown))}.")
+
+    # Checked here as well as in the repository, so the refusal carries §4's
+    # specific code rather than the repository's ValueError flattened into a
+    # generic `validation_failed`. The repository check stays: it is what
+    # holds if another caller ever forgets.
+    if body.get("consent_research") and not body.get("consent_version"):
+        return error(
+            "consent_version_required",
+            "Recording consent needs the version of the document you were "
+            "shown. Consent to an unnamed document is not consent.")
+
+    try:
+        with repo_scope(current_actor()) as db:
+            row = db.profiles.update(**body)
+    except ValueError as e:
+        return error("validation_failed", str(e))
+
+    if row is None:
+        return error("not_found", "No profile yet. Create one with POST /me.")
+    return jsonify(_profile_json(row)), 200

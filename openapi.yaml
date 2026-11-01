@@ -87,8 +87,14 @@ paths:
             schema: { $ref: '#/components/schemas/ProfileUpdate' }
       responses:
         '200': { $ref: '#/components/responses/Profile' }
+        '404':
+          description: >
+            No profile yet. A PATCH does not create one — POST /me does
+            (API_CONTRACT §4).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '422': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
     delete:
       tags: [identity]
       summary: Delete the account
@@ -118,12 +124,19 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            Cache-Control:
+              description: 'API_CONTRACT §5: public, max-age=3600'
+              schema: { type: string }
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/CatalogItem' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CatalogItem' }
 
   /catalog/investigations:
     get:
@@ -133,12 +146,19 @@ paths:
       responses:
         '200':
           description: OK
+          headers:
+            Cache-Control:
+              description: 'API_CONTRACT §5: public, max-age=3600'
+              schema: { type: string }
           content:
             application/json:
               schema:
-                type: array
-                items: { $ref: '#/components/schemas/CatalogItem' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/CatalogItem' }
 
   # ── consultation ───────────────────────────────────────────────────
   /sessions:
@@ -174,7 +194,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/SessionPage' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
+        '422':
+          description: Unreadable cursor or limit
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /trial/sessions:
     post:
@@ -513,6 +537,7 @@ components:
                 - idempotency_key_reused
                 - confirmation_required
                 - invalid_timezone
+                - consent_version_required
                 - trial_expired
                 - unknown_key
                 - question_limit_reached
