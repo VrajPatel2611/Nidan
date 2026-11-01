@@ -33,6 +33,15 @@ PLAN = ROOT / "docs" / "spec" / "BUILD_PLAN.md"
 OUT = ROOT / "docs" / "build-log" / "STATUS.md"
 LOGS = ROOT / "docs" / "build-log"
 
+# The closing section used to state the number of authored cases as prose, and
+# it was wrong within three weeks — it still said "five exist" after all ten
+# had been written. Counted from the source instead, which is the same reason
+# this whole file is generated.
+sys.path.insert(0, str(ROOT))
+from nidan.domain.content.cases import CASES  # noqa: E402
+
+LAUNCH_CASES = 10          # PRD D-2, settled 11 Sep 2026
+
 OWNERS = {"V": "Vraj", "Y": "Yogesh", "both": "Both"}
 
 
@@ -195,15 +204,26 @@ def render(tasks: list[dict]) -> str:
     A("")
     A("## The thing this table cannot show")
     A("")
-    A("Every number above is engineering effort. **Ten clinically reviewed "
-      "cases gate launch and five exist.** No task in this plan produces one: "
-      "writing a case is clinical authoring, not development, and it needs no "
-      "developer time.")
+    authored = len(CASES)
+    A(f"Every number above is engineering effort. **{LAUNCH_CASES} clinically "
+      f"reviewed cases gate launch.** No task in this plan produces one: "
+      f"writing a case is clinical authoring, not development, and it needs "
+      f"no developer time.")
     A("")
-    A("The two clinician reviewers cannot start until **T-021** (case editor) "
-      "and **T-023** (review workflow) exist, because until then only a "
-      "programmer can read a case. That is 12 days of Phase 2 work away, and "
-      "authoring the drafts can begin before it.")
+    if authored < LAUNCH_CASES:
+        A(f"**{authored} of {LAUNCH_CASES} are written.** The remaining "
+          f"{LAUNCH_CASES - authored} are the work this table cannot show.")
+    else:
+        A(f"**All {authored} are written** — D-2 closed on 29 Oct 2026 — and "
+          f"every one is still `draft`. Migration 007's trigger refuses to "
+          f"publish a version with no approving clinical review, so authoring "
+          f"bought exactly half of this.")
+    A("")
+    A("The T-021 → T-023 gate that kept the two clinician reviewers out is "
+      "**open**. What stops them now is that the console answers only on "
+      "`localhost` and no task in any phase deploys it — so the remaining "
+      "risk is review turnaround, which is calendar time, and it has not "
+      "started. See `docs/process/REVIEWER_ONBOARDING.md`.")
     A("")
     A("`BUILD_PLAN` §11.1 rates this **the** risk to the schedule, and it is "
       "the one a task tracker makes easy to forget — because it has no task.")
