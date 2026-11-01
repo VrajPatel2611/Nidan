@@ -103,7 +103,7 @@ def test_a_case_already_attempted_is_not_offered_while_others_remain(
                 SELECT cs.slug FROM sessions s
                 JOIN case_versions cv ON cv.id = s.case_version_id
                 JOIN cases cs ON cs.id = cv.case_id
-                WHERE s.id = :id"""), {"id": r.get_json()["id"]}).scalar()
+                WHERE s.id = :id"""), {"id": r.get_json()["session_id"]}).scalar()
         assert slug == "not-yet-seen"
         with app_db.begin() as c:
             c.exec_driver_sql("UPDATE sessions SET status = 'abandoned', "
@@ -135,7 +135,7 @@ def test_when_every_case_is_seen_the_least_recent_comes_back_marked(
             SELECT cs.slug FROM sessions s
             JOIN case_versions cv ON cv.id = s.case_version_id
             JOIN cases cs ON cs.id = cv.case_id WHERE s.id = :id"""),
-            {"id": r.get_json()["id"]}).scalar()
+            {"id": r.get_json()["session_id"]}).scalar()
     assert slug == "seen-long-ago"
 
 
@@ -271,7 +271,7 @@ def test_a_started_case_is_reserved_and_does_not_reroll(
     second = _start(client, authority)
     assert second.status_code == 409
     assert second.get_json()["error"]["code"] == "session_already_active"
-    assert second.get_json()["error"]["details"]["session_id"] == first.get_json()["id"]
+    assert second.get_json()["error"]["details"]["session_id"] == first.get_json()["session_id"]
 
 
 def test_an_invalid_confidence_is_refused(client, authority, account,

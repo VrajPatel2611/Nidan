@@ -256,6 +256,29 @@ def published_version(live_db):
                   {"rid": reviewer_id})
 
 
+@pytest.fixture
+def stranger(live_db, authority):
+    """
+    A second account, for the tenant-isolation tests.
+
+    A profile and not just a token: `require_auth` reads `platform_role` from
+    the row, so a token with no profile behind it fails earlier and for the
+    wrong reason — which would make a CT-9 test pass without testing CT-9.
+    """
+    other = uuid.uuid4()
+    with live_db.begin() as c:
+        c.execute(sa.text("INSERT INTO auth.users (id) VALUES (:id)"), {"id": other})
+        c.execute(sa.text(
+            "INSERT INTO profiles (id, timezone) VALUES (:id, 'UTC')"),
+            {"id": other})
+
+    yield {"Authorization": f"Bearer {authority.token(sub=str(other))}"}
+
+    with live_db.begin() as c:
+        c.execute(sa.text("DELETE FROM profiles WHERE id = :id"), {"id": other})
+        c.execute(sa.text("DELETE FROM auth.users WHERE id = :id"), {"id": other})
+
+
 def _make_sessions(live_db, user_id, version_id, n, *, with_results=0):
     """`n` completed sessions, `with_results` of them scored."""
     ids = []
@@ -384,7 +407,7 @@ def test_a_corrupt_cursor_is_refused_rather_than_ignored(client, account):
 
 
 def test_ct9_another_learners_sessions_are_invisible(
-        client, account, live_db, published_version, authority):
+        client, account, live_db, published_version, stranger):
     """
     CT-9. §2.7: "404 rather than 403 for another user's resource. Returning
     403 confirms the resource exists."
@@ -397,19 +420,193 @@ def test_ct9_another_learners_sessions_are_invisible(
     user_id, _ = account
     _make_sessions(live_db, user_id, published_version, 3, with_results=3)
 
-    stranger = uuid.uuid4()
-    with live_db.begin() as c:
-        c.execute(sa.text("INSERT INTO auth.users (id) VALUES (:id)"),
-                  {"id": stranger})
-        c.execute(sa.text(
-            "INSERT INTO profiles (id, timezone) VALUES (:id, 'UTC')"),
-            {"id": stranger})
-
-    r = client.get("/v1/sessions", headers={
-        "Authorization": f"Bearer {authority.token(sub=str(stranger))}"})
+    r = client.get("/v1/sessions", headers=stranger)
     assert r.status_code == 200
     assert r.get_json()["data"] == [], "one learner can see another's history"
 
 
 def test_history_needs_an_account(client):
     assert client.get("/v1/sessions").status_code == 401
+
+
+# ── §6 · the case object, and CT-1 ───────────────────────────────────
+
+# `PRD` FR-3.4's list, verbatim, plus the four `case_view.FORBIDDEN` adds for
+# reasons given there. Spelled out rather than imported from the module under
+# test: a test that asks the code what it should hide agrees with the code by
+# construction.
+FR_3_4_FORBIDDEN = (
+    "correct_diagnosis", "anchor_topic", "anchor_keywords", "required_topics",
+    "contradictory_clues", "investigations", "examination", "system_prompt",
+    "accepted_diagnoses", "partial_diagnoses", "alternative_topics",
+    "minimum_questions",
+)
+
+
+# Of those, the ones whose names cannot collide with a legitimate field. A
+# raw-substring sweep of the body catches a leak nested anywhere, including
+# inside a string — but only for terms that mean nothing else.
+#
+# `examination` and `investigations` are deliberately NOT in this set, and
+# that is the whole subtlety: §6 requires `examinations_done` and
+# `investigations_done` on the session payload, and `examination` is a
+# substring of the first. The first version of this test swept the raw body
+# for all twelve and failed on the response the contract asks for.
+UNAMBIGUOUS = (
+    "correct_diagnosis", "anchor_topic", "anchor_keywords",
+    "contradictory_clues", "alternative_topics", "system_prompt",
+    "accepted_diagnoses", "partial_diagnoses", "minimum_questions",
+    "required_topics",
+)
+
+
+def _keys_at_every_depth(node, found=None):
+    """
+    Every key anywhere in the payload.
+
+    Recursive because a leak three levels inside `case.patient` satisfies a
+    shallow check on the top-level dict and still reaches the client.
+    """
+    found = set() if found is None else found
+    if isinstance(node, dict):
+        for key, value in node.items():
+            found.add(key)
+            _keys_at_every_depth(value, found)
+    elif isinstance(node, list):
+        for item in node:
+            _keys_at_every_depth(item, found)
+    return found
+
+
+def _assert_no_leak(response, where: str):
+    """CT-1, both ways: exact keys at any depth, and unambiguous substrings."""
+    body = response.get_json()
+    leaked_keys = sorted(_keys_at_every_depth(body) & set(FR_3_4_FORBIDDEN))
+    assert not leaked_keys, f"FR-3.4 keys in {where}: {leaked_keys}"
+
+    raw = response.get_data(as_text=True)
+    leaked_text = [t for t in UNAMBIGUOUS if t in raw]
+    assert not leaked_text, f"FR-3.4 terms in the {where} body: {leaked_text}"
+
+
+def _start_session(client, headers):
+    r = client.post("/v1/sessions", json={"confidence_pre": 3}, headers=headers)
+    assert r.status_code == 201, r.get_json()
+    return r.get_json()
+
+
+def test_ct1_starting_a_session_leaks_nothing_about_the_case(
+        client, account, published_version):
+    """
+    **CT-1.** `PRD` FR-3.4, which `API_CONTRACT` §11 calls "the leak that
+    would invalidate everything".
+
+    Asserted against the raw serialised body, not the parsed object. A key
+    nested three levels down inside `case.patient` would satisfy a shallow
+    check on `response["case"]` and still reach the client.
+
+    A learner who can read `anchor_keywords` knows which questions the
+    detector is watching for, and every measurement taken afterwards is of
+    something else.
+    """
+    _, headers = account
+    r = client.post("/v1/sessions", json={}, headers=headers)
+    assert r.status_code == 201, r.get_json()
+    _assert_no_leak(r, "POST /sessions")
+
+
+def test_ct1_resuming_leaks_nothing_either(
+        client, account, published_version):
+    """
+    The same assertion on `GET /sessions/{id}`.
+
+    Both endpoints return a `case` object and `nidan/api/v1/case_view.py`
+    exists so there is one serialiser — but "there is one" is a claim, and
+    this is what makes it checkable. Two serialisers would both pass on the
+    day they were written.
+    """
+    _, headers = account
+    created = _start_session(client, headers)
+
+    r = client.get(f"/v1/sessions/{created['session_id']}", headers=headers)
+    assert r.status_code == 200, r.get_json()
+    _assert_no_leak(r, "GET /sessions/{id}")
+
+
+def test_the_case_object_carries_what_a_learner_needs(
+        client, account, published_version):
+    """
+    The other half of CT-1, and the half a deny-list would pass vacuously.
+
+    A serialiser that returned `{}` leaks nothing and is also useless; the
+    learner cannot start without knowing who walked in.
+    """
+    _, headers = account
+    case = _start_session(client, headers)["case"]
+    assert set(case) == {"title", "patient", "opening_line"}
+    assert case["title"]
+    assert set(case["patient"]) == {"name", "age", "sex",
+                                    "presenting_complaint", "intro"}
+
+
+def test_starting_a_session_matches_the_contracts_field_names(
+        client, account, published_version):
+    """
+    §6 names `session_id`, not `id`.
+
+    `openapi.yaml`'s Session schema said `id` until slice 2b and nothing
+    compared the two halves of the contract, so both were "right" and a
+    generated client would have been wrong.
+    """
+    body = _start_session(client, headers=account[1])
+    assert "session_id" in body and "id" not in body
+    assert body["sequence_index"] >= 1
+    assert body["status"] == "active"
+    assert body["transcript"] == []
+    assert body["examinations_done"] == []
+    assert body["investigations_done"] == []
+
+
+def test_no_assessment_state_reaches_a_live_consultation(
+        client, account, published_version):
+    """
+    CT-2 and `PRD` P2, on the responses rather than on the schema.
+
+    `questions_remaining` is in this list and `API_CONTRACT` §6 says it should
+    be returned. The two halves of the spec disagree; API-6 logs it, and until
+    it is settled the field is absent. If it is ever added deliberately, this
+    line is the one to change — and changing it should take an argument.
+    """
+    _, headers = account
+    created = _start_session(client, headers)
+    detail = client.get(f"/v1/sessions/{created['session_id']}",
+                        headers=headers).get_data(as_text=True)
+
+    for banned in ("coverage", "topics_covered", "topics_missed",
+                   "matched_topics", "questions_remaining", "readiness",
+                   "completeness", "anchoring", "premature", "confirmation"):
+        assert banned not in detail, f"{banned!r} reached a live consultation"
+
+
+def test_ct9_another_learners_session_is_404_not_403(
+        client, account, published_version, stranger):
+    """
+    **CT-9.** §2.7: "404 rather than 403 for another user's resource.
+    Returning 403 confirms the resource exists."
+
+    Nothing in the handler implements this. `sessions.get()` carries no owner
+    filter and migration 016's `own_sessions` policy returns no row, so the
+    refusal takes the same path as a genuinely absent id — which is the only
+    way the two can be indistinguishable (`ADR-0016`).
+    """
+    _, headers = account
+    created = _start_session(client, headers)
+
+    r = client.get(f"/v1/sessions/{created['session_id']}", headers=stranger)
+    assert r.status_code == 404
+    assert r.get_json()["error"]["code"] == "not_found"
+
+    absent = client.get(f"/v1/sessions/{uuid.uuid4()}", headers=headers)
+    assert absent.status_code == 404
+    assert absent.get_json() == r.get_json(), (
+        "'not yours' and 'does not exist' are distinguishable")
