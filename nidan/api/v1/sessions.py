@@ -11,12 +11,22 @@ Moved from `nidan/api/v1.py` unchanged when T-030 made v1 a package.
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from flask import jsonify, request
 
 from nidan.api.auth import current_actor, require_auth
 from nidan.api.errors import error
 from nidan.api.trial import start_trial
 from nidan.api.v1.blueprint import bp
+from nidan.api.v1.pagination import (
+    InvalidCursor,
+    decode_cursor,
+    encode_cursor,
+    iso,
+    page,
+    read_limit,
+)
 from nidan.config import settings
 from nidan.domain.selection import allowance_for, choose_case, month_start
 from nidan.infra.clock import utc_now
@@ -106,3 +116,61 @@ def trial_sessions():
     in `api/trial.py` with the cookie helpers it shares with the claim path.
     """
     return start_trial()
+
+
+@bp.get("/sessions")
+@require_auth
+def list_sessions():
+    """
+    `GET /v1/sessions` — the learner's own history, newest first
+    (`API_CONTRACT` §7).
+
+    Cursor-paginated, because §2.5 rules out offsets: "it produces duplicates
+    and gaps when rows are inserted mid-scroll." The learner who finishes a
+    consultation and then pages back through their history is exactly the
+    person that would bite.
+
+    Ownership is the database's job, not this handler's. The query carries no
+    `WHERE user_id = ...`; `repo_scope` has set `auth.uid()` and migration
+    016's `own_sessions` policy does the filtering, so a forgotten clause
+    returns nothing rather than someone else's consultations (`ADR-0016`).
+    """
+    try:
+        limit = read_limit(request.args.get("limit"))
+        raw = request.args.get("cursor")
+        after = None
+        if raw:
+            payload = decode_cursor(raw)
+            after = (payload["started_at"], UUID(payload["id"]))
+    except (InvalidCursor, KeyError, TypeError, ValueError) as e:
+        return error("validation_failed",
+                     f"Could not read the pagination parameters: {e}")
+
+    with repo_scope(current_actor()) as db:
+        rows = list(db.sessions.page(limit=limit, after=after))
+
+    def cursor_for(row) -> str:
+        return encode_cursor({"started_at": iso(row["started_at"]),
+                              "id": str(row["id"])})
+
+    body = {
+        "data": [
+            {
+                "session_id": str(r["id"]),
+                "case_title": r["case_title"],
+                "status": r["status"],
+                # None for a session with no result yet — active, or
+                # abandoned. Omitting those rows would hide the learner's own
+                # unfinished work from their own history.
+                "verdict": r["verdict"],
+                # NUMERIC arrives as Decimal, which json cannot serialise.
+                "coverage_pct": (float(r["coverage_pct"])
+                                 if r["coverage_pct"] is not None else None),
+                "started_at": iso(r["started_at"]),
+                "ended_at": iso(r["ended_at"]),
+            }
+            for r in rows[:limit]
+        ],
+        **page(rows, limit, cursor_for=cursor_for),
+    }
+    return jsonify(body), 200

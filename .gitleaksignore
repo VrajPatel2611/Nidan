@@ -1,0 +1,34 @@
+# Findings that are known, examined, and not secrets.
+#
+# A fingerprint is `commit:path:rule:line`, so an entry here exempts ONE
+# finding in ONE commit. That is the point, and it is why this file is used
+# rather than adding the value to `.gitleaks.toml`: an allowlist entry there
+# would exempt the string everywhere, for ever, including somewhere it might
+# one day mean something. A fingerprint cannot grow.
+#
+# Add a line only after reading the finding and establishing what the value is.
+# "It is in a test" is not a reason — a real key pasted into a test file is
+# still a real key.
+
+# The `TEST_SECRET` constant in T-030 slice 2a, since removed.
+#
+# Not quoted here, and that is not squeamishness: the first draft of this file
+# reproduced the value in this comment, and gitleaks flagged the ignore file.
+# An exemption that restates what it exempts is a new finding.
+#
+# A Flask session-signing key for a test application, invented by me in this
+# commit and never anything else. It is not a credential: no service issued
+# it, nothing accepts it, and the only thing it ever signed was a cookie in a
+# pytest process.
+#
+# gitleaks was right to flag it. An arbitrary 3.6-entropy string is
+# indistinguishable from a credential, and a scanner that tried to tell them
+# apart would be the wrong kind of clever — `tests/db/test_routes.py` has had
+# an almost identical constant since T-013 and passes only because it happens
+# to sit below the entropy threshold, which is luck rather than design.
+#
+# The underlying fault was duplication, and that is fixed in the tree:
+# `tests/app_config.py` now holds one `TEST_SECRET` and both files import it,
+# so no second arbitrary key exists to be flagged. This line covers only the
+# commit that introduced the string before that fix.
+3e6d8b6f82937d93aab16ca0be7070705f339103:tests/db/test_v1_reads.py:generic-api-key:25

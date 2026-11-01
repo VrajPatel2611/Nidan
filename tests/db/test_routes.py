@@ -19,20 +19,7 @@ import pytest
 import sqlalchemy as sa
 
 from nidan.app import create_app
-
-# Every application these tests build signs its session cookies with this.
-#
-# It is passed as config rather than set as an environment variable, and that
-# distinction is what CI caught: `settings` is a module-level singleton read at
-# import, so `monkeypatch.setenv` after import changes nothing. Locally the key
-# came from a developer's `.env` and the tests passed; on a runner with no
-# `.env` each `create_app` fell back to `os.urandom(24)`, so the second
-# application could not read the first one's cookie.
-#
-# The same fallback is a real hazard in production now that T-013 raised the
-# worker count — gunicorn imports the app separately per worker — which is why
-# `config.py` refuses to start a production environment without a key.
-TEST_SECRET = "t013-tests-fixed-secret"
+from tests.app_config import TEST_SECRET
 
 
 def _app():

@@ -89,6 +89,62 @@ class ProfileRepository(Repository):
                 "auth.uid() does not match the actor")
         return row
 
+    def update(self, **fields: Any) -> Mapping[str, Any] | None:
+        """
+        Change the actor's own profile (`API_CONTRACT` §4 `PATCH /v1/me`).
+
+        Separate from `ensure`, which is an INSERT with `ON CONFLICT DO
+        NOTHING` and would silently do nothing here — exactly the failure a
+        PATCH must not have, because the response would echo the old values
+        and look like success.
+
+        Returns None when there is no profile, so the route can answer 404
+        rather than create one by surprise. `PATCH` on something absent is not
+        a request to bring it into existence; §4 gives `POST /me` that job.
+
+        Empty `fields` is a no-op that still returns the row. A PATCH with
+        nothing in it is odd but not wrong, and 422 for it would mean a client
+        has to special-case "the user changed nothing".
+        """
+        user_id: UUID = self._user_id()
+        allowed = {"display_name", "professional_role", "year_of_training",
+                   "country", "timezone", "consent_research", "consent_version"}
+        unknown = set(fields) - allowed
+        if unknown:
+            raise ValueError(f"not a profile column: {sorted(unknown)}")
+
+        if not fields:
+            return self.get()
+
+        assignments = []
+        params: dict[str, Any] = {"id": user_id}
+        for key, value in fields.items():
+            # professional_role is an enum; psycopg sends a plain string and
+            # Postgres will not implicitly cast one in a parameterised UPDATE.
+            placeholder = (f"CAST(:{key} AS professional_role)"
+                           if key == "professional_role" else f":{key}")
+            assignments.append(f"{key} = {placeholder}")
+            params[key] = value
+
+        # Same rule as `ensure`, for the same reason: migration 004's
+        # `consent_recorded_together` requires a version and a timestamp
+        # whenever consent is true, and the timestamp records when the user
+        # actually agreed. A caller that can choose it can backdate it.
+        if fields.get("consent_research"):
+            if not fields.get("consent_version"):
+                raise ValueError(
+                    "consent_research=True needs the consent_version the user "
+                    "was shown; consent to an unnamed document is not consent")
+            assignments.append("consent_at = now()")
+
+        result = self._conn.execute(sa.text(
+            f"UPDATE profiles SET {', '.join(assignments)} "  # noqa: S608
+            f"WHERE id = :id"
+        ), params)
+        if result.rowcount == 0:
+            return None
+        return self.get()
+
     def touch_last_active(self) -> None:
         self._conn.execute(sa.text(
             "UPDATE profiles SET last_active_at = now()"))
