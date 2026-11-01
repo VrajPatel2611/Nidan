@@ -21,8 +21,7 @@ import pytest
 import sqlalchemy as sa
 
 from nidan.app import create_app
-
-TEST_SECRET = "t030-slice2-fixed-secret"
+from tests.app_config import TEST_SECRET
 
 
 @pytest.fixture
