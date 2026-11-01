@@ -26,8 +26,11 @@ import functools
 from collections.abc import Callable
 from uuid import UUID
 
-from flask import g, jsonify, request
+from flask import g, request
 
+# Re-exported: the admin console imports `error` from here, and the
+# envelope it returns is the same envelope (`UX_SPEC` §12).
+from nidan.api.errors import error  # noqa: F401
 from nidan.infra.auth.tokens import (
     AuthError,
     JWKSUnavailable,
@@ -47,21 +50,6 @@ from nidan.infra.db.repositories import (
 # cookie (SECURITY_SPEC L2). Checked after the header, so a request may always
 # override it explicitly.
 ACCESS_TOKEN_COOKIE = "sb-access-token"
-
-
-def error(code: str, message: str, status: int,
-          details: dict | None = None):
-    """
-    One error envelope, shaped as `API_CONTRACT` §2.6 and openapi.yaml.
-
-    `details` carries the machine-readable part of a refusal — `resets_at` on a
-    monthly limit, the id of the session already in progress. A block with no
-    date is a dead end, and a client cannot compute one.
-    """
-    body: dict = {"error": {"code": code, "message": message}}
-    if details:
-        body["error"]["details"] = details
-    return jsonify(body), status
 
 
 def bearer_token() -> str:

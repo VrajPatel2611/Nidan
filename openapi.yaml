@@ -520,6 +520,7 @@ components:
                 - patient_unavailable
                 - no_cases_available
                 - internal_error
+                - not_implemented
             message: { type: string }
             details:
               type: object

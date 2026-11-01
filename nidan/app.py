@@ -11,6 +11,7 @@ from flask import Flask, g, jsonify, request
 
 from nidan.api.routes import bp as web_bp
 from nidan.api.v1 import bp as v1_bp
+from nidan.api.v1 import register_error_handlers as register_v1_errors
 from nidan.config import settings
 from nidan.infra.telemetry import (
     bind,
@@ -75,6 +76,7 @@ def create_app(config: dict | None = None) -> Flask:
     # servers block; the prototype's server-rendered routes keep the
     # root until T-030 replaces them.
     app.register_blueprint(v1_bp, url_prefix="/v1")
+    register_v1_errors(app)
     return app
 
 
