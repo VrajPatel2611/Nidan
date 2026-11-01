@@ -19,6 +19,7 @@ from nidan.api.auth import current_actor, require_auth
 from nidan.api.errors import error
 from nidan.api.trial import start_trial
 from nidan.api.v1.blueprint import bp
+from nidan.api.v1.case_view import case_json
 from nidan.api.v1.pagination import (
     InvalidCursor,
     decode_cursor,
@@ -94,16 +95,24 @@ def start_session():
         row = db.sessions.create(selection.case_version_id,
                                  confidence_pre=confidence)
 
+    with repo_scope(current_actor()) as db:
+        content = db.cases.content(selection.case_version_id)
+
     return jsonify({
-        "id": str(row["id"]),
+        "session_id": str(row["id"]),
+        "sequence_index": row["sequence_index"],
         "status": row["status"],
-        "started_at": row["started_at"].isoformat(),
+        "started_at": iso(row["started_at"]),
         # FR-3.2: a repeat must be marked, or the learner reads their own
-        # memory of the answer as clinical reasoning.
+        # memory of the answer as clinical reasoning. Not in §6's example and
+        # required by the functional spec, so it is in the schema too.
         "is_repeat": selection.is_repeat,
+        # Presentation fields only, through the one serialiser that knows what
+        # those are (`PRD` FR-3.4, CT-1).
+        "case": case_json(content or {}),
         "transcript": [],
-        "examinations_performed": [],
-        "investigations_ordered": [],
+        "examinations_done": [],
+        "investigations_done": [],
     }), 201
 
 
@@ -174,3 +183,78 @@ def list_sessions():
         **page(rows, limit, cursor_for=cursor_for),
     }
     return jsonify(body), 200
+
+
+# `API_CONTRACT` §2.9: "Questions per session | 40 total". Enforcing it is
+# slice 3.
+#
+# **Not reported in the response**, although §6 says it should be:
+# "`questions_remaining` is included deliberately — it is a hard cap, not a
+# progress metric". `tests/test_openapi.py` names the field in the forbidden
+# set of `test_the_session_schema_exposes_no_assessment_state`, under PRD P2
+# and CT-1/CT-2 — so the two halves of the spec disagree, and the test is the
+# half that is executable. `CLAUDE.md` reads the same way about the monthly
+# allowance: "a visible counter teaches the counter."
+#
+# Left out until someone settles it on purpose. Logged in API_CONTRACT §13.
+QUESTION_CAP = 40
+
+
+@bp.get("/sessions/<uuid:session_id>")
+@require_auth
+def read_session(session_id: UUID):
+    """
+    `GET /v1/sessions/{id}` — full state, for resuming (`API_CONTRACT` §6).
+
+    **404 for someone else's session, never 403** (§2.7): "Returning 403
+    confirms the resource exists." Nothing in this handler implements that.
+    `sessions.get()` carries no owner filter and migration 016's
+    `own_sessions` policy returns no row, so the answer is 404 by the same
+    path as a genuinely absent id — which is the only way the two can be
+    indistinguishable. That is CT-9.
+
+    **The transcript is built field by field, and that is load-bearing.** A
+    `patient_reply` payload may carry `matched_topics` (`DATA_MODEL` §8.2),
+    which is coverage state: returning the payload as stored would hand the
+    learner the assessment mid-consultation and break CT-2 and `PRD` P2. The
+    event log is the right place for it and the response is not.
+    """
+    with repo_scope(current_actor()) as db:
+        row = db.sessions.get(session_id)
+        if row is None:
+            return error("not_found", "No such consultation.")
+        events = db.events.all_for(session_id)
+        content = db.cases.content(row["case_version_id"])
+
+    transcript = []
+    examinations, investigations = [], []
+    for event in events:
+        at = iso(event.created_at)
+        if event.type == "question":
+            transcript.append({"seq": event.seq, "type": "question",
+                               "text": event.payload["text"], "at": at})
+        elif event.type == "patient_reply":
+            # Only `text`. See the docstring: the payload may also hold
+            # `matched_topics`.
+            transcript.append({"seq": event.seq, "type": "patient_reply",
+                               "text": event.payload["text"], "at": at})
+        elif event.type == "examination":
+            examinations.append({"key": event.payload["key"],
+                                 "label": event.payload["label"],
+                                 "finding": event.payload["finding"], "at": at})
+        elif event.type == "investigation":
+            investigations.append({"key": event.payload["key"],
+                                   "label": event.payload["label"],
+                                   "result": event.payload["result"], "at": at})
+
+    return jsonify({
+        "session_id": str(row["id"]),
+        "sequence_index": row["sequence_index"],
+        "status": row["status"],
+        "started_at": iso(row["started_at"]),
+        "last_activity_at": iso(row["last_activity_at"]),
+        "case": case_json(content or {}),
+        "transcript": transcript,
+        "examinations_done": examinations,
+        "investigations_done": investigations,
+    }), 200

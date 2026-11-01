@@ -27,6 +27,22 @@ def api() -> dict:
     return yaml.safe_load(SPEC.read_text(encoding="utf-8"))
 
 
+def _as_openapi_path(rule: str) -> str:
+    """
+    A Flask rule as openapi.yaml spells it.
+
+    Without this the comparison below silently never matched a parameterised
+    operation: Flask says `/sessions/<uuid:session_id>` and the contract says
+    `/sessions/{id}`, so every path with an id in it looked unimplemented and
+    the test went on requiring a 501 it would never notice had become wrong.
+    Found in T-030 slice 2b, when `GET /sessions/{id}` was implemented and
+    this test stayed green.
+    """
+    import re
+
+    return re.sub(r"<[^:>]+:([^>]+)>", "{id}", rule).removeprefix("/v1")
+
+
 class TestStructure:
     def test_it_parses(self, api):
         assert api["openapi"].startswith("3.")
@@ -79,7 +95,7 @@ class TestStructure:
 
         app = create_app({"TESTING": True, "SECRET_KEY": "openapi-test"})
         implemented = {
-            (method.lower(), str(rule).removeprefix("/v1"))
+            (method.lower(), _as_openapi_path(str(rule)))
             for rule in app.url_map.iter_rules()
             if str(rule).startswith("/v1")
             and "not_implemented" not in (rule.endpoint or "")

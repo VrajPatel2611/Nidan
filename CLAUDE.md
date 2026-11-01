@@ -103,6 +103,15 @@ visible metric teaches the metric, not the skill. (`PRD` P2 · contract tests CT
 "premature closure", or "confirmation bias". User-facing headings are
 *Diagnostic focus · History completeness · Evidence exploration*. (`PRD` P1 · CT-5)
 
+**A case reaches a client through `api/v1/case_view.py` and nowhere else.**
+`PRD` FR-3.4 forbids eight fields in the `case` object and `API_CONTRACT`
+§11 calls CT-1 "the leak that would invalidate everything" — a learner who
+can read `anchor_keywords` knows what the detector watches for, and every
+measurement after that is of something else. The serialiser names the
+fields that go in; it never copies the content and deletes the bad keys,
+because `case_versions.content` is JSONB and a new key arrives in a
+case-editor save with no migration and no review.
+
 **Anchor keywords must never overlap contradictory clues.** This exact bug cost
 14 % sensitivity in the confirmation-bias detector. Invariant C-4 in
 `DATA_MODEL` §8.1, enforced in CI and in the case editor.
@@ -232,7 +241,8 @@ nidan/
     blueprint.py          the Blueprint alone, so route modules import acyclically
     identity.py           API_CONTRACT §4 · /me (POST, GET, PATCH)
     catalog.py            §5 · the two universal menus — CT-3 lives here
-    sessions.py           §6, §7 · POST /sessions, GET /sessions, /trial/sessions
+    case_view.py          ⚠️ the ONLY place a case becomes a response — CT-1
+    sessions.py           §6, §7 · POST + GET /sessions, GET /sessions/{id}
     pagination.py         §2.5 cursors — never offsets
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
@@ -270,7 +280,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 843 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 849 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -286,7 +296,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 272 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 278 schema, repository and route tests, real Postgres
 ```
 
 ---

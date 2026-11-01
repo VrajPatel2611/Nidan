@@ -226,8 +226,13 @@ paths:
         coverage, question counts against a target, or readiness (CT-1, CT-2).
       responses:
         '200': { $ref: '#/components/responses/Session' }
-        '404': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
+        '404':
+          description: >
+            Absent, **or not yours** (API_CONTRACT §2.7). A 403 would confirm
+            the session exists, so the two are indistinguishable.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /sessions/{id}/questions:
     parameters:
@@ -614,15 +619,23 @@ components:
           maximum: 5
           description: Self-rated confidence before starting (`PRD` FR-3).
 
-    Session:
+    CasePresentation:
       type: object
       description: >
-        Deliberately carries NO assessment state — no coverage, no question
-        count against a target, no topic hints, no readiness (CT-1, CT-2).
+        Everything a learner may know about a case before asking anything, and
+        nothing else. PRD FR-3.4 lists what must never appear here —
+        correct_diagnosis, anchor_topic, anchor_keywords, required_topics,
+        contradictory_clues, investigations, examination, system_prompt — and
+        contract test CT-1 asserts the serialised response contains none of
+        them.
+
+        `nidan/api/v1/case_view.py` is the single serialiser, and it is built
+        by naming the fields that go in rather than removing the ones that
+        must not. case_versions.content is JSONB, so a new key needs no
+        migration and no review; a deny-list would leak the first one anybody
+        adds in a case-editor save.
       properties:
-        id: { type: string, format: uuid }
-        status: { type: string, enum: [active, completed, abandoned, expired] }
-        started_at: { type: string, format: date-time }
+        title: { type: string }
         patient:
           type: object
           properties:
@@ -631,21 +644,86 @@ components:
             sex: { type: string }
             presenting_complaint: { type: string }
             intro: { type: string }
-            opening_line: { type: string }
+        opening_line: { type: string }
+
+    TranscriptEntry:
+      type: object
+      description: >
+        One turn. Carries `text` and nothing else from the stored event — a
+        patient_reply payload may also hold `matched_topics` (DATA_MODEL
+        §8.2), which is coverage state and would break CT-2 and PRD P2 if it
+        reached a learner mid-consultation.
+      properties:
+        seq: { type: integer }
+        type: { type: string, enum: [question, patient_reply] }
+        text: { type: string }
+        at: { type: string, format: date-time }
+
+    ExaminationFinding:
+      type: object
+      properties:
+        key: { type: string }
+        label: { type: string }
+        finding: { type: string }
+        at: { type: string, format: date-time }
+
+    Session:
+      type: object
+      description: >
+        Deliberately carries NO assessment state — no coverage, no question
+        count against a target, no topic hints, no readiness (CT-1, CT-2).
+
+        `questions_remaining` is the one exception and API_CONTRACT §6 argues
+        it explicitly: it is a hard cap of 40 (§2.9) rather than a progress
+        metric, UX_SPEC S-10 surfaces it only as it approaches zero, and it
+        says nothing about how much of the history has been covered.
+
+        **Reconciled with API_CONTRACT §6 in T-030 slice 2b.** This schema had
+        drifted from the prose spec — `id` for `session_id`, a flat `patient`
+        with no case title, `{role, text}` transcript entries,
+        `examinations_performed` for `examinations_done`, and no
+        `questions_remaining` at all — and nothing compared the two, so
+        neither side knew. T-032 generates the frontend types from this file,
+        so the schema is what a client will actually be built against.
+      properties:
+        session_id: { type: string, format: uuid }
+        sequence_index:
+          type: integer
+          description: Which consultation this is for the learner, from 1.
+        status: { type: string, enum: [active, completed, abandoned, expired] }
+        started_at: { type: string, format: date-time }
+        last_activity_at: { type: string, format: date-time, nullable: true }
+        is_repeat:
+          type: boolean
+          description: >
+            PRD FR-3.2 — a repeated case must be marked, or the learner reads
+            their own memory of the answer as clinical reasoning.
+        case: { $ref: '#/components/schemas/CasePresentation' }
         transcript:
           type: array
-          items:
-            type: object
-            properties:
-              role: { type: string, enum: [learner, patient] }
-              text: { type: string }
-              at: { type: string, format: date-time }
-        examinations_performed:
+          items: { $ref: '#/components/schemas/TranscriptEntry' }
+        examinations_done:
+          type: array
+          items: { $ref: '#/components/schemas/ExaminationFinding' }
+        investigations_done:
           type: array
           items: { $ref: '#/components/schemas/OrderResult' }
-        investigations_ordered:
-          type: array
-          items: { $ref: '#/components/schemas/OrderResult' }
+        # questions_remaining is NOT here, and API_CONTRACT §6 says it should
+        # be: "included deliberately — it is a hard cap, not a progress
+        # metric... not a coverage indicator and does not violate U2."
+        #
+        # tests/test_openapi.py names the field explicitly in the forbidden
+        # set of test_the_session_schema_exposes_no_assessment_state, under
+        # PRD P2 / CT-1 / CT-2. Someone considered this exact field and
+        # decided the other way, and CLAUDE.md's rule about the monthly
+        # allowance reads the same way: "Never show the remaining allowance
+        # during a consultation either... a visible counter teaches the
+        # counter."
+        #
+        # Left out until the conflict is settled deliberately. Omitting a
+        # field is one line to reverse; a U2 violation a client has started
+        # rendering is not. See docs/spec/API_CONTRACT.md §13.
+
 
     SessionPage:
       type: object

@@ -833,6 +833,7 @@ CI fails if `openapi.yaml` changes without the generated types being regenerated
 | API-3 | GraphQL alongside REST? | No. One client shape, known queries |
 | API-4 | Version the admin API separately? | No. Internal; ship breaking changes with the console |
 | API-5 | Return partial feedback while the LLM generates? | **No.** Partial Socratic feedback reads as broken. Poll instead |
+| API-6 | Does `questions_remaining` belong on the session response? | **⟨DECIDE⟩ — the spec contradicts itself, raised 2026-11-01 in T-030 slice 2b.** §6 says it is "included deliberately — a hard cap, not a progress metric… not a coverage indicator and does not violate U2". `tests/test_openapi.py::test_the_session_schema_exposes_no_assessment_state` names the field in its forbidden set, under `PRD` P2 and CT-1/CT-2, so someone considered this exact field and decided the other way. `CLAUDE.md` reads the same way about the monthly allowance: "Never show the remaining allowance during a consultation either… a visible counter teaches the counter." **Implemented as absent**, because omitting a field is one line to reverse and a U2 violation a client has started rendering is not. Settle before T-034 builds the consultation screen, which is where `UX_SPEC` S-10 wants to surface the cap as it approaches zero |
 
 ---
 
