@@ -63,6 +63,17 @@ class TestStructure:
 
         Implementation is read from the app's own routing table rather than a
         hand-kept list, so this cannot go stale the way the original did.
+
+        **A route is not the same thing as an implementation.** T-030 gave
+        every declared-but-unbuilt operation a handler that returns 501 with
+        the error envelope, because `openapi.yaml` declares that response and
+        nothing had ever produced it — an unbuilt path used to return Flask's
+        HTML 404. Those stubs are routes, so "appears in the url_map" stopped
+        meaning "implemented" the day they landed, and this test started
+        reporting every stub as a contradiction. They are excluded by endpoint
+        name, which is also what makes the equivalence stricter than before:
+        an operation served by a stub must declare 501, and one served by a
+        real handler must not.
         """
         from nidan.app import create_app
 
@@ -71,6 +82,7 @@ class TestStructure:
             (method.lower(), str(rule).removeprefix("/v1"))
             for rule in app.url_map.iter_rules()
             if str(rule).startswith("/v1")
+            and "not_implemented" not in (rule.endpoint or "")
             for method in (rule.methods or set())
             if method not in ("HEAD", "OPTIONS")
         }

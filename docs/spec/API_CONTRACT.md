@@ -754,6 +754,8 @@ Read-only. Applying creates a new `engine_versions` row.
 
 Stable identifiers. **Once shipped, a code is never renamed or repurposed.**
 
+**This table is checked against the code.** `nidan/api/errors.py` holds the same mapping as data and `tests/test_api_contract.py` fails if this table, that mapping and the `openapi.yaml` enum ever disagree. Two codes were missing when the check was first written, on 1 November 2026: `service_unavailable`, which was in the enum and being returned by `require_auth` but absent from this table, and `not_implemented`, which was in neither despite being declared on every unbuilt operation. A catalogue that lives in three places and is compared in none is three catalogues.
+
 | Code | Status | Meaning |
 |---|---|---|
 | `unauthenticated` | 401 | Missing or malformed token |
@@ -784,6 +786,8 @@ Stable identifiers. **Once shipped, a code is never renamed or repurposed.**
 | `patient_unavailable` | 503 | LLM failed; question preserved |
 | `no_cases_available` | 503 | Empty published bank |
 | `internal_error` | 500 | Unexpected; `request_id` for support |
+| `not_implemented` | 501 | Declared in `openapi.yaml`, not built yet (sync point S-1) |
+| `service_unavailable` | 503 | An auth dependency is down — **not** 401; the token may be fine and we cannot check it |
 
 ---
 

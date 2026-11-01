@@ -170,6 +170,20 @@ lexicon editor that would make this a screen instead, is Phase 4.
 A topic added to `topics.py` without a migration leaves the database
 disagreeing with the code, and `tests/db/test_seed.py` is what says so.
 
+**An error code lives in three places and is compared in all three.**
+`nidan/api/errors.py` holds `CATALOGUE` as data, `API_CONTRACT` §10 holds
+the table, `openapi.yaml` holds the enum. `error()` raises on a code that
+is not catalogued, and on a status that contradicts the one §10 gives it —
+`error("not_found", ..., 403)` is the §2.7 leak and reads as plausible.
+Adding a code means all three in one commit; `tests/test_api_contract.py`
+fails otherwise. (CT-6, CT-7)
+
+**Every operation `openapi.yaml` declares must answer.** If it is not
+built, it is listed in `nidan/api/v1/contract.py` and returns 501 with the
+envelope — which is what sync point S-1 means and what did not exist until
+T-030. The list only shrinks, and a line left behind after a slice
+implements it fails the suite rather than shadowing the real route.
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -209,8 +223,15 @@ nidan/
       anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
     storage.py            session JSON read/write (the research export)
     feedback.py           calls the gateway with domain-built prompts
-  api/routes.py         Flask blueprint "web" — the prototype
-  api/v1.py             the JSON API at /v1 (ADR-0006)
+  api/routes.py         Flask blueprint "web" — the prototype. Reads cases from
+                        cases.py, NOT the published bank; survives until T-034
+  api/errors.py         the error envelope + the §10 catalogue AS DATA — shared
+                        with the admin console, so it is not inside v1/
+  api/v1/               the JSON API at /v1 (ADR-0006, T-030)
+    blueprint.py          the Blueprint alone, so route modules import acyclically
+    identity.py           API_CONTRACT §4 · /me
+    sessions.py           §6 · /sessions, /trial/sessions
+    contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
   api/trial.py          the anonymous trial and its httpOnly cookie
   web/                  templates and static assets
@@ -246,7 +267,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 811 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 824 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract

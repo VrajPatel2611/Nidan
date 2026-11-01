@@ -84,8 +84,14 @@ A-bias-aware-vp-simulator/
 │   │   ├── storage.py            the research JSON export
 │   │   ├── clock.py              the injected clock
 │   │   └── feedback.py           calls the gateway
-│   ├── api/routes.py       Flask blueprint — the prototype
-│   ├── api/v1.py           the JSON API at /v1 (T-014)
+│   ├── api/routes.py       Flask blueprint — the prototype; reads cases.py,
+│   │                       not the published bank. Survives until T-034
+│   ├── api/errors.py ★     the envelope + the §10 catalogue AS DATA
+│   ├── api/v1/             the JSON API at /v1 (T-014, T-030)
+│   │   ├── blueprint.py      the Blueprint alone — keeps imports acyclic
+│   │   ├── identity.py       API_CONTRACT §4 · /me
+│   │   ├── sessions.py       §6 · /sessions, /trial/sessions
+│   │   └── contract.py       the declared-but-unbuilt 501s · JSON 404/405
 │   ├── api/auth.py ★       @require_auth · @require_tier('pro')
 │   ├── api/trial.py        the anonymous trial (PRD FR-2)
 │   ├── web/                templates and static files
