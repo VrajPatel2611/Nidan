@@ -261,14 +261,21 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
-        '503':
-          description: >
-            Model unavailable. The question is NOT consumed and the typed text
-            is preserved for retry (T-031).
+        '409':
+          description: Already submitted — a diagnosis is irreversible
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
+        '503':
+          description: >
+            Model unavailable. The question is NOT consumed and the typed text
+            is preserved for retry (T-031). The question event is appended
+            only after the reply returns, so nothing is written on failure —
+            which also keeps question_count honest, since it feeds the
+            premature-closure detector.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
 
   /sessions/{id}/examinations:
     parameters:
@@ -292,7 +299,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/OrderResult' }
         '404': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}/investigations:
     parameters:
@@ -319,7 +325,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/OrderResult' }
         '404': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}/diagnosis:
     parameters:
@@ -750,21 +755,50 @@ components:
 
     PatientReply:
       type: object
+      description: >
+        What the patient said, and nothing about how the learner is doing.
+        matched_topics is computed and stored on the patient_reply event
+        (DATA_MODEL §8.2) and never returned — that is CT-2 and PRD FR-4.7.
+
+        Neither `questions_asked` nor `questions_remaining` is here. The
+        schema carried `questions_asked` ("a running count only, never a
+        count against a target") and API_CONTRACT §6's example shows
+        `questions_remaining`; CLAUDE.md's rule is "no coverage meter, no
+        question counter". Logged as API-6 and left out until it is settled —
+        the 429 refusal carries the limit in `details`, so a learner who runs
+        out is told why without a counter running all session.
       properties:
-        reply: { type: string }
-        questions_asked:
-          type: integer
-          description: >
-            A running count only, never a count against a target. There is no
-            recommended number and none is returned (`PRD` P2).
+        seq: { type: integer }
+        question:
+          type: object
+          properties:
+            text: { type: string }
+            at: { type: string, format: date-time }
+        reply:
+          type: object
+          properties:
+            text: { type: string }
+            at: { type: string, format: date-time }
 
     OrderResult:
       type: object
+      description: >
+        Deliberately carries no `category` and no `is_key` (PRD FR-6.6). The
+        case-specific/normal distinction IS the relevance signal, so it is
+        stored on the event as was_case_specific and never returned.
       properties:
         key: { type: string }
         label: { type: string }
         result: { type: string }
         at: { type: string, format: date-time }
+        already_ordered:
+          type: boolean
+          description: >
+            True when the learner had already ordered this. The stored result
+            is returned and no duplicate event is created (API_CONTRACT §6,
+            PRD FR-5.3 and FR-6.3) — ordering the same test twice is one
+            decision, and a duplicate would inflate the count the scorecard
+            divides by.
 
     DiagnosisCreate:
       type: object

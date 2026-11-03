@@ -18,6 +18,7 @@ from nidan.config import settings
 from nidan.domain.content.cases import get_case
 from nidan.domain.session import create_session
 from nidan.infra.auth import jwks
+from tests.app_config import TRUNCATE_SESSION_TABLES, llm_patch_targets
 from tests.fakes.auth import AUDIENCE, ISSUER_URL, SigningAuthority
 from tests.fakes.llm import FakeLLM
 
@@ -150,11 +151,14 @@ def fake_llm(monkeypatch):
 
     `call_llm` is imported by name into the modules that use it, so patching
     `gateway.call_llm` alone would not affect those already-bound references.
-    Each site is patched explicitly; the list is asserted against reality by
-    test_no_network.py so it cannot silently go stale.
+    Each site is patched explicitly.
+
+    The list lives in `tests/app_config.py` and `test_no_network.py` reads the
+    same one. It used to be here and the guard kept its own copy, which is the
+    stale-list bug the guard exists to catch, one level up.
     """
     llm = FakeLLM()
-    for site in ("nidan.infra.feedback.call_llm", "nidan.api.routes.call_llm"):
+    for site in llm_patch_targets():
         monkeypatch.setattr(site, llm)
     return llm
 
@@ -228,7 +232,5 @@ def live_db(pg_url, seeded_case_slugs, monkeypatch):
 
     engine_mod.dispose_engine()
     with admin.begin() as c:
-        c.exec_driver_sql(
-            "TRUNCATE session_events, session_results, feedback_texts, "
-            "llm_calls, leakage_flags, sessions")
+        c.exec_driver_sql(TRUNCATE_SESSION_TABLES)
     admin.dispose()

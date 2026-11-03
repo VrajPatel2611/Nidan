@@ -154,6 +154,20 @@ The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
 their timestamps are synthetic because the JSON never recorded the interleaving.
 Any query computing think-time must filter them out. (`DATA_MODEL` §9.3)
 
+**A failed LLM call must not consume the question.** The question event is
+appended only AFTER the reply returns, which is the opposite of orthodox
+event sourcing and deliberate twice over: `UX_SPEC` S-10 needs the typed
+text preserved for retry, and `question_count` feeds the premature-closure
+detector (`P1: q < q_min`) — so a question logged with no answer inflates
+the count and **suppresses a flag the learner should have seen**. 503
+`patient_unavailable`, and nothing written. (`API_CONTRACT` §6 ·
+`tests/db/test_v1_consultation.py`)
+
+**The 40-question cap counts questions, not events.** A learner who
+examined eight systems and ordered six tests has used none of their
+questions; a cap that counted events would punish the thoroughness the
+product exists to teach. (`API_CONTRACT` §2.9)
+
 **Never change a detector, a threshold or the lexicon without reading the
 golden diff.** `tests/test_golden_assessment.py` pins the engine's output for
 all 16 pilot sessions. When it fails, regenerate with
@@ -243,6 +257,7 @@ nidan/
     catalog.py            §5 · the two universal menus — CT-3 lives here
     case_view.py          ⚠️ the ONLY place a case becomes a response — CT-1
     sessions.py           §6, §7 · POST + GET /sessions, GET /sessions/{id}
+    consultation.py       §6 · questions, examinations, investigations
     pagination.py         §2.5 cursors — never offsets
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
@@ -280,7 +295,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 849 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 871 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -296,7 +311,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 278 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 300 schema, repository and route tests, real Postgres
 ```
 
 ---

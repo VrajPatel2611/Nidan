@@ -30,6 +30,29 @@ class CatalogRepository(Repository):
     def investigations(self) -> Sequence[Mapping[str, object]]:
         return self._menu("investigations")
 
+    def master_entry(self, table: str, key: str) -> Mapping[str, object] | None:
+        """
+        One master-list row INCLUDING `normal_result`, or None if the key is
+        unknown. Server-side only.
+
+        `normal_result` is deliberately absent from `_menu` above: it is the
+        text a learner sees when they order something irrelevant, and shipping
+        all 91 of them in the catalogue response would let a client diff them
+        against what a case actually returns — the CT-3 leak by a longer
+        route. Ordering needs it, and ordering returns exactly one.
+
+        Returning the row rather than a bool also collapses two questions
+        into one query. "Is this a real key?" and "what is the normal
+        finding?" have the same answer, and asking separately invites a
+        handler that checks one and forgets the other.
+        """
+        if table not in ("examinations", "investigations"):   # pragma: no cover
+            raise ValueError(f"not a catalogue table: {table!r}")
+        return self._conn.execute(sa.text(
+            f"SELECT key, label, normal_result FROM {table} "  # noqa: S608
+            f"WHERE key = :key AND is_active"
+        ), {"key": key}).mappings().first()
+
     def _menu(self, table: str) -> Sequence[Mapping[str, object]]:
         """
         One shape for both, because the contract gives them one shape.
