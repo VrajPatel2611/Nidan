@@ -295,12 +295,13 @@ def chat():
     messages.append({"role": "user", "content": user_message})
 
     try:
-        patient_reply = call_llm(
+        llm = call_llm(
             messages=messages,
             system_instruction=case["system_prompt"],
             max_tokens=200,
             temperature=0.7,
         )
+        patient_reply = llm.text
     except Exception as e:
         err_str = str(e)
         if "429" in err_str or "rate limit" in err_str.lower():
@@ -334,6 +335,7 @@ def chat():
             db.events.append(session_id, "early_diagnosis", {"text": user_message})
 
         db.sessions.touch(session_id)
+        db.llm_calls.record_call(llm.call, session_id=session_id)
         state, _ = _load(db, session_id, case_id)
 
     return jsonify({

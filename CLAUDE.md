@@ -172,6 +172,26 @@ The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
 their timestamps are synthetic because the JSON never recorded the interleaving.
 Any query computing think-time must filter them out. (`DATA_MODEL` §9.3)
 
+**The gateway cannot write its own `llm_calls` row, and that is enforced.**
+`pyproject.toml`'s import-linter contract forbids `nidan.infra.llm` from
+importing `nidan.infra.db.engine` and **counts indirect imports**, so every
+repository is out of reach too. `call_llm` therefore returns an `LLMResult`
+— `.text` plus an `LLMCall` — and the **caller** records it inside a scope it
+already holds. `infra/feedback.py` is under the same restriction and passes
+them up through `FeedbackResult.call`, which is `None` on the rule-based
+fallback because nothing was billed. (`tests/db/test_llm_calls.py`)
+
+**`purpose` has five values and `playtest` is not one of them.** Migration
+015's CHECK allows `patient`, `feedback`, `extraction`, `judge`, `grounding`.
+Playtest passes `purpose="playtest"`, which is right for the log line and
+unrecordable — and migration 024 withheld `llm_calls` from `nidan_reviewer`
+on purpose, so recording it would mean widening a CHECK *and* granting the
+narrowest role INSERT on the billing table, to account for an author's own
+turns against a draft. The admin Playtest route logs and records nothing;
+`repositories/llm.py` mirrors the five as `PURPOSES` and raises in Python
+rather than letting a CheckViolation abort a transaction opened for work that
+mattered more.
+
 **A failed LLM call must not consume the question.** The question event is
 appended only AFTER the reply returns, which is the opposite of orthodox
 event sourcing and deliberate twice over: `UX_SPEC` S-10 needs the typed
@@ -256,7 +276,10 @@ nidan/
     feedback.py           feedback prompt construction (prose only, no marking)
     feedback_view.py      the feedback screen, recomputed from the log
   infra/                everything that touches the outside world
-    llm/gateway.py        the single call site for the LLM
+    llm/gateway.py        the single call site for the LLM; returns metrics,
+                          cannot write them — see the rule below
+    llm/provider.py       the provider protocol; LLM_PROVIDER resolves it
+    llm/pricing.py        per-model token prices, dated. cost_usd is NOT NULL
     auth/jwks.py          Supabase's signing keys, cached 10 min
     auth/tokens.py        JWT verification — aud and iss, not just the signature
     db/actor.py           who is asking — decides the DB role and auth.uid()
@@ -270,6 +293,7 @@ nidan/
       reviews.py            review assignments and the rubric; T-023
       catalog.py            the universal menus; no case-specific column
       idempotency.py        the §2.8 key store; hashes the body, never keeps it
+      llm.py                llm_calls — what each model call cost (T-031)
       progress.py           trends computed on read; user_progress stays empty
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
@@ -328,7 +352,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 913 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 952 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -344,7 +368,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 342 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 359 schema, repository and route tests, real Postgres
 ```
 
 ---

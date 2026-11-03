@@ -15,7 +15,10 @@ from nidan.domain.feedback import (
     build_fallback_feedback,
     build_feedback_prompt,
 )
-from nidan.infra.llm.gateway import call_llm
+from nidan.infra.llm.gateway import LLMCall, call_llm
+from nidan.infra.telemetry.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 class FeedbackResult(NamedTuple):
@@ -31,6 +34,13 @@ class FeedbackResult(NamedTuple):
 
     lines: list
     generator: str          # 'llm' | 'rule_fallback'
+    # The gateway's `LLMCall`, for the caller to write to `llm_calls` (T-031).
+    #
+    # Passed through rather than recorded here: this module is on the same
+    # import-linter restriction as the gateway — `nidan.infra.feedback` may
+    # not reach `nidan.infra.db.engine` — so it cannot write the row either.
+    # None on the fallback path, where no call completed.
+    call: LLMCall | None = None
 
 
 def generate_feedback(bias_results, clinical_eval, session, case_config):
@@ -69,20 +79,23 @@ def generate_feedback_with_source(bias_results, clinical_eval, session,
     )
 
     try:
-        feedback_text = call_llm(
+        result = call_llm(
             messages=[{"role": "user", "content": prompt}],
             system_instruction=_FEEDBACK_SYSTEM_INSTRUCTION,
             purpose="feedback",
             max_tokens=450,
             temperature=0.7,
         )
-        lines = [line.strip(" -•\t") for line in feedback_text.split("\n")
+        lines = [line.strip(" -•\t") for line in result.text.split("\n")
                  if len(line.strip()) > 10]
         if lines:
-            return FeedbackResult(lines[:5], "llm")
+            return FeedbackResult(lines[:5], "llm", result.call)
         # empty response → fall through to rule-based
     except Exception as e:
-        print(f"LLM feedback call failed: {e}")
+        # Structured, not `print`. The fallback fires silently by design, so
+        # without a collected log the only record of how often the model was
+        # unavailable was a line in a stream nothing reads (T-007).
+        logger.warning("feedback.llm_failed", extra={"error": str(e)[:120]})
 
     return FeedbackResult(
         build_fallback_feedback(detected_biases, clinical_eval, case_config),

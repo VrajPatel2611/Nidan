@@ -231,8 +231,17 @@ def ask(case_id: UUID, version_id: UUID):
 
     try:
         # purpose="playtest" keeps these calls out of cost-per-session
-        # reporting (UX_SPEC §12.5) once T-031 starts logging by purpose.
-        reply = gateway.call_llm(
+        # reporting (UX_SPEC §12.5), and T-031 kept it OUT of `llm_calls`
+        # entirely rather than logging it by purpose as this comment once
+        # promised. Two separate reasons, both deliberate: migration 015's
+        # CHECK allows five purposes and "playtest" is not among them, and
+        # migration 024 withheld `llm_calls` from `nidan_reviewer` on purpose
+        # -- "no reason for them to be able to read audit_log, llm_calls or
+        # anyone's billing". Recording the row would mean widening the CHECK
+        # and granting the narrowest role INSERT on the billing table, to
+        # account for an author's own turns against a draft. The call is still
+        # logged by the gateway, with its tokens, cost and latency.
+        result = gateway.call_llm(
             messages=messages,
             system_instruction=case["system_prompt"],
             purpose="playtest",
@@ -242,6 +251,7 @@ def ask(case_id: UUID, version_id: UUID):
     except Exception:
         return jsonify({"error": "The patient could not respond. Try again in a "
                                  "few seconds."}), 503
+    reply = result.text
 
     early = (not any(e.type == "early_diagnosis" for e in events)
              and mentions_early_diagnosis(message))

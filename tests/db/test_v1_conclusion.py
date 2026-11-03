@@ -26,6 +26,7 @@ import sqlalchemy as sa
 
 from nidan.app import create_app
 from tests.app_config import TEST_SECRET, TRUNCATE_SESSION_TABLES
+from tests.fakes.llm import as_result
 
 
 @pytest.fixture
@@ -151,7 +152,7 @@ def test_substance_the_patient_prompt_reaches_the_model(
 
     def capture(messages, system_instruction, **kwargs):
         seen["system"] = system_instruction
-        return "Yes, after meals mostly."
+        return as_result("Yes, after meals mostly.")
 
     monkeypatch.setattr("nidan.api.v1.consultation.call_llm", capture)
 
@@ -342,6 +343,75 @@ def test_the_feedback_payload_carries_the_answer_and_the_prose(
     assert body["tutor_feedback"]["generator"] in ("llm", "rule_fallback")
     assert body["answer"]["correct_diagnosis"], (
         "no correct diagnosis; the content was not unwrapped")
+
+
+def test_generating_the_feedback_records_its_own_call(
+        client, account, concluded, fake_llm, live_db):
+    """
+    T-031 criterion 3, on the second cost bucket. `infra/feedback.py` is under
+    the same import restriction as the gateway, so it carries the metrics up
+    through `FeedbackResult.call` and this handler writes the row.
+
+    `purpose = 'feedback'` is what makes the per-purpose split in `TECH_SPEC`
+    §5.2 measurable: the patient turn is high-volume and cheap, feedback is
+    once per session and wants a stronger model, and a single undifferentiated
+    cost total cannot tell anyone whether that trade is worth it.
+    """
+    _, headers = account
+    body = client.get(f"/v1/sessions/{concluded}/feedback",
+                      headers=headers).get_json()
+    assert body["tutor_feedback"]["generator"] == "llm", (
+        "the fake should have produced the prose; a fallback writes no row")
+
+    with live_db.connect() as c:
+        purposes = c.execute(sa.text(
+            "SELECT purpose, count(*) FROM llm_calls WHERE session_id = :sid "
+            "GROUP BY purpose"), {"sid": concluded}).all()
+
+    counts = dict(purposes)
+    assert counts.get("feedback") == 1
+    assert counts.get("patient") == 3, "one row per question asked"
+
+
+def test_a_rule_based_fallback_records_no_call(
+        client, account, started, fake_llm, live_db, monkeypatch):
+    """
+    No model was reached, so there is nothing to bill. The fallback is the one
+    path where `FeedbackResult.call` is None, and the handler must read that
+    as "nothing to record" rather than writing a zero-cost row that would make
+    an outage look like free feedback.
+
+    Concluded inline rather than through the `concluded` fixture, because the
+    prose is generated when the diagnosis is submitted and stored in
+    `feedback_texts` — `GET /feedback` reads it back. Patching after the
+    fixture would patch a call that had already happened, and the test would
+    assert the fallback while measuring the LLM path.
+    """
+    def boom(*args, **kwargs):
+        raise RuntimeError("provider down")
+
+    monkeypatch.setattr("nidan.infra.feedback.call_llm", boom)
+
+    _, headers = account
+    sid = started["session_id"]
+    for text in ("Is the pain burning?", "Worse after meals?",
+                 "Any medications you take daily?"):
+        assert client.post(f"/v1/sessions/{sid}/questions", json={"text": text},
+                           headers=headers).status_code == 201
+    assert client.post(f"/v1/sessions/{sid}/diagnosis",
+                       json={"text": "GERD"}, headers=headers).status_code == 201
+
+    body = client.get(f"/v1/sessions/{sid}/feedback", headers=headers).get_json()
+    assert body["tutor_feedback"]["generator"] == "rule_fallback"
+
+    with live_db.connect() as c:
+        counts = dict(c.execute(sa.text(
+            "SELECT purpose, count(*) FROM llm_calls WHERE session_id = :sid "
+            "GROUP BY purpose"), {"sid": sid}).all())
+
+    assert "feedback" not in counts
+    assert counts.get("patient") == 3, (
+        "the three patient turns did happen and must still be accounted")
 
 
 def test_feedback_before_concluding_is_409(client, account, started):

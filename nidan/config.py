@@ -44,6 +44,13 @@ class Settings(BaseSettings):
         description="Groq API key. The app starts without one — the gateway "
                     "builds its client lazily — but the patient will not reply.",
     )
+    LLM_PROVIDER: str = Field(
+        default="groq",
+        description="Which provider the gateway talks to (ADR-0011: 'provider "
+                    "switching is a configuration change'). Resolved by "
+                    "infra/llm/provider.py; an unknown name raises at the "
+                    "first call rather than falling back.",
+    )
     GROQ_MODEL: str = Field(
         default="llama-3.3-70b-versatile",
         description="Default model for every purpose. Per-purpose overrides use "

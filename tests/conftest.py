@@ -129,18 +129,24 @@ def _no_real_llm(monkeypatch):
     """
     Make a real model call impossible.
 
-    Patches the gateway's client factory rather than `call_llm`, because that
+    Patches the provider's client factory rather than `call_llm`, because that
     is the single point where a network connection is actually constructed.
     Anything that reaches it — including code a future test forgets to stub —
     fails loudly here instead of quietly spending Groq quota.
+
+    T-031 moved that point: the factory used to be `gateway._get_client` and
+    is now `GroqProvider._get_client`, behind the provider seam. Patched on the
+    class, so it covers the instance `provider.for_name()` caches for the
+    process as well as any built later.
     """
-    def _forbidden():
+    def _forbidden(self):
         raise AssertionError(
             "A test tried to construct a real LLM client. Tests must never call "
             "a live model — use the `fake_llm` fixture, or FakeLLM directly."
         )
 
-    monkeypatch.setattr("nidan.infra.llm.gateway._get_client", _forbidden)
+    monkeypatch.setattr(
+        "nidan.infra.llm.provider.GroqProvider._get_client", _forbidden)
     monkeypatch.setenv("GROQ_API_KEY", "test-key-never-used")
 
 
