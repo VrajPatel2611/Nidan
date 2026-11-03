@@ -90,6 +90,59 @@ class CaseRepository(Repository):
             {"id": case_version_id},
         ).mappings().first()
 
+    def case_for_session(self, case_version_id: UUID) -> Mapping[str, Any] | None:
+        """
+        A published case version in the **domain's** `Case` shape, or None.
+
+        `content()` above returns the ROW — `{id, case_id, version, title,
+        content}` — and the stored payload is the nested `content` key. That is
+        a trap, and I walked into it: six call sites in `api/v1` passed the row
+        straight to a serialiser, so for two merged slices the patient came
+        back with every field None, the LLM got an empty system prompt, and
+        every examination returned the master normal result because the
+        case-specific block was never found. The tests passed because they
+        asserted shape and not substance.
+
+        So this returns what callers actually want, and the name says it.
+        Three differences from the raw JSONB, all of which a caller would
+        otherwise have to know:
+
+        - **`id`**, which the stored content has no field for and
+          `domain.assessment.engine.assess` requires (`replay(events,
+          case_id=case["id"])`). The slug, because that is the stable
+          human-readable identifier `DATA_MODEL` §5.1 gives a case.
+        - **`title`** promoted from the row, where it is denormalised for
+          indexed queries, so the domain shape has it where `cases.py` does.
+        - **`patient_intro`** flattened out of `patient.intro`. `cases.py`
+          holds it at the top level and `domain/feedback.py` reads it there;
+          §8.1 groups it under `patient` with the rest of who the patient is.
+          That one key cost a KeyError in the middle of generating feedback,
+          which is a bad place to learn about a shape.
+        - published only, like `content()`. A draft is unreachable to a
+          learner however complete it looks in the editor.
+
+        `tests/db/test_v1_conclusion.py` asserts this supplies every key the
+        domain layer actually reads, found by walking the AST rather than by
+        remembering. The next shape mismatch fails a test instead of a
+        request.
+        """
+        row = self._conn.execute(sa.text("""
+            SELECT cv.title, cv.content, c.slug
+            FROM case_versions cv
+            JOIN cases c ON c.id = cv.case_id
+            WHERE cv.id = :id AND cv.status = 'published'
+        """), {"id": case_version_id}).mappings().first()
+        if row is None:
+            return None
+        content = row["content"] or {}
+        patient = content.get("patient") or {}
+        return {
+            **content,
+            "id": row["slug"],
+            "title": row["title"],
+            "patient_intro": patient.get("intro"),
+        }
+
     def prototype_version_id(self, slug: str) -> UUID | None:
         """
         Resolve a case version by slug **regardless of publication status**.

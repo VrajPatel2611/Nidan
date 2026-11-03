@@ -36,10 +36,6 @@ from nidan.api.v1.blueprint import bp
 UNIMPLEMENTED: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("/me",                               ("DELETE",)),
     ("/me/export",                        ("POST",)),
-    ("/sessions/<uuid:session_id>/diagnosis",      ("POST",)),
-    ("/sessions/<uuid:session_id>/feedback",       ("GET",)),
-    ("/sessions/<uuid:session_id>/feedback/rating", ("POST",)),
-    ("/sessions/<uuid:session_id>/abandon",        ("POST",)),
     ("/progress",                          ("GET",)),
     # Phase 4, T-041. Declared here so the 501 is the contract's 501 rather
     # than a 404 that reads as a typo in the client's URL.

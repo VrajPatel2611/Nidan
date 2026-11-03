@@ -121,7 +121,7 @@ def ask_question(session_id: UUID):
             return response, status
 
         events = db.events.all_for(session_id)
-        content = db.cases.content(row["case_version_id"])
+        content = db.cases.case_for_session(row["case_version_id"])
         early_already_noted = any(e.type == "early_diagnosis" for e in events)
 
     # Stored roles are "user"/"model"; the provider expects "user"/"assistant".
@@ -227,7 +227,7 @@ def _order(session_id: UUID, *, kind: str, event_type: str,
                     "already_ordered": True,
                 }), 200
 
-        content = db.cases.content(row["case_version_id"]) or {}
+        content = db.cases.case_for_session(row["case_version_id"]) or {}
         case_specific = (content.get(content_key_for_case(content_key)) or {})
         was_case_specific = key in case_specific
         result = (case_specific[key][finding_key] if was_case_specific
