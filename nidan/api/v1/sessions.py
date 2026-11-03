@@ -96,7 +96,7 @@ def start_session():
                                  confidence_pre=confidence)
 
     with repo_scope(current_actor()) as db:
-        content = db.cases.content(selection.case_version_id)
+        content = db.cases.case_for_session(selection.case_version_id)
 
     return jsonify({
         "session_id": str(row["id"]),
@@ -224,7 +224,7 @@ def read_session(session_id: UUID):
         if row is None:
             return error("not_found", "No such consultation.")
         events = db.events.all_for(session_id)
-        content = db.cases.content(row["case_version_id"])
+        content = db.cases.case_for_session(row["case_version_id"])
 
     transcript = []
     examinations, investigations = [], []

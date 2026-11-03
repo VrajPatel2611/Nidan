@@ -353,7 +353,6 @@ paths:
                   feedback_ready: { type: boolean }
         '409': { $ref: '#/components/responses/Error' }
         '422': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}/feedback:
     parameters:
@@ -376,7 +375,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '409': { $ref: '#/components/responses/Error' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}/feedback/rating:
     parameters:
@@ -395,7 +393,6 @@ paths:
                 comment: { type: string, maxLength: 1000 }
       responses:
         '204': { description: Recorded }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   /sessions/{id}/abandon:
     parameters:
@@ -406,7 +403,6 @@ paths:
       description: Still counts against the monthly allowance (`PRD` FR-3).
       responses:
         '204': { description: Abandoned }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   # ── progress ───────────────────────────────────────────────────────
   /progress:

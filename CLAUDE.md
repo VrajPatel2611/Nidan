@@ -103,6 +103,24 @@ visible metric teaches the metric, not the skill. (`PRD` P2 · contract tests CT
 "premature closure", or "confirmation bias". User-facing headings are
 *Diagnostic focus · History completeness · Evidence exploration*. (`PRD` P1 · CT-5)
 
+**A detector result reaches a learner through `api/v1/reasoning.py` and
+nowhere else.** The detectors' own `reason` strings contain the banned
+vocabulary — "No significant anchoring pattern detected", "Confirmation
+bias occurs when…" — so forwarding `bias_detail` ships exactly what CT-5
+forbids. The prose is rebuilt from `counters`, which is what `DATA_MODEL`
+§8.5 added them for and which is also what `PRD` P3 wants cited: the
+learner's own actions. (CT-4, CT-5 · `tests/db/test_v1_conclusion.py`)
+
+**`cases.content()` returns the ROW; the payload is its `content` key.**
+Use `cases.case_for_session()`, which returns the **domain's** `Case`
+shape — it adds `id` (the slug), promotes `title`, and flattens
+`patient_intro` out of `patient.intro`. Passing the row to a serialiser
+is silent: for two merged slices the patient came back with every field
+None, the LLM got an empty system prompt, and every examination returned
+the master normal result because the case-specific block was never found.
+Shape assertions all passed. `test_the_case_adapter_supplies_every_key_the
+_domain_reads` walks the AST so the next mismatch fails a test.
+
 **A case reaches a client through `api/v1/case_view.py` and nowhere else.**
 `PRD` FR-3.4 forbids eight fields in the `case` object and `API_CONTRACT`
 §11 calls CT-1 "the leak that would invalidate everything" — a learner who
@@ -242,6 +260,7 @@ nidan/
       cases.py              reads for learners; authoring writes need AdminUser
       reviews.py            review assignments and the rubric; T-023
       catalog.py            the universal menus; no case-specific column
+      idempotency.py        the §2.8 key store; hashes the body, never keeps it
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
@@ -258,6 +277,9 @@ nidan/
     case_view.py          ⚠️ the ONLY place a case becomes a response — CT-1
     sessions.py           §6, §7 · POST + GET /sessions, GET /sessions/{id}
     consultation.py       §6 · questions, examinations, investigations
+    conclusion.py         §6 · diagnosis, feedback, rating, abandon
+    reasoning.py          ⚠️ the ONLY place a detector becomes text — CT-4, CT-5
+    idempotency (infra)   §2.8 · Idempotency-Key, 24 h replay — CT-8
     pagination.py         §2.5 cursors — never offsets
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
@@ -295,7 +317,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 871 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 897 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -311,7 +333,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 300 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 326 schema, repository and route tests, real Postgres
 ```
 
 ---

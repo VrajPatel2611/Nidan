@@ -70,6 +70,28 @@ class FeedbackRepository(Repository):
                 f"session {session_id} is not this actor's; no feedback stored")
         return row["id"]
 
+    def rate(self, session_id: UUID, *, was_helpful: bool) -> bool:
+        """
+        Record whether the prose helped. False if there is nothing to rate.
+
+        Applied to the NEWEST row, matching `latest()`: a retry that got as
+        far as generating prose leaves a second row, and the learner rated
+        what they read. `rated_at` is stamped here rather than accepted, for
+        the same reason `consent_at` is.
+
+        Re-rating overwrites. `UX_SPEC` UX-3 is one control with two states,
+        so a learner changing their mind is a correction and not a second
+        data point.
+        """
+        return self._conn.execute(sa.text("""
+            UPDATE feedback_texts SET was_helpful = :helpful, rated_at = now()
+            WHERE id = (
+                SELECT f.id FROM feedback_texts f
+                WHERE f.session_id = :sid
+                ORDER BY f.created_at DESC LIMIT 1
+            )
+        """), {"sid": session_id, "helpful": was_helpful}).rowcount > 0
+
     def latest(self, session_id: UUID) -> Mapping[str, Any] | None:
         """
         The most recent feedback for a session.

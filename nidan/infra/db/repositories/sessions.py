@@ -131,6 +131,25 @@ class SessionRepository(Repository):
             raise PermissionError("session insert was refused by RLS")
         return row
 
+    def abandon(self, session_id: UUID) -> bool:
+        """
+        Mark an active session abandoned. False if it was not active.
+
+        Guarded in the UPDATE rather than by a status check the caller makes
+        first, so two concurrent abandons cannot both succeed and so a
+        concluded consultation cannot be reopened as abandoned — which would
+        lose a diagnosis the learner did submit.
+
+        **The allowance is not refunded**, and nothing here has to arrange
+        that: `sessions_started_since()` counts started sessions whatever
+        their status (`PRD` FR-3 edge cases), so abandoning has never been a
+        way to get a free attempt.
+        """
+        return self._conn.execute(sa.text("""
+            UPDATE sessions SET status = 'abandoned', ended_at = now()
+            WHERE id = :id AND status = 'active'
+        """), {"id": session_id}).rowcount > 0
+
     def touch(self, session_id: UUID) -> None:
         """Mark activity. Used by the idle-session sweep (DATA_MODEL §6.1)."""
         self._conn.execute(sa.text(

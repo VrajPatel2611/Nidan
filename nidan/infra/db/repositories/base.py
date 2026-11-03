@@ -129,6 +129,9 @@ class Repositories:
         from nidan.infra.db.repositories.catalog import CatalogRepository
         from nidan.infra.db.repositories.events import EventRepository
         from nidan.infra.db.repositories.feedback import FeedbackRepository
+        from nidan.infra.db.repositories.idempotency import (
+            IdempotencyRepository,
+        )
         from nidan.infra.db.repositories.profiles import ProfileRepository
         from nidan.infra.db.repositories.results import (
             EngineVersionRepository,
@@ -151,6 +154,7 @@ class Repositories:
         self.cases = CaseRepository(conn, actor)
         self.reviews = ReviewRepository(conn, actor)
         self.catalog = CatalogRepository(conn, actor)
+        self.idempotency = IdempotencyRepository(conn, actor)
 
 
 @contextmanager
