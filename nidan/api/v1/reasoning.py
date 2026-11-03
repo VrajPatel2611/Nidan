@@ -49,10 +49,23 @@ REASONING: Final[tuple[tuple[str, str, str], ...]] = (
     ("confirmation_bias", "evidence_exploration",  "Evidence exploration"),
 )
 
-# CT-5's terms, as the test spells them, plus the snake_case forms that would
-# arrive if a dict key were ever serialised instead of mapped.
+# CT-5's three terms, plus the snake_case forms that would arrive if a dict
+# key were serialised instead of mapped.
+#
+# **`anchored` is deliberately NOT here**, and it was, briefly. It is a
+# `diagnosis_verdict` enum value — `DATA_MODEL` §6.3 and `API_CONTRACT` §7's
+# own `verdict_distribution` example both carry it — so banning it made the
+# progress payload fail its own contract. `API_CONTRACT` §11 lists three
+# terms and `CLAUDE.md` four; neither lists `anchored`, and widening the list
+# past what the spec says is how a guard starts producing false positives
+# that get it loosened for the wrong reason later.
+#
+# A verdict reaching a learner as the bare word "anchored" would be a P1
+# problem — but it reaches them as a machine value a client maps to copy,
+# exactly as `diagnostic_focus` maps to "Diagnostic focus". The wording is
+# `UX_SPEC`'s to choose, and T-036 is where it gets chosen.
 BANNED_VOCABULARY: Final[tuple[str, ...]] = (
-    "anchoring", "anchored", "premature closure", "premature_closure",
+    "anchoring", "premature closure", "premature_closure",
     "confirmation bias", "confirmation_bias",
 )
 

@@ -229,7 +229,10 @@ def test_zero_questions_is_permitted_and_assessed(
 # `API_CONTRACT` §11's CT-5 terms, and `PRD` P1's, spelled out here rather
 # than imported from `reasoning.BANNED_VOCABULARY`. A test that asks the code
 # what it should hide agrees with the code by construction.
-CT5_TERMS = ("anchoring", "anchored", "premature closure", "premature_closure",
+# `anchored` is absent on purpose: it is a `diagnosis_verdict` enum value
+# that §7's `verdict_distribution` example carries, and §11's CT-5 does
+# not list it. Banning it made the progress payload fail its own contract.
+CT5_TERMS = ("anchoring", "premature closure", "premature_closure",
              "confirmation bias", "confirmation_bias")
 
 # §6 point 1: the three behavioural identifiers, and nothing else.
