@@ -230,9 +230,98 @@ project's files, and switching to it would look like the whole repo vanished.
      summarises that text, the case stops working entirely, and it is the only
      case where the formatting carries the teaching point.
 
+- [ ] **Y-9** (2026-11-03, from Vraj) · **T-030 is DONE and merged. T-034 and
+  T-036 are unblocked.** `main` at PR #41. 18 of the 23 operations in
+  `openapi.yaml` are live; the other 5 answer **501 with the error envelope**,
+  not a 404, so you can build against them today and they will light up.
+
+  **Read `openapi.yaml`, not my description of it** — T-032 criterion 2
+  generates your types from that file and CI fails if they are stale.
+
+  **The `Session` schema changed, and it will change your generated types.**
+  It had drifted from `API_CONTRACT` §6 and nothing compared the two, so both
+  were "right". Reconciled to §6:
+
+  | was | is now |
+  |---|---|
+  | `id` | `session_id` |
+  | `patient` (flat, no title) | `case: { title, patient, opening_line }` |
+  | `transcript[].{role,text,at}` | `transcript[].{seq,type,text,at}` |
+  | `examinations_performed` | `examinations_done` |
+  | `investigations_ordered` | `investigations_done` |
+  | — | `sequence_index`, `last_activity_at`, `is_repeat` |
+
+  **Four things the server already guarantees, so do not re-implement them:**
+
+  1. **CT-1** — no response ever carries `correct_diagnosis`,
+     `anchor_keywords`, `required_topics`, `contradictory_clues`,
+     `system_prompt` or five more, during a consultation. One serialiser,
+     `api/v1/case_view.py`. The `answer` block on `GET /feedback` is the
+     deliberate exception, after the diagnosis is in.
+  2. **CT-2** — no coverage, no topic hints, no `matched_topics` reaches a
+     live consultation. The question response carries the reply and nothing
+     about how the learner is doing.
+  3. **CT-3** — the catalogue endpoints carry no `category` and no `is_key`.
+     Same 27 examinations and 91 investigations on every case.
+  4. **CT-5** — no response body contains "anchoring", "premature closure" or
+     "confirmation bias". `reasoning[]` arrives with both an `id`
+     (`diagnostic_focus` …) and a ready-to-render `label` ("Diagnostic
+     focus"), so you do not need a mapping table.
+
+  **Two API details worth knowing before you draw S-10 and S-12:**
+
+  - **There is no question counter in any response**, deliberately — see
+    Y-10. When the learner hits the 40-question cap they get
+    `429 question_limit_reached` with `details.limit`. That refusal is
+    currently the only signal, so "approaching zero" has nothing to read yet.
+  - **`verdict` can be `"anchored"`** and that word must not reach the
+    screen (`PRD` P1). It is a machine value, like `diagnostic_focus`; the
+    label is yours to choose in `UX_SPEC`.
+
+- [ ] **Y-10** (2026-11-03, from Vraj) · **Five open contract questions, and
+  two of them shape T-036. Please look before you build the feedback screen.**
+  All five are written up in `API_CONTRACT` §13 with the evidence; this is the
+  index.
+
+  | # | Question | Why it is yours |
+  |---|---|---|
+  | **API-6** | Does `questions_remaining` belong on a session response? | §6 says yes and argues it; `test_openapi.py` names the field in its forbidden set under `PRD` P2/CT-1/CT-2, so somebody decided the other way. **Implemented as absent.** `UX_SPEC` S-10 wants the cap surfaced as it nears zero, and right now there is nothing to surface |
+  | **API-8** | `answer.trap_explanation` | §6's feedback example shows it. **No such field exists** — not in `case_versions.content`, not in `cases.py`, nowhere. Returning `answer.anchor_topic` instead, which is real. A written trap explanation is content authoring for all ten cases plus a schema change |
+  | API-9 | `DELETE /me` cannot execute `DATA_MODEL` §10.2 | §10.2 UPDATEs `session_events`, which migration 010 makes append-only — verified that even the table owner is refused. GDPR decision, four options. 501 for now |
+  | API-10 | `POST /me/export` returns 202 and nothing builds the export | 202 means "accepted"; the worker and the mail do not exist and have no task |
+  | API-7 | §6 says `session_already_concluded`, §10 says `session_concluded` | Typo in §6. The catalogue governs; nothing to do but correct the prose |
+
+  **API-6 and API-8 are the two that will shape your screens.** Deciding them
+  after T-036 means rebuilding part of it.
+
 ---
 
 ## Notes
+
+### The `/v1` API, as of T-030 (2026-11-03)
+
+18 of 23 operations live. The 5 stubs: three Stripe (T-041, Phase 4) and
+`DELETE /me` (blocked, API-9). Every one answers **501 with the envelope**
+rather than a 404, which is what sync point S-1 was always supposed to mean
+and what did not exist until this task — an unbuilt path used to return
+Flask's HTML 404 page, so a JSON client got a parse error pointing somewhere
+unrelated.
+
+Three things in the API that are load-bearing rather than stylistic, and that
+a frontend could accidentally undo:
+
+- **The error envelope is the same everywhere**, including 404s and 501s, and
+  carries `code` (branch on this), `message` (copy, may be reworded) and —
+  on 5xx only — `request_id`. 4xx deliberately omits it, because `UX_SPEC`
+  §12.1 needs every admin refusal byte-identical and a per-request id makes
+  any two differ. `X-Request-ID` is on every response regardless.
+- **Pagination is cursor-based, never offset.** §2.5 rejects offsets because
+  they duplicate and drop rows when something is inserted mid-scroll — which
+  is exactly what happens when a learner finishes a consultation and then
+  pages back through their history.
+- **`POST /sessions/{id}/questions` does not consume the question on a model
+  failure.** 503 `patient_unavailable`, nothing written, so the typed text is
+  safe to resend. Preserve it in the textarea rather than clearing on error.
 
 ### The case bank is complete (2026-10-29)
 
