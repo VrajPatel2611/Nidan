@@ -25,6 +25,7 @@ from __future__ import annotations
 # Imported for their side effect: each module registers its routes on `bp`.
 from nidan.api.v1 import (  # noqa: F401,E402  (route registration)
     catalog,
+    consultation,
     contract,
     identity,
     sessions,

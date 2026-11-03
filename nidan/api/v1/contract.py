@@ -36,9 +36,6 @@ from nidan.api.v1.blueprint import bp
 UNIMPLEMENTED: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
     ("/me",                               ("DELETE",)),
     ("/me/export",                        ("POST",)),
-    ("/sessions/<uuid:session_id>/questions",      ("POST",)),
-    ("/sessions/<uuid:session_id>/examinations",   ("POST",)),
-    ("/sessions/<uuid:session_id>/investigations", ("POST",)),
     ("/sessions/<uuid:session_id>/diagnosis",      ("POST",)),
     ("/sessions/<uuid:session_id>/feedback",       ("GET",)),
     ("/sessions/<uuid:session_id>/feedback/rating", ("POST",)),

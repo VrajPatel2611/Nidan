@@ -37,6 +37,7 @@ import json
 import random
 import time
 from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Any
 from uuid import UUID
 
@@ -163,6 +164,53 @@ class EventRepository(Repository):
               AND EXISTS (SELECT 1 FROM sessions s
                           WHERE s.id = :sid {self._OWNERSHIP})
         """), {"sid": session_id, **self._ownership_params()}).scalar_one()
+
+
+    def count_of_type(self, session_id: UUID, event_type: str) -> int:
+        """
+        How many events of one type this session holds.
+
+        `API_CONTRACT` §2.9's per-session cap is 40 **questions**, not 40
+        events — a learner who examined eight systems and ordered six tests
+        has not used up a third of their questions. Counting the type is the
+        difference between a cap and a penalty for being thorough.
+        """
+        return self._conn.execute(sa.text(f"""
+            SELECT count(*) FROM session_events e
+            WHERE e.session_id = :sid
+              AND e.type = CAST(:type AS event_type)
+              AND EXISTS (SELECT 1 FROM sessions s
+                          WHERE s.id = :sid {self._OWNERSHIP})
+        """), {"sid": session_id, "type": event_type,
+               **self._ownership_params()}).scalar_one()
+
+    def questions_since(self, since: datetime) -> int:
+        """
+        The actor's questions across ALL their sessions since `since`.
+
+        `API_CONTRACT` §2.9's second limit — 60 questions per hour per user —
+        and the reason it is per user rather than per session: the per-session
+        cap of 40 is a pedagogical limit, while this one protects the LLM bill
+        and the provider's rate limit, which do not care which consultation a
+        question belonged to.
+
+        No `WHERE user_id`. The join to `sessions` is filtered by migration
+        016's `own_sessions` policy, so this counts the actor's questions and
+        a mistake here returns too few rather than someone else's (`ADR-0016`).
+
+        **Backfilled events are included deliberately**, unlike in timing
+        analysis (`DATA_MODEL` §9.3). Their timestamps are synthetic but they
+        are three months old, so they fall outside any window this is asked
+        about; excluding them would be a filter that never fires and that a
+        reader would have to stop and verify.
+        """
+        return self._conn.execute(sa.text("""
+            SELECT count(*)
+            FROM session_events e
+            JOIN sessions s ON s.id = e.session_id
+            WHERE e.type = 'question'
+              AND e.created_at >= :since
+        """), {"since": since}).scalar_one()
 
 
 def events_are_contiguous(events: Sequence[Event]) -> bool:

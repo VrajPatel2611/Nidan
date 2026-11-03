@@ -9,8 +9,10 @@ patching a path that no longer exists.
 import pytest
 
 import nidan.api.routes as routes
+import nidan.api.v1.consultation as consultation
 import nidan.infra.feedback as infra_feedback
 from nidan.infra.llm import gateway
+from tests.app_config import llm_source_paths
 
 
 def test_the_guard_actually_blocks_a_real_client():
@@ -28,6 +30,7 @@ def test_every_call_llm_import_site_is_patched_by_the_fake_llm_fixture(fake_llm)
     """
     assert infra_feedback.call_llm is fake_llm
     assert routes.call_llm is fake_llm
+    assert consultation.call_llm is fake_llm
 
 
 def test_no_unpatched_module_imports_call_llm():
@@ -37,7 +40,12 @@ def test_no_unpatched_module_imports_call_llm():
     """
     import pathlib
 
-    patched = {"nidan/infra/feedback.py", "nidan/api/routes.py"}
+    # Read from the same place conftest patches from. This set used to be
+    # hard-coded here, which made the guard against a stale list hold a stale
+    # list of its own: adding a site to conftest and not to this line produced
+    # "imports call_llm but conftest does not patch it" about a module
+    # conftest did patch.
+    patched = llm_source_paths()
     root = pathlib.Path(__file__).resolve().parent.parent
 
     # .as_posix(), not str(): str() uses the OS separator, so on Windows this
