@@ -64,6 +64,7 @@ A-bias-aware-vp-simulator/
 │   │   │   ├── gateway.py          the ONE place we call a model; returns
 │   │   │   │                       metrics it may not write (T-031)
 │   │   │   ├── provider.py         the provider protocol + LLM_PROVIDER
+│   │   │   ├── breaker.py          the circuit breaker; process state ★
 │   │   │   └── pricing.py          per-model token prices, dated
 │   │   ├── auth/ ★                JWKS cache + token verification
 │   │   │   ├── jwks.py             cached 10 min; rotation handled

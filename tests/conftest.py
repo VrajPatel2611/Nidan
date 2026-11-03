@@ -150,6 +150,24 @@ def _no_real_llm(monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "test-key-never-used")
 
 
+@pytest.fixture(autouse=True)
+def _fresh_circuit_breaker():
+    """
+    The breaker is process state, and the suite is one process.
+
+    Autouse for the same reason `_no_real_llm` is: three tests that each
+    provoke one gateway failure would trip it between them, and the fourth
+    test would fail with `CircuitOpen` while asserting something unrelated.
+    Its own tests build a local `CircuitBreaker` with an injected clock and
+    never touch this one.
+    """
+    from nidan.infra.llm.breaker import breaker
+
+    breaker.reset()
+    yield
+    breaker.reset()
+
+
 @pytest.fixture
 def fake_llm(monkeypatch):
     """

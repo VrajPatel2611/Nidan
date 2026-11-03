@@ -483,7 +483,7 @@ Accept   1. Every v1 endpoint implemented per openapi.yaml
 Tests    Contract tests CT-1..CT-9 (API_CONTRACT §11) — CT-1 and CT-5 are mandatory
 ```
 
-**T-031 · LLM gateway hardening**
+**T-031 · LLM gateway hardening** — ✅ **DONE** (2026-11-04)
 ```
 Phase    3            Depends  T-006          Est  2 d      Owner  V
 Files    nidan/infra/llm/

@@ -206,6 +206,48 @@ class TestGatewayReturnsMetrics:
         assert result.call.prompt_tokens == 100
 
 
+class TestPerPurposeRouting:
+    """
+    T-031 criterion 1, which had no test of its own until the breaker went in.
+
+    `TECH_SPEC` §5.2 wants the high-volume patient turn on something cheap and
+    fast and feedback on something stronger; today both resolve to the default
+    and the override is how that changes without a deploy. A criterion with no
+    test is a criterion nobody can tell is still true.
+    """
+
+    def test_every_purpose_falls_back_to_the_default_model(self):
+        from nidan.config import settings
+        for purpose in ("patient", "feedback", "extraction", "judge", "grounding"):
+            assert gateway._model_for(purpose) == settings.GROQ_MODEL
+
+    def test_a_purpose_can_be_routed_to_its_own_model(self, monkeypatch):
+        monkeypatch.setenv("GROQ_MODEL_FEEDBACK", "llama-3.3-70b-specdec")
+        assert gateway._model_for("feedback") == "llama-3.3-70b-specdec"
+        assert gateway._model_for("patient") != "llama-3.3-70b-specdec", (
+            "routing one purpose moved another")
+
+    def test_the_routed_model_is_the_one_recorded(self, fake_provider, monkeypatch):
+        """
+        The routing is only real if it reaches the provider and the row. A
+        lookup whose result is then ignored would pass a test of `_model_for`
+        alone.
+        """
+        monkeypatch.setenv("GROQ_MODEL_PATIENT", "llama-3.1-8b-instant")
+        seen = {}
+
+        def complete(*, model, messages, max_tokens, temperature):
+            seen["model"] = model
+            return provider.Completion(text="ok", prompt_tokens=1, output_tokens=1)
+
+        fake_provider.complete = complete
+        result = gateway.call_llm([{"role": "user", "content": "q"}], "persona",
+                                  purpose="patient")
+
+        assert seen["model"] == "llama-3.1-8b-instant"
+        assert result.call.model == "llama-3.1-8b-instant"
+
+
 class TestBackoff:
 
     def test_the_delay_doubles_per_attempt(self, monkeypatch):

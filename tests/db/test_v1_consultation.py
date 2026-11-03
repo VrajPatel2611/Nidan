@@ -23,6 +23,7 @@ import pytest
 import sqlalchemy as sa
 
 from nidan.app import create_app
+from nidan.config import settings
 from tests.app_config import TEST_SECRET, TRUNCATE_SESSION_TABLES
 
 
@@ -259,6 +260,56 @@ def test_patient_unavailable_does_not_consume_the_question(
             "WHERE session_id = :sid AND type = 'question'"),
             {"sid": session_id}).scalar_one()
     assert n == 0, "the question was consumed by a failed model call"
+
+
+def test_an_open_circuit_still_does_not_consume_the_question(
+        client, account, session_id, live_db, monkeypatch):
+    """
+    T-031 criterion 5, reached the new way. The breaker is a second route to
+    `patient_unavailable`, and it bypasses the provider entirely — so the
+    guarantee has to be re-checked rather than assumed, which is the whole
+    reason `CircuitOpen` is a plain `RuntimeError` the existing `except`
+    already catches.
+    """
+    from nidan.infra.llm import provider
+    from nidan.infra.llm.breaker import breaker
+
+    # A provider that WOULD succeed, and counts. Without it this test passes
+    # for the wrong reason: the autouse no-network guard also produces a 503
+    # with nothing written, so disabling the breaker left the test green.
+    # Watched failing with `before_call` commented out.
+    class _WouldSucceed:
+        name = "groq"
+        calls = 0
+
+        def complete(self, **kwargs):
+            type(self).calls += 1
+            return provider.Completion(text="It aches at night.",
+                                       prompt_tokens=10, output_tokens=5)
+
+    monkeypatch.setattr(provider, "for_name", lambda name=None: _WouldSucceed())
+    for _ in range(breaker.threshold):
+        breaker.record_failure("groq:" + settings.GROQ_MODEL)
+
+    _, headers = account
+    r = client.post(f"/v1/sessions/{session_id}/questions",
+                    json={"text": "Does the pain wake you at night?"},
+                    headers=headers)
+    assert r.status_code == 503
+    assert r.get_json()["error"]["code"] == "patient_unavailable"
+    assert _WouldSucceed.calls == 0, "the breaker was open and the provider was called"
+
+    with live_db.connect() as c:
+        events = c.execute(sa.text(
+            "SELECT count(*) FROM session_events "
+            "WHERE session_id = :sid AND type = 'question'"),
+            {"sid": session_id}).scalar_one()
+        calls = c.execute(sa.text(
+            "SELECT count(*) FROM llm_calls WHERE session_id = :sid"),
+            {"sid": session_id}).scalar_one()
+
+    assert events == 0, "an open circuit consumed the question"
+    assert calls == 0, "a call that never happened was accounted"
 
 
 def test_the_failure_message_does_not_echo_the_provider(

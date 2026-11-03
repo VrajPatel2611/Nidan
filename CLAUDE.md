@@ -181,6 +181,21 @@ already holds. `infra/feedback.py` is under the same restriction and passes
 them up through `FeedbackResult.call`, which is `None` on the rule-based
 fallback because nothing was billed. (`tests/db/test_llm_calls.py`)
 
+**The circuit breaker is process state, and that does not break `ADR-0003`.**
+Three consecutive failed *calls* on one `provider:model` open it for 30 s;
+after that one probe decides whether it closes or reopens. "Session state is
+never held in the process" is about a learner's consultation — replaying the
+log must give the same answer on any worker. This holds no session, no learner
+and no event, only how a dependency is behaving right now, and losing it on
+restart costs a count. It is **per `provider:model`**, because `TECH_SPEC` §5.2
+routes feedback to a stronger model than the patient turn and a global breaker
+would silence working feedback over a rate-limited patient model. Each of the 2
+workers trips its own, and the lock is not decorative: `--workers 2 --threads
+4` means four threads share it. `CircuitOpen` is a plain `RuntimeError` so the
+callers that already degrade on `Exception` needed no change — 503
+`patient_unavailable` without consuming the question, and the rule-based
+feedback fallback. (`TECH_SPEC` §5.1 · `tests/test_circuit_breaker.py`)
+
 **`purpose` has five values and `playtest` is not one of them.** Migration
 015's CHECK allows `patient`, `feedback`, `extraction`, `judge`, `grounding`.
 Playtest passes `purpose="playtest"`, which is right for the log line and
@@ -279,6 +294,7 @@ nidan/
     llm/gateway.py        the single call site for the LLM; returns metrics,
                           cannot write them — see the rule below
     llm/provider.py       the provider protocol; LLM_PROVIDER resolves it
+    llm/breaker.py        the circuit breaker — process state, on purpose
     llm/pricing.py        per-model token prices, dated. cost_usd is NOT NULL
     auth/jwks.py          Supabase's signing keys, cached 10 min
     auth/tokens.py        JWT verification — aud and iss, not just the signature
@@ -352,7 +368,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 952 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 976 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -368,7 +384,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 359 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 360 schema, repository and route tests, real Postgres
 ```
 
 ---

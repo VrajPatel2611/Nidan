@@ -35,6 +35,7 @@ from decimal import Decimal
 from typing import Final
 
 from nidan.infra.llm import pricing, provider
+from nidan.infra.llm.breaker import CircuitOpen, breaker
 from nidan.infra.telemetry.logging import get_logger
 
 logger = get_logger(__name__)
@@ -128,14 +129,28 @@ def call_llm(messages, system_instruction, *, purpose="patient",
         LLMResult: the text, and an `LLMCall` for the caller to record.
 
     Raises:
-        The last exception if every attempt fails. Callers degrade rather than
+        The last exception if every attempt fails, or `CircuitOpen` without
+        calling at all while the breaker is open. Callers degrade rather than
         propagate — `POST /questions` answers 503 `patient_unavailable`
         without consuming the question, and `infra/feedback.py` falls back to
-        rule-based prose.
+        rule-based prose. Both already catch `Exception`, which is why the
+        breaker needed no change to either.
     """
     payload = [{"role": "system", "content": system_instruction}] + list(messages)
     model = _model_for(purpose)
     client = provider.for_name()
+
+    # Before the loop, deliberately. Raised inside it, `CircuitOpen` would be
+    # measured against `_TRANSIENT` and its message retried — and a breaker
+    # whose refusal is retried is a breaker that sleeps for six seconds to
+    # refuse three times.
+    key = f"{client.name}:{model}"
+    try:
+        breaker.before_call(key)
+    except CircuitOpen as e:
+        logger.warning("llm.circuit_rejected", extra={
+            "purpose": purpose, "model": model, "reason": str(e)})
+        raise
 
     last_err: Exception | None = None
     for attempt in range(max_retries):
@@ -159,6 +174,7 @@ def call_llm(messages, system_instruction, *, purpose="patient",
                 logger.warning("llm.model_not_priced",
                                extra={"model": model, "purpose": purpose})
 
+            breaker.record_success(key)
             return LLMResult(
                 text=completion.text,
                 call=LLMCall(
@@ -193,6 +209,12 @@ def call_llm(messages, system_instruction, *, purpose="patient",
                     "error": str(e)[:120]})
                 time.sleep(wait)
             else:
+                # The breaker counts CALLS, not attempts: this one has
+                # exhausted its retries, so it is one piece of evidence about
+                # the provider rather than three. A permanent failure counts
+                # too — an invalid key will fail every call, and stopping is
+                # exactly right.
+                breaker.record_failure(key)
                 logger.error("llm.call_failed", extra={
                     "purpose": purpose, "model": model,
                     "attempt": attempt + 1, "transient": transient,
