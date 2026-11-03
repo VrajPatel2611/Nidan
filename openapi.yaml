@@ -99,6 +99,14 @@ paths:
       tags: [identity]
       summary: Delete the account
       description: >
+        **Still returns 501.** API_CONTRACT §4 says this executes DATA_MODEL
+        §10.2, and §10.2's erasure UPDATEs session_events — a table migration
+        010 makes append-only with an unconditional BEFORE UPDATE OR DELETE
+        trigger. Verified: even the table owner is refused. The half of the
+        erasure that redacts what the learner typed cannot run, and a 204
+        having only anonymised the profile would claim an erasure that did not
+        happen. See open question API-9.
+      description: >
         Requires explicit confirmation. Session results and the research
         pseudonym are retained so published analyses stay reproducible; the
         deletion screen must say so (`DATA_MODEL` §10.2).
@@ -113,7 +121,6 @@ paths:
       summary: Request a data export
       responses:
         '202': { description: Export queued }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   # ── catalogue ──────────────────────────────────────────────────────
   /catalog/examinations:
@@ -416,7 +423,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Progress' }
-        '501': { $ref: '#/components/responses/NotImplemented' }
 
   # ── billing ────────────────────────────────────────────────────────
   /billing/checkout:

@@ -34,9 +34,23 @@ from nidan.api.v1.blueprint import bp
 # (rule, methods) for every declared operation with no implementation yet.
 # Flask converter syntax, matching the paths in openapi.yaml.
 UNIMPLEMENTED: Final[tuple[tuple[str, tuple[str, ...]], ...]] = (
+    # `DELETE /me` is NOT unfinished work — it is blocked, and answering 501
+    # is the honest response.
+    #
+    # §4 says it "executes §10.2 of DATA_MODEL", and §10.2's erasure does
+    # `UPDATE session_events SET payload = jsonb_set(payload, '{text}',
+    # '"[redacted]"')`. Migration 010 puts `forbid_mutation()` on that table
+    # as BEFORE UPDATE OR DELETE, unconditionally — verified: even the table
+    # owner gets "Table session_events is append-only".
+    #
+    # So the half of the erasure that redacts what the learner typed cannot
+    # run. Returning 204 having only anonymised the profile would claim an
+    # erasure that did not happen, which is worse than refusing: §10.2 itself
+    # says a user "has a right to know what does not disappear".
+    #
+    # Logged as API-9. It needs a decision with a legal dimension, not a
+    # workaround from a request handler.
     ("/me",                               ("DELETE",)),
-    ("/me/export",                        ("POST",)),
-    ("/progress",                          ("GET",)),
     # Phase 4, T-041. Declared here so the 501 is the contract's 501 rather
     # than a 404 that reads as a typo in the client's URL.
     ("/billing/checkout",                  ("POST",)),

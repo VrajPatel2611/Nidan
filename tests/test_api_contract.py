@@ -192,7 +192,7 @@ def test_no_unimplemented_entry_shadows_a_real_route(app):
 # ── CT-6, against live responses ─────────────────────────────────────
 
 def test_an_unbuilt_endpoint_returns_the_envelope_not_html(client):
-    r = client.get("/v1/progress")
+    r = client.post("/v1/billing/checkout")
     assert r.status_code == 501
     assert r.is_json, "a 501 returned HTML; API_CONTRACT §2.6 wants the envelope"
     assert r.get_json()["error"]["code"] == "not_implemented"
@@ -214,7 +214,7 @@ def test_the_wrong_method_does_not_advertise_the_right_one(client):
     405 lists the methods a path accepts. §2.7 declines to confirm the
     existence of things the caller has not been granted.
     """
-    r = client.delete("/v1/progress")
+    r = client.delete("/v1/billing/checkout")
     assert r.status_code == 404
     assert r.get_json()["error"]["code"] == "not_found"
 
@@ -226,7 +226,7 @@ def test_a_5xx_carries_a_request_id(client):
     per request and put it only in a response header, so a user quoting what
     they saw had nothing to quote.
     """
-    r = client.get("/v1/progress")               # 501
+    r = client.post("/v1/billing/checkout")      # 501 until T-041
     body = r.get_json()["error"]
     assert body.get("request_id"), "no request_id in the envelope"
     assert body["request_id"] == r.headers["X-Request-ID"], (
@@ -257,6 +257,6 @@ def test_a_4xx_does_not_carry_a_request_id(client):
 def test_the_envelope_has_no_fields_the_schema_does_not_declare(client):
     declared = set(_spec()["components"]["schemas"]["Error"]
                    ["properties"]["error"]["properties"])
-    r = client.get("/v1/progress")
+    r = client.post("/v1/billing/checkout")
     extra = set(r.get_json()["error"]) - declared
     assert not extra, f"undeclared field(s) in the error envelope: {sorted(extra)}"
