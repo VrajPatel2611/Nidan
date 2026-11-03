@@ -225,6 +225,15 @@ envelope — which is what sync point S-1 means and what did not exist until
 T-030. The list only shrinks, and a line left behind after a slice
 implements it fails the suite rather than shadowing the real route.
 
+**`session_events` and `audit_log` refuse UPDATE and DELETE, including to
+the table owner.** Migration 002's `forbid_mutation` is unconditional, so
+a teardown or a cleanup must TRUNCATE, never DELETE — and a cascade into
+either table fails the whole transaction, which is why deleting a profile
+needs the session tables truncated first. **`DATA_MODEL` §10.2's erasure
+cannot run**: it UPDATEs `session_events`, so `DELETE /me` is a 501 and
+API-9 is the open decision. (verified against the running database ·
+`tests/db/test_v1_progress.py`)
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -261,6 +270,7 @@ nidan/
       reviews.py            review assignments and the rubric; T-023
       catalog.py            the universal menus; no case-specific column
       idempotency.py        the §2.8 key store; hashes the body, never keeps it
+      progress.py           trends computed on read; user_progress stays empty
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
@@ -281,6 +291,7 @@ nidan/
     reasoning.py          ⚠️ the ONLY place a detector becomes text — CT-4, CT-5
     idempotency (infra)   §2.8 · Idempotency-Key, 24 h replay — CT-8
     pagination.py         §2.5 cursors — never offsets
+    account.py            §4, §7 · /progress, /me/export
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
   api/trial.py          the anonymous trial and its httpOnly cookie
@@ -317,7 +328,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 897 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 913 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -333,7 +344,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 326 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 342 schema, repository and route tests, real Postgres
 ```
 
 ---
