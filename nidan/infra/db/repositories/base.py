@@ -133,6 +133,7 @@ class Repositories:
             IdempotencyRepository,
         )
         from nidan.infra.db.repositories.profiles import ProfileRepository
+        from nidan.infra.db.repositories.progress import ProgressRepository
         from nidan.infra.db.repositories.results import (
             EngineVersionRepository,
             ResultRepository,
@@ -155,6 +156,7 @@ class Repositories:
         self.reviews = ReviewRepository(conn, actor)
         self.catalog = CatalogRepository(conn, actor)
         self.idempotency = IdempotencyRepository(conn, actor)
+        self.progress = ProgressRepository(conn, actor)
 
 
 @contextmanager

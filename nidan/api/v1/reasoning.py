@@ -131,3 +131,53 @@ def reasoning_json(bias_detail: Mapping[str, Any]) -> list[dict[str, Any]]:
             "reason": _REASON_BUILDERS[api_id](detail.get("counters") or {}),
         })
     return out
+
+
+def reasoning_trends_json(summary: Mapping[str, Any]) -> list[dict[str, Any]]:
+    """
+    The `reasoning_trends` array for `GET /v1/progress` (`API_CONTRACT` §7).
+
+    Same mapping, same three behavioural ids, for the same reason: CT-5 says
+    "no response body **anywhere**", and a progress screen built from
+    `anchoring_last10` would carry the word in a field name. The repository's
+    column names are internal; this is the boundary.
+
+    **`direction` is computed server-side**, which §7 states and gives the
+    reason for: "so wording stays consistent." Two clients deriving it from
+    two rates would eventually disagree about what 0.30 against 0.32 means,
+    and a learner told "declining" by one screen and "stable" by another
+    stops trusting both.
+
+    **Fewer flags is better**, so a falling rate is `improving`. Worth saying
+    out loud because the arithmetic reads backwards: `last10 < prev10` is good
+    news.
+
+    `direction` is None when there is no previous ten to compare against.
+    Not "stable" — that would tell a learner with twelve sessions that their
+    habits are unchanged, which is a claim about data that does not exist.
+    """
+    out = []
+    for internal_key, api_id, label in REASONING:
+        last10 = summary.get(f"{internal_key}_last10")
+        prev10 = summary.get(f"{internal_key}_prev10")
+        out.append({
+            "id": api_id,
+            "label": label,
+            "last10_rate": round(float(last10), 3) if last10 is not None else None,
+            "prev10_rate": round(float(prev10), 3) if prev10 is not None else None,
+            "direction": _direction(last10, prev10),
+        })
+    return out
+
+
+def _direction(last10: Any, prev10: Any) -> str | None:
+    """`improving` when the flag fires less often than it used to."""
+    if last10 is None or prev10 is None:
+        return None
+    last, prev = float(last10), float(prev10)
+    # A tolerance, because these are averages of small integers: 3/10 against
+    # 4/10 is one session, and calling that a trend would have a learner
+    # chasing noise.
+    if abs(last - prev) < 0.1:
+        return "stable"
+    return "improving" if last < prev else "declining"
