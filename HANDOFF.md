@@ -296,6 +296,65 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ---
 
+- [ ] **Y-11** (2026-11-04, from Vraj) · **T-031 is DONE and merged-pending —
+  branch `feat/t-031-gateway-accounting`, two commits, PR not yet opened.**
+  This unblocks **T-043** (AI usage and cost dashboard, yours, Phase 4): it now
+  has real data. Every model call writes an `llm_calls` row with
+  `purpose`, `provider`, `model`, `prompt_tokens`, `output_tokens`,
+  `cost_usd NUMERIC(10,6)`, `latency_ms`, `status`, `attempt`, `created_at` and
+  a nullable `session_id`.
+
+  Three things to know before you build that screen:
+
+  1. **`purpose` has five values** — `patient`, `feedback`, `extraction`,
+     `judge`, `grounding` (migration 015's CHECK). `playtest` is **not** one,
+     and Playtest turns are deliberately **not** recorded: migration 024
+     withheld `llm_calls` from `nidan_reviewer` on purpose. So "cost per
+     session" is honest, and total spend excludes your own playtesting.
+  2. **Anonymous trial calls ARE recorded**, against their trial session. Any
+     per-user breakdown must cope with `sessions.user_id IS NULL`.
+  3. **`cost_usd` is 0 for a model missing from `nidan/infra/llm/pricing.py`**,
+     and the gateway logs `llm.model_not_priced`. Treat a zero cost beside a
+     non-zero token count as "unpriced", not "free" — a dashboard that sums it
+     silently under-reports.
+
+  `/readyz` also now returns `checks.llm_circuits_open`, a list of
+  `provider:model` keys whose circuit breaker is open. Useful for A-07's health
+  strip. It is reported, not gating — readiness stays `ready`.
+
+  **Done when:** nothing for you to do yet; this is context so T-043 is not
+  designed against guesses. Read `docs/build-log/T-031-llm-gateway-hardening.md`
+  when you pick it up.
+
+- [ ] **Y-12** (2026-11-04, from Vraj) · **Playtest's patient is currently
+  broken on every machine, and it is not your code.** The configured default
+  model `llama-3.3-70b-versatile` returns **404 model_not_found** from the live
+  Groq API. The key can reach eleven models and **none of them is a Llama chat
+  model** — `openai/gpt-oss-120b`, `openai/gpt-oss-20b` and `qwen/qwen3.8-27b`
+  are the usable chat ones; the rest are speech, TTS or classifiers.
+
+  Symptom you would otherwise spend an hour on: Playtest's **Ask** returns
+  503 and the panel shows "The patient could not respond", while everything
+  else in `/admin` works perfectly. `python test_api.py` says the same thing in
+  one line — run that first.
+
+  The test suite does not catch it and should not: T-002 criterion 1 is that no
+  test makes a network call, so nothing ever asks a real provider whether the
+  model exists.
+
+  **This also blocks the clinician reviewers** — they judge a case by playing
+  it, and playing it needs a patient.
+
+  Vraj is checking the Groq console (model access / Meta licence acceptance /
+  plan tier) before anything is changed in code. The replacement model is
+  `TECH_SPEC` §5.2's decision — "leakage rate first, then cost, then latency" —
+  not a default to guess at.
+
+  **Done when:** Vraj reports back. **Do not change `GROQ_MODEL` on your side
+  to work around it** — two laptops silently running different patient models
+  would make every leakage observation incomparable. Override is
+  `GROQ_MODEL` / `GROQ_MODEL_PATIENT` in `.env` when the time comes.
+
 ## Notes
 
 ### The `/v1` API, as of T-030 (2026-11-03)
