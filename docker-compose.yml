@@ -64,7 +64,7 @@ services:
       # Passed through from your shell or .env. The app boots without it — the
       # gateway builds its client lazily — but the patient will not reply.
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
       # A fixed key keeps browser sessions valid across restarts. Local only:
       # production sets a real secret (SECURITY_SPEC §5.1).
       FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-local-development-only-not-a-secret}

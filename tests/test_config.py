@@ -34,7 +34,7 @@ class TestDefaults:
         runs the tests has no .env, and that has to be a supported state.
         """
         s = _settings()
-        assert s.GROQ_MODEL == "llama-3.3-70b-versatile"
+        assert s.GROQ_MODEL == "openai/gpt-oss-120b"
         assert s.PORT == 8000
         assert s.DEBUG is False
 

@@ -24,15 +24,20 @@ from __future__ import annotations
 from decimal import Decimal
 from typing import Final
 
-# USD per 1,000,000 tokens. Checked 2026-11-03 against Groq's published
+# USD per 1,000,000 tokens. Checked 2026-11-04 against Groq's published
 # pricing. Re-check before quoting any figure derived from these.
-PRICES_CHECKED = "2026-11-03"
+PRICES_CHECKED = "2026-11-04"
 
+# The Llama 3.x entries this table shipped with on 2026-11-03 are gone, and
+# not because the prices moved: **Groq retired `llama-3.3-70b-versatile` on
+# 2026-08-16** on the Free and Developer tiers, and the whole Llama chat line
+# is absent from the account. Keeping dead models in a price table invites
+# someone to reach for one. `llm_calls` holds no rows against them -- the
+# table was never written to before T-031 -- so nothing historical is lost.
 _PER_MILLION: Final[dict[str, tuple[str, str]]] = {
     #  model                            input      output
-    "llama-3.3-70b-versatile":         ("0.59",   "0.79"),
-    "llama-3.1-8b-instant":            ("0.05",   "0.08"),
-    "llama-3.3-70b-specdec":           ("0.59",   "0.99"),
+    "openai/gpt-oss-120b":             ("0.15",   "0.60"),
+    "openai/gpt-oss-20b":              ("0.075",  "0.30"),
 }
 
 _MILLION = Decimal("1000000")

@@ -19,6 +19,7 @@ The `llm_calls` row itself is written against a real database in
 """
 
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 
@@ -50,6 +51,41 @@ class FakeProvider:
             output_tokens=self.output_tokens)
 
 
+class _FakeGroqClient:
+    """
+    The two attribute hops `GroqProvider.complete` makes, and nothing else.
+
+    Hand-rolled rather than a Mock so the response shape is written down:
+    `message.content` and `message.reasoning` are separate fields, which is
+    the fact the leak test above depends on.
+    """
+
+    def __init__(self, content="ok", reasoning=None, prompt_tokens=97,
+                 output_tokens=34):
+        self.kwargs: dict = {}
+        self._content = content
+        self._reasoning = reasoning
+        self._prompt_tokens = prompt_tokens
+        self._output_tokens = output_tokens
+
+    @property
+    def chat(self):
+        return self
+
+    @property
+    def completions(self):
+        return self
+
+    def create(self, **kwargs):
+        self.kwargs = kwargs
+        message = SimpleNamespace(content=self._content, reasoning=self._reasoning)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=message, finish_reason="stop")],
+            usage=SimpleNamespace(prompt_tokens=self._prompt_tokens,
+                                  completion_tokens=self._output_tokens),
+        )
+
+
 @pytest.fixture
 def fake_provider(monkeypatch):
     """Replace the resolved provider, leaving the gateway's own logic intact."""
@@ -63,14 +99,14 @@ def fake_provider(monkeypatch):
 class TestPricing:
 
     def test_a_known_model_costs_what_the_table_says(self):
-        # llama-3.3-70b-versatile: $0.59 in, $0.79 out, per million tokens.
+        # openai/gpt-oss-120b: $0.15 in, $0.60 out, per million tokens.
         # 1M prompt + 1M output = exactly the two figures added.
-        cost = pricing.cost_usd("llama-3.3-70b-versatile", 1_000_000, 1_000_000)
-        assert cost == Decimal("1.380000")
+        cost = pricing.cost_usd("openai/gpt-oss-120b", 1_000_000, 1_000_000)
+        assert cost == Decimal("0.750000")
 
     def test_cost_is_quantized_to_the_columns_scale(self):
         """`llm_calls.cost_usd` is NUMERIC(10,6); more precision is a lie."""
-        cost = pricing.cost_usd("llama-3.3-70b-versatile", 7, 3)
+        cost = pricing.cost_usd("openai/gpt-oss-120b", 7, 3)
         assert cost.as_tuple().exponent == -6
 
     def test_an_unknown_model_costs_zero_rather_than_a_guess(self):
@@ -79,7 +115,7 @@ class TestPricing:
 
     def test_a_zero_token_call_costs_zero(self):
         """A provider that reports no usage must not produce a negative or a crash."""
-        assert pricing.cost_usd("llama-3.3-70b-versatile", 0, 0) == Decimal("0")
+        assert pricing.cost_usd("openai/gpt-oss-120b", 0, 0) == Decimal("0")
 
     def test_the_table_records_when_it_was_checked(self):
         """
@@ -105,6 +141,64 @@ class TestProviderSeam:
     def test_the_same_instance_is_reused_within_a_process(self):
         provider.reset()
         assert provider.for_name() is provider.for_name()
+
+    def test_the_models_reasoning_never_becomes_the_patients_words(self, monkeypatch):
+        """
+        **A leak by a route no serialiser guards.**
+
+        A reasoning model returns its deliberation in `message.reasoning`, and
+        on `openai/gpt-oss` that field discusses the system prompt it was
+        given. The patient's system prompt is the whole case — the correct
+        diagnosis, the trap, the contradictory clues. Observed verbatim on
+        2026-11-04: *"We are to respond as a patient in a clinical
+        simulation... So answer like ..."*.
+
+        So the obvious repair for an empty `content` — fall back to
+        `.reasoning` — would put the model's working, and with it the hidden
+        answer, into the patient's mouth. It would never pass through
+        `case_view.py`, so CT-1 would not catch it. This test is the guard.
+        """
+        reasoning = ("The patient actually has GERD, not cardiac pain, and must "
+                     "not reveal the diagnosis. Answer evasively.")
+
+        for content in ("It burns after meals.", "", None):
+            fake = _FakeGroqClient(content=content, reasoning=reasoning)
+            monkeypatch.setattr(provider.GroqProvider, "_get_client",
+                                lambda self, _f=fake: _f)
+
+            got = provider.GroqProvider().complete(
+                model="openai/gpt-oss-120b", messages=[], max_tokens=200,
+                temperature=0.7)
+
+            assert reasoning not in got.text
+            assert "GERD" not in got.text
+            assert got.text == (content or "").strip()
+
+    def test_a_reasoning_model_is_asked_for_low_effort(self, monkeypatch):
+        """
+        `max_tokens` has to cover reasoning AND content on these models. At the
+        default effort a 60-token budget went entirely to deliberation and came
+        back with a sentence cut off mid-word — and a truncated reply is worse
+        than a failure, because it is logged as a `patient_reply` and the
+        engine scores it.
+        """
+        fake = _FakeGroqClient(content="It aches.")
+        monkeypatch.setattr(provider.GroqProvider, "_get_client",
+                            lambda self: fake)
+
+        provider.GroqProvider().complete(model="openai/gpt-oss-120b", messages=[],
+                                         max_tokens=200, temperature=0.7)
+        assert fake.kwargs["reasoning_effort"] == "low"
+
+    def test_a_non_reasoning_model_is_not_sent_the_parameter(self, monkeypatch):
+        """Models that do not support it reject the request outright."""
+        fake = _FakeGroqClient(content="It aches.")
+        monkeypatch.setattr(provider.GroqProvider, "_get_client",
+                            lambda self: fake)
+
+        provider.GroqProvider().complete(model="some-plain-chat-model", messages=[],
+                                         max_tokens=200, temperature=0.7)
+        assert "reasoning_effort" not in fake.kwargs
 
     def test_importing_the_module_needs_no_api_key(self, monkeypatch):
         """
@@ -222,9 +316,9 @@ class TestPerPurposeRouting:
             assert gateway._model_for(purpose) == settings.GROQ_MODEL
 
     def test_a_purpose_can_be_routed_to_its_own_model(self, monkeypatch):
-        monkeypatch.setenv("GROQ_MODEL_FEEDBACK", "llama-3.3-70b-specdec")
-        assert gateway._model_for("feedback") == "llama-3.3-70b-specdec"
-        assert gateway._model_for("patient") != "llama-3.3-70b-specdec", (
+        monkeypatch.setenv("GROQ_MODEL_FEEDBACK", "openai/gpt-oss-20b")
+        assert gateway._model_for("feedback") == "openai/gpt-oss-20b"
+        assert gateway._model_for("patient") != "openai/gpt-oss-20b", (
             "routing one purpose moved another")
 
     def test_the_routed_model_is_the_one_recorded(self, fake_provider, monkeypatch):
@@ -233,7 +327,7 @@ class TestPerPurposeRouting:
         lookup whose result is then ignored would pass a test of `_model_for`
         alone.
         """
-        monkeypatch.setenv("GROQ_MODEL_PATIENT", "llama-3.1-8b-instant")
+        monkeypatch.setenv("GROQ_MODEL_PATIENT", "openai/gpt-oss-20b")
         seen = {}
 
         def complete(*, model, messages, max_tokens, temperature):
@@ -244,8 +338,8 @@ class TestPerPurposeRouting:
         result = gateway.call_llm([{"role": "user", "content": "q"}], "persona",
                                   purpose="patient")
 
-        assert seen["model"] == "llama-3.1-8b-instant"
-        assert result.call.model == "llama-3.1-8b-instant"
+        assert seen["model"] == "openai/gpt-oss-20b"
+        assert result.call.model == "openai/gpt-oss-20b"
 
 
 class TestBackoff:

@@ -52,7 +52,7 @@ class Settings(BaseSettings):
                     "first call rather than falling back.",
     )
     GROQ_MODEL: str = Field(
-        default="llama-3.3-70b-versatile",
+        default="openai/gpt-oss-120b",
         description="Default model for every purpose. Per-purpose overrides use "
                     "GROQ_MODEL_<PURPOSE>; see infra/llm/gateway.py (ADR-0011).",
     )

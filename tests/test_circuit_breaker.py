@@ -23,7 +23,7 @@ import pytest
 from nidan.infra.llm import gateway, provider
 from nidan.infra.llm.breaker import CircuitBreaker, CircuitOpen
 
-KEY = "groq:llama-3.3-70b-versatile"
+KEY = "groq:openai/gpt-oss-120b"
 
 
 class FakeClock:
@@ -124,7 +124,7 @@ class TestOpen:
         turn. A global breaker would silence working feedback because the
         patient model was rate-limited.
         """
-        other = "groq:llama-3.1-8b-instant"
+        other = "groq:openai/gpt-oss-20b"
         for _ in range(3):
             cb.record_failure(KEY)
 

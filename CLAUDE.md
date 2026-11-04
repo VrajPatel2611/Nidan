@@ -181,6 +181,30 @@ already holds. `infra/feedback.py` is under the same restriction and passes
 them up through `FeedbackResult.call`, which is `None` on the rule-based
 fallback because nothing was billed. (`tests/db/test_llm_calls.py`)
 
+**The configured model can be retired out from under you, and no test will
+say so.** `python test_api.py` is the only check, because T-002 criterion 1 is
+that no test makes a network call — so the suite never asks a provider whether
+`GROQ_MODEL` still exists. Groq retired `llama-3.3-70b-versatile` on
+2026-08-16 and it took until 2026-11-04 to notice. **Run `test_api.py` after
+changing a model and before any demo or reviewer session.** It goes through
+the real gateway on purpose: when it built its own client it reported "empty
+response" for a model the application handled fine. PR-1 is what makes this
+survivable — the detectors, the 94.4 % validation and the golden record never
+touch a model — but a model change *does* invalidate the leakage tuning of all
+ten case personas. (`TECH_SPEC` §5.2 · `pricing.py` carries `PRICES_CHECKED`)
+
+**The patient's model is a reasoning model, and `message.reasoning` must never
+be read.** `max_tokens` covers deliberation *and* content on `openai/gpt-oss`,
+so `GroqProvider` sends `reasoning_effort="low"` — without it a 60-token
+budget went entirely to deliberation and returned a sentence cut off mid-word,
+and a truncated reply is worse than a failure because it is logged as a
+`patient_reply` and the engine scores it. The deliberation comes back in a
+separate field that discusses the system prompt — for the patient, the whole
+case including the answer. **Falling back to it when `content` is empty is the
+CT-1 leak by a route `case_view.py` does not guard**, so an empty reply raises
+and the learner keeps their question.
+(`test_the_models_reasoning_never_becomes_the_patients_words`)
+
 **The circuit breaker is process state, and that does not break `ADR-0003`.**
 Three consecutive failed *calls* on one `provider:model` open it for 30 s;
 after that one probe decides whether it closes or reopens. "Session state is
@@ -368,7 +392,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 976 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 979 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract

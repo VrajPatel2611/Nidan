@@ -151,6 +151,13 @@ activemq-data/
 
 # Environments
 .env
+# Backups of it, which `.env` alone does not match. A `.env.bak-20261104`
+# written before editing the file showed up as UNTRACKED rather than ignored,
+# one `git add -A` away from committing the API key. `.env.example` stays
+# tracked -- it holds no values.
+.env.bak*
+.env.*.bak
+.env.local
 .envrc
 .venv
 env/

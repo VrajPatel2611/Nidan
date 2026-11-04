@@ -41,7 +41,7 @@ class _Call:
     def __init__(self, **kw):
         self.purpose = kw.get("purpose", "patient")
         self.provider = kw.get("provider", "groq")
-        self.model = kw.get("model", "llama-3.3-70b-versatile")
+        self.model = kw.get("model", "openai/gpt-oss-120b")
         self.prompt_tokens = kw.get("prompt_tokens", 412)
         self.output_tokens = kw.get("output_tokens", 58)
         self.cost_usd = kw.get("cost_usd", Decimal("0.000289"))

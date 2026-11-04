@@ -49,6 +49,19 @@ class GroqProvider:
 
     name = "groq"
 
+    # Models that deliberate before answering, and spend the token budget
+    # doing it. Prefix-matched because Groq versions within a family.
+    _REASONING_PREFIXES: Final = ("openai/gpt-oss",)
+
+    # "low", measured on 2026-11-04: a one-sentence patient reply cost 34
+    # completion tokens at low and 73 at medium, for the same answer. The
+    # patient turn is the high-volume path and `max_tokens` has to cover
+    # reasoning AND content on these models -- at the default effort a 60-token
+    # budget went entirely to deliberation and came back with a sentence cut
+    # off mid-word, which is worse than a failure: a truncated reply is logged
+    # as a `patient_reply` and the engine scores it.
+    REASONING_EFFORT: Final = "low"
+
     def __init__(self) -> None:
         self._client: Any = None
 
@@ -67,11 +80,34 @@ class GroqProvider:
 
     def complete(self, *, model: str, messages: list[dict[str, str]],
                  max_tokens: int, temperature: float) -> Completion:
+        extra: dict[str, Any] = {}
+        if model.startswith(self._REASONING_PREFIXES):
+            # Only for models that accept it; the others reject the parameter.
+            extra["reasoning_effort"] = self.REASONING_EFFORT
+
         response = self._get_client().chat.completions.create(
             model=model, messages=messages,
-            max_tokens=max_tokens, temperature=temperature,
+            max_tokens=max_tokens, temperature=temperature, **extra,
         )
-        text = (response.choices[0].message.content or "").strip()
+        message = response.choices[0].message
+
+        # `.content` ONLY, and never `.reasoning`.
+        #
+        # A reasoning model returns its deliberation in a separate field, and
+        # on these models that field discusses the system prompt it was given.
+        # The patient's system prompt is the whole case — the correct
+        # diagnosis, the trap, the contradictory clues. Observed verbatim on
+        # 2026-11-04: "We are to respond as a patient in a clinical
+        # simulation... So answer like ...".
+        #
+        # So the obvious-looking repair for an empty `content` — fall back to
+        # `.reasoning` — would put the model's working, and with it the hidden
+        # answer, into the patient's mouth. That is the CT-1 leak by a route no
+        # serialiser guards, because it never passes through `case_view.py`.
+        # An empty reply raises in the gateway and the learner keeps their
+        # question. `test_the_models_reasoning_never_becomes_the_patients_words`
+        # fails if this changes.
+        text = (message.content or "").strip()
         # Usage is read defensively: it is the provider's field, not ours, and
         # a missing one should cost a zero in the cost table rather than a
         # 500 in the middle of a consultation.
