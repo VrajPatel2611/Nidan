@@ -400,6 +400,34 @@ project's files, and switching to it would look like the whole repo vanished.
   **Done when:** `python test_api.py` prints OK on your machine and Playtest's
   Ask returns a reply.
 
+- [ ] **Y-14** (2026-11-04, from Vraj) · **You are first now — start T-032.**
+
+  Deliberate sequencing decision, not a default. Phase 3 has ~20 days left and
+  **19 of them are yours**; Vraj has 1 (T-035, which nothing waits on). Nothing
+  he builds moves the semester-end demo, so he is standing aside until your
+  track is moving.
+
+  **Your run, in order:** T-032 (4 d) → T-033 (3 d) → T-034 (6 d) → T-036
+  (3 d) → T-037 (3 d).
+
+  **T-032 is unblocked today** — it depends only on T-011, which is done.
+  Nothing from Vraj is needed to begin.
+
+  Two things that land before you need them:
+
+  - **Before you touch Playtest or any patient reply: pull `main` and make
+    sure the T-031 merge is in it.** Y-13's `.env` change is necessary but not
+    sufficient — the `reasoning_effort` fix that makes the new model return a
+    usable reply is in that branch. Without it the patient comes back empty or
+    truncated and it will look like your problem.
+  - **API-6 is being settled this week.** It decides whether
+    `questions_remaining` appears on the session response, which is the
+    consultation screen's question-counter. You do not hit it until T-034, ~7
+    working days in. **Do not design the T-034 header around either answer
+    until Vraj has confirmed it** — see Y-10.
+
+  **Done when:** T-032's four criteria are met and it is merged.
+
 ## Notes
 
 ### The `/v1` API, as of T-030 (2026-11-03)
