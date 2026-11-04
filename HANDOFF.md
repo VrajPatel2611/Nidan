@@ -49,7 +49,36 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-*Empty — V-6 answered 2026-10-29, see Done.*
+- [ ] **V-7** (2026-11-04, from Yogesh) · **Three things from T-032 — one
+  file fixed on your side of the line, and the Supabase dashboard settings the
+  web app needs.** Branch `feat/t-032-nextjs-scaffold` (`e42c287`).
+
+  1. **`openapi.yaml` was invalid YAML, and I fixed it.** `DELETE /me` had two
+     `description:` keys — T-030 slice 5 (`3c124ec`) added the "Still returns
+     501" text above the original without removing it. PyYAML keeps the last
+     duplicate silently, so `test_openapi.py` passed; the type generator's
+     strict parser refused the file. I merged the two into one description,
+     nothing lost, and `test_openapi.py` still passes. **Please check the
+     wording is what you meant.** The new "Web app" CI job runs
+     `npm run check:api`, which is now the only strict parse the contract gets —
+     a duplicated key anywhere will fail it.
+  2. **Changing `openapi.yaml` now means regenerating the web types.** Run
+     `npm run gen:api` in `web/` and commit `web/src/api/schema.ts` with the
+     contract change, or the "Web app" job goes red. That includes API-6.
+  3. **Supabase dashboard, for the web app's sign-in (yours — no code needed):**
+     - **Authentication → URL Configuration → Redirect URLs:** add
+       `http://localhost:3000/auth/callback` (and the production URL later).
+       Every email link and OAuth return lands there.
+     - **Providers:** enable Google and Apple, or their buttons answer "We
+       couldn't reach Google. Try again or use email."
+     - **Confirm email:** tell me whether it is on. It decides whether S-03's
+       "unverified email: login succeeds" can ever happen — with it on, Supabase
+       refuses the login and the app routes to S-06 instead.
+     - **Leaked-password protection**, if the plan includes it — the app's own
+       common-password list is short on purpose.
+
+  Done when the dashboard settings are in and you have looked at the
+  `openapi.yaml` wording.
 
 ## Inbox — for Yogesh
 
@@ -581,6 +610,18 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-04** · **T-032 built on `feat/t-032-nextjs-scaffold` (`e42c287`),
+  not pushed yet — Yogesh decides.** `web/`: Next.js 16 + TypeScript 5.9,
+  tokens from §3.1–3.4 (tested against UX_SPEC.md itself), types generated from
+  `openapi.yaml` with a CI staleness check, the 19 §3.5 components, and
+  S-02…S-06 + S-22 as server actions with httpOnly cookies. 105 web tests,
+  tsc/ESLint clean, `npm audit` 0, production build green; 979 Python tests
+  still pass. **Not yet run against the live Supabase project** — needs the
+  anon key (Y-4) and V-7's dashboard settings. Also on Yogesh's laptop today:
+  `main` pulled to PR #42, local DB at 032, and Y-13's `GROQ_MODEL` changed to
+  `openai/gpt-oss-120b` — but **`GROQ_API_KEY` is empty on this laptop**, so
+  `test_api.py` cannot pass here until Yogesh pastes the key in.
 
 - **2026-11-04** · **Y-12 resolved — the patient model was retired, not
   misconfigured.** `python test_api.py` returned 404 model_not_found; Groq
