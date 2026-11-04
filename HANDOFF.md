@@ -326,8 +326,10 @@ project's files, and switching to it would look like the whole repo vanished.
   designed against guesses. Read `docs/build-log/T-031-llm-gateway-hardening.md`
   when you pick it up.
 
-- [ ] **Y-12** (2026-11-04, from Vraj) · **Playtest's patient is currently
-  broken on every machine, and it is not your code.** The configured default
+- [x] **Y-12** (2026-11-04, from Vraj) · ~~**Playtest's patient is currently
+  broken on every machine, and it is not your code.**~~ **RESOLVED same day —
+  see Y-13 for what you must do, and Done for why. The "do not change
+  `GROQ_MODEL`" instruction below is now OBSOLETE: you DO need to change it.** The configured default
   model `llama-3.3-70b-versatile` returns **404 model_not_found** from the live
   Groq API. The key can reach eleven models and **none of them is a Llama chat
   model** — `openai/gpt-oss-120b`, `openai/gpt-oss-20b` and `qwen/qwen3.8-27b`
@@ -354,6 +356,49 @@ project's files, and switching to it would look like the whole repo vanished.
   to work around it** — two laptops silently running different patient models
   would make every leakage observation incomparable. Override is
   `GROQ_MODEL` / `GROQ_MODEL_PATIENT` in `.env` when the time comes.
+
+- [ ] **Y-13** (2026-11-04, from Vraj) · **Change `GROQ_MODEL` in your `.env`,
+  or Playtest's patient will keep returning 503.** This supersedes Y-12.
+
+  **Groq retired `llama-3.3-70b-versatile` on 2026-08-16** (Free and Developer
+  tiers). It was not an access setting and there is nothing to re-enable — the
+  whole Llama chat line is gone from the account. The replacement is
+  `openai/gpt-oss-120b`, Groq's own named one, and it is **cheaper on both
+  meters**: $0.15/$0.60 per million against $0.59/$0.79. One patient turn costs
+  about $0.000035.
+
+  ```bash
+  git pull                      # main, once the T-031 PR is merged
+  # then in your .env, change this one line:
+  #   GROQ_MODEL=openai/gpt-oss-120b
+  python test_api.py            # must print "OK: the patient replied"
+  ```
+
+  `.env.example` carries the new value and the reason; your own `.env`
+  overrides it, so pulling is not enough.
+
+  **Three things that matter for your screens:**
+
+  1. **It is a reasoning model.** `max_tokens` covers the model's deliberation
+     *and* its reply, so `GroqProvider` sends `reasoning_effort="low"`. Without
+     it a 60-token budget went entirely to deliberation and returned a sentence
+     cut off mid-word. If you ever add a call site, do not set `max_tokens`
+     tight.
+  2. **Never read `message.reasoning`.** On these models it discusses the
+     system prompt, and for the patient that is the whole case including the
+     correct diagnosis. Falling back to it when `content` is empty would put
+     the answer in the patient's mouth, and it would not pass through
+     `case_view.py`, so CT-1 would not catch it. There is a named test; leave
+     it alone.
+  3. **The ten personas were tuned against the retired model.** The detectors
+     are unaffected (PR-1 — they are deterministic Python over stored
+     questions, and the 94.4% validation and golden record did not move), but
+     the patient's *voice and leakage discipline* will differ. **Worth a pass
+     through Playtest on a couple of cases before a reviewer sees one** — and
+     tell Vraj if a patient volunteers too much.
+
+  **Done when:** `python test_api.py` prints OK on your machine and Playtest's
+  Ask returns a reply.
 
 ## Notes
 
@@ -508,6 +553,22 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-04** · **Y-12 resolved — the patient model was retired, not
+  misconfigured.** `python test_api.py` returned 404 model_not_found; Groq
+  retired `llama-3.3-70b-versatile` on **2026-08-16** on the Free and Developer
+  tiers, so it had been broken for eleven weeks. Nothing in the suite caught it
+  and nothing should have — T-002 criterion 1 is that no test makes a network
+  call, so the suite never asks a provider whether the configured model still
+  exists.
+
+  Moved to `openai/gpt-oss-120b` on branch `feat/t-031-gateway-accounting`
+  (commit `7113239`), together with the `reasoning_effort` handling and the
+  `message.reasoning` guard that a reasoning model requires. `test_api.py` now
+  runs through the real gateway — building its own client had made it a test of
+  a path the application does not take, and it reported "empty response" for a
+  model the gateway handled fine. Verified live: 97 tokens in, 34 out, 666 ms,
+  $0.000035. **Action for Yogesh moved to Y-13.**
 
 - **2026-10-29** · **V-6 answered.** Both of Yogesh's T-023 additions reviewed.
 
