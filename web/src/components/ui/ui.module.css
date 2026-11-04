@@ -1,0 +1,174 @@
+/* The component library (UX_SPEC §3.5). Tokens only — no raw colours. */
+
+/* ── Button ─────────────────────────────────────────────────────────── */
+.button {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
+  border: 1px solid transparent; border-radius: var(--r-sm);
+  font: var(--t-body); font-weight: 600; cursor: pointer;
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+.button:disabled { opacity: .55; cursor: not-allowed; }
+.sm { padding: var(--s-1) var(--s-3); font: var(--t-body-sm); font-weight: 600; }
+.md { padding: var(--s-2) var(--s-4); }
+.lg { padding: var(--s-3) var(--s-6); }
+.block { width: 100%; }
+.primary { background: var(--teal); color: var(--paper); }
+.primary:not(:disabled):hover { background: var(--teal-hover); }
+.secondary { background: var(--paper); color: var(--ink); border-color: var(--rule); }
+.secondary:not(:disabled):hover { background: var(--surface-2); }
+.ghost { background: transparent; color: var(--teal); }
+.ghost:not(:disabled):hover { background: var(--teal-subtle); }
+.destructive { background: var(--red); color: var(--paper); }
+.destructive:not(:disabled):hover { filter: brightness(.92); }
+
+/* ── Fields ─────────────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: var(--s-1); margin-bottom: var(--s-4); }
+.label { font: var(--t-body-sm); font-weight: 600; color: var(--ink); }
+.control {
+  display: flex; align-items: stretch;
+  border: 1px solid var(--rule); border-radius: var(--r-sm); background: var(--paper);
+}
+.control:focus-within { border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+.control.invalid { border-color: var(--red); }
+.input, .textarea, .select {
+  flex: 1; min-width: 0; border: 0; background: transparent; color: var(--ink);
+  font: var(--t-body); padding: var(--s-2) var(--s-3); border-radius: var(--r-sm);
+}
+.input:focus, .textarea:focus, .select:focus { outline: none; }
+.textarea { resize: none; overflow: hidden; }
+.select { appearance: auto; }
+.trailing { display: flex; align-items: center; padding-right: var(--s-1); }
+.meta { display: flex; justify-content: space-between; gap: var(--s-2); font: var(--t-caption); color: var(--muted); }
+.error { font: var(--t-body-sm); color: var(--red); }
+
+/* ── Chip ───────────────────────────────────────────────────────────── */
+.chip {
+  display: inline-flex; align-items: center; gap: var(--s-1);
+  padding: var(--s-1) var(--s-3); border-radius: var(--r-sm);
+  border: 1px solid var(--rule); background: var(--paper); color: var(--ink);
+  font: var(--t-body-sm); cursor: pointer;
+}
+.chip:not(:disabled):hover { background: var(--surface-2); }
+.chip[aria-pressed="true"] { background: var(--teal-subtle); border-color: var(--teal); color: var(--teal-hover); }
+.chip:disabled { color: var(--muted); background: var(--surface); cursor: not-allowed; }
+
+/* ── Card ───────────────────────────────────────────────────────────── */
+.card { background: var(--surface); border-radius: var(--r-md); padding: var(--s-6); }
+.elevated { background: var(--paper); box-shadow: var(--shadow-1); }
+
+/* ── Banner ─────────────────────────────────────────────────────────── */
+.banner {
+  display: flex; gap: var(--s-3); align-items: flex-start;
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-sm);
+  border: 1px solid; font: var(--t-body-sm); margin-bottom: var(--s-4);
+}
+.bannerBody { flex: 1; }
+.info    { background: var(--teal-subtle);  border-color: var(--teal);  color: var(--ink); }
+.success { background: var(--green-subtle); border-color: var(--green); color: var(--ink); }
+.warning { background: var(--amber-subtle); border-color: var(--amber); color: var(--ink); }
+.errorBanner { background: var(--red-subtle); border-color: var(--red); color: var(--ink); }
+.dismiss { background: none; border: 0; color: var(--muted); cursor: pointer; font: var(--t-body); line-height: 1; padding: 0 var(--s-1); }
+
+/* ── Modal ──────────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: var(--s-4);
+  background: rgba(19, 39, 47, .45);
+}
+.modal {
+  width: 100%; max-width: 480px; background: var(--paper);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-2); padding: var(--s-6);
+}
+.modalTitle { font: var(--t-h2); margin: 0 0 var(--s-3); }
+.modalDestructive .modalTitle { color: var(--red); }
+.modalActions { display: flex; justify-content: flex-end; gap: var(--s-2); margin-top: var(--s-6); }
+
+/* ── Toast ──────────────────────────────────────────────────────────── */
+.toasts {
+  position: fixed; right: var(--s-6); bottom: var(--s-6); z-index: 60;
+  display: flex; flex-direction: column; gap: var(--s-2); max-width: 360px;
+}
+.toast {
+  padding: var(--s-3) var(--s-4); border-radius: var(--r-md); box-shadow: var(--shadow-2);
+  font: var(--t-body-sm); color: var(--paper); background: var(--ink);
+  border-left: 4px solid var(--green);
+}
+.toastError { border-left-color: var(--red); }
+
+/* ── Tabs ───────────────────────────────────────────────────────────── */
+.tablist { display: flex; gap: var(--s-4); border-bottom: 1px solid var(--rule); margin-bottom: var(--s-4); }
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: var(--s-2) 0; margin-bottom: -1px;
+  font: var(--t-body-sm); font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--teal); }
+
+/* ── Accordion ──────────────────────────────────────────────────────── */
+.accordion { border-top: 1px solid var(--rule); }
+.accordionItem { border-bottom: 1px solid var(--rule); }
+.accordionTrigger {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: none; border: 0; padding: var(--s-3) 0; font: var(--t-body); font-weight: 600;
+  color: var(--ink); cursor: pointer; text-align: left;
+}
+.accordionPanel { padding: 0 0 var(--s-4); }
+.chevron { transition: transform .15s ease; }
+.accordionTrigger[aria-expanded="true"] .chevron { transform: rotate(180deg); }
+
+/* ── ProgressBar ────────────────────────────────────────────────────── */
+.progress { height: 8px; border-radius: var(--r-full); background: var(--surface-2); overflow: hidden; }
+.progressFill { height: 100%; background: var(--teal); border-radius: var(--r-full); }
+
+/* ── StatTile ───────────────────────────────────────────────────────── */
+.stat { display: flex; flex-direction: column; gap: var(--s-1); padding: var(--s-4); background: var(--surface); border-radius: var(--r-md); }
+.statValue { font: var(--t-h1); color: var(--ink); }
+.statLabel { font: var(--t-caption); color: var(--muted); }
+
+/* ── Avatar ─────────────────────────────────────────────────────────── */
+.avatar {
+  display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+  border-radius: var(--r-full); background: var(--teal-subtle); color: var(--teal-hover);
+  font: var(--t-caption); font-weight: 600; flex: none;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Skeleton ───────────────────────────────────────────────────────── */
+.skeleton { display: block; background: var(--surface-2); border-radius: var(--r-sm); animation: pulse 1.4s ease-in-out infinite; }
+.skeletonText { height: 14px; margin-bottom: var(--s-2); }
+.skeletonCard { height: 120px; border-radius: var(--r-md); }
+.skeletonList { display: flex; flex-direction: column; gap: var(--s-2); }
+.skeletonRow { height: 44px; }
+@keyframes pulse { 50% { opacity: .55; } }
+
+/* ── EmptyState ─────────────────────────────────────────────────────── */
+.empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--s-2); padding: var(--s-12) var(--s-6); }
+.emptyIcon { font-size: 32px; color: var(--muted); }
+.emptyHeading { font: var(--t-h3); margin: 0; }
+.emptyBody { font: var(--t-body-sm); color: var(--muted); max-width: 40ch; margin: 0 0 var(--s-2); }
+
+/* ── Spinner ────────────────────────────────────────────────────────── */
+.spinner {
+  display: inline-block; border-radius: var(--r-full);
+  border: 2px solid currentColor; border-right-color: transparent;
+  animation: spin .7s linear infinite; vertical-align: middle;
+}
+.spinnerSm { width: 14px; height: 14px; }
+.spinnerMd { width: 20px; height: 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Tooltip ────────────────────────────────────────────────────────── */
+.tooltipWrap { position: relative; display: inline-flex; }
+.tooltip {
+  position: absolute; bottom: calc(100% + var(--s-2)); left: 50%; transform: translateX(-50%);
+  z-index: 40; padding: var(--s-1) var(--s-2); border-radius: var(--r-sm);
+  background: var(--ink); color: var(--paper); font: var(--t-caption);
+  white-space: nowrap; box-shadow: var(--shadow-2); pointer-events: none;
+}
+
+/* ── Badge ──────────────────────────────────────────────────────────── */
+.badge { display: inline-flex; align-items: center; padding: 2px var(--s-2); border-radius: var(--r-full); font: var(--t-caption); }
+.badgeNeutral { background: var(--surface-2); color: var(--ink); }
+.badgeGreen   { background: var(--green-subtle); color: var(--green); }
+.badgeAmber   { background: var(--amber-subtle); color: var(--amber); }
+.badgeRed     { background: var(--red-subtle);   color: var(--red); }

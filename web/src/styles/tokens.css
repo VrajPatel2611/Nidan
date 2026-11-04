@@ -1,0 +1,69 @@
+/*
+ * Design tokens — UX_SPEC §3.1–3.4, as CSS variables (T-032 criterion 1).
+ *
+ * The spec is the source. src/styles/tokens.test.ts reads UX_SPEC.md and fails
+ * if a colour, radius or shadow here differs from it, so change the spec first.
+ *
+ * Semantic discipline (§3.1): amber means "this needs your attention", green
+ * "done correctly", red "missed or failed". Never for visual variety.
+ */
+
+:root {
+  /* §3.1 Core */
+  --ink:          #13272F;
+  --ink-2:        #1C3641;
+  --paper:        #FFFFFF;
+  --surface:      #F4F7F8;
+  --surface-2:    #EAF1F3;
+  --rule:         #DFE7EA;
+  --muted:        #6C838D;
+
+  /* §3.1 Brand + action */
+  --teal:         #1F7A8C;
+  --teal-hover:   #186474;
+  --teal-subtle:  #E7F1F3;
+
+  /* §3.1 Semantic */
+  --amber:        #D97D34;
+  --amber-subtle: #FDF3E9;
+  --green:        #37785B;
+  --green-subtle: #E9F3EE;
+  --red:          #A93B2C;
+  --red-subtle:   #FBECEA;
+
+  /* §3.1 Focus */
+  --focus-ring:   #1F7A8C;
+
+  /* §3.2 Typography — each token is a `font` shorthand: weight size/line-height */
+  --font-ui:   var(--font-inter, 'Inter'), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  --t-display: 700 40px/46px var(--font-ui);
+  --t-h1:      700 30px/38px var(--font-ui);
+  --t-h2:      600 22px/30px var(--font-ui);
+  --t-h3:      600 18px/26px var(--font-ui);
+  --t-body:    400 16px/26px var(--font-ui);
+  --t-body-sm: 400 14px/22px var(--font-ui);
+  --t-caption: 500 12px/18px var(--font-ui);
+  --t-mono:    400 14px/22px var(--font-mono);   /* lab values and reference ranges only */
+
+  /* §3.3 Spacing — 4 px base scale */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+  --s-16: 64px;
+
+  /* §3.3 Radius */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-full: 999px;
+
+  /* §3.4 Elevation — two levels only, for overlays, dropdowns and modals */
+  --shadow-1: 0 1px 2px rgba(19,39,47,.06), 0 1px 3px rgba(19,39,47,.08);
+  --shadow-2: 0 4px 12px rgba(19,39,47,.10), 0 2px 4px rgba(19,39,47,.06);
+}

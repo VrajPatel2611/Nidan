@@ -1,0 +1,18 @@
+/* The auth screens (UX_SPEC S-02…S-06): max 420 px, vertically centred, no top navigation. */
+.shell {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: var(--s-8) var(--s-4); background: var(--surface);
+}
+.panel { width: 100%; max-width: 420px; }
+.brand { display: block; text-align: center; font: var(--t-h3); color: var(--teal); text-decoration: none; margin-bottom: var(--s-6); }
+.title { font: var(--t-h1); text-align: center; margin: 0 0 var(--s-2); }
+.lede { font: var(--t-body); color: var(--muted); text-align: center; margin: 0 0 var(--s-6); }
+.oauth { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); margin-bottom: var(--s-4); }
+.divider { display: flex; align-items: center; gap: var(--s-3); color: var(--muted); font: var(--t-caption); margin: var(--s-4) 0; }
+.divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--rule); }
+.reveal { background: none; border: 0; color: var(--teal); font: var(--t-caption); cursor: pointer; padding: var(--s-1) var(--s-2); }
+.fine { font: var(--t-caption); color: var(--muted); text-align: center; margin: var(--s-4) 0 0; }
+.footer { font: var(--t-body-sm); text-align: center; margin: var(--s-6) 0 0; color: var(--muted); }
+.forgot { display: block; text-align: right; font: var(--t-body-sm); margin: calc(-1 * var(--s-2)) 0 var(--s-4); }
+.center { text-align: center; }
+.actions { display: flex; flex-direction: column; gap: var(--s-2); align-items: center; margin-top: var(--s-4); }
