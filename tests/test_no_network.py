@@ -11,14 +11,32 @@ import pytest
 import nidan.api.routes as routes
 import nidan.api.v1.consultation as consultation
 import nidan.infra.feedback as infra_feedback
-from nidan.infra.llm import gateway
+from nidan.infra.llm import gateway, provider
 from tests.app_config import llm_source_paths
 
 
 def test_the_guard_actually_blocks_a_real_client():
-    """The autouse fixture is in force, so constructing a client must fail."""
+    """
+    The autouse fixture is in force, so constructing a client must fail.
+
+    T-031 moved the factory from `gateway._get_client` to the provider seam,
+    and this test failed loudly on the rename — which is what it is for. The
+    docstring above warns about "patching a path that no longer exists", and a
+    guard written against the gateway's own symbol would have become one.
+    """
     with pytest.raises(AssertionError, match="real LLM client"):
-        gateway._get_client()
+        provider.GroqProvider()._get_client()
+
+
+def test_the_guard_blocks_a_call_through_the_gateway_itself():
+    """
+    Stronger than the one above, and the reason it is here: the guard matters
+    only if it survives the whole path a real call takes. `call_llm` resolves
+    the provider, hits the patched factory, finds the failure untransient and
+    re-raises on the first attempt — so no retry loop sleeps either.
+    """
+    with pytest.raises(AssertionError, match="real LLM client"):
+        gateway.call_llm([{"role": "user", "content": "hello"}], "You are a patient.")
 
 
 def test_every_call_llm_import_site_is_patched_by_the_fake_llm_fixture(fake_llm):

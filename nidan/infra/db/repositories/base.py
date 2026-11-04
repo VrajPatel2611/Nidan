@@ -132,6 +132,7 @@ class Repositories:
         from nidan.infra.db.repositories.idempotency import (
             IdempotencyRepository,
         )
+        from nidan.infra.db.repositories.llm import LlmCallRepository
         from nidan.infra.db.repositories.profiles import ProfileRepository
         from nidan.infra.db.repositories.progress import ProgressRepository
         from nidan.infra.db.repositories.results import (
@@ -157,6 +158,7 @@ class Repositories:
         self.catalog = CatalogRepository(conn, actor)
         self.idempotency = IdempotencyRepository(conn, actor)
         self.progress = ProgressRepository(conn, actor)
+        self.llm_calls = LlmCallRepository(conn, actor)
 
 
 @contextmanager

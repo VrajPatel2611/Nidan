@@ -129,19 +129,43 @@ def _no_real_llm(monkeypatch):
     """
     Make a real model call impossible.
 
-    Patches the gateway's client factory rather than `call_llm`, because that
+    Patches the provider's client factory rather than `call_llm`, because that
     is the single point where a network connection is actually constructed.
     Anything that reaches it — including code a future test forgets to stub —
     fails loudly here instead of quietly spending Groq quota.
+
+    T-031 moved that point: the factory used to be `gateway._get_client` and
+    is now `GroqProvider._get_client`, behind the provider seam. Patched on the
+    class, so it covers the instance `provider.for_name()` caches for the
+    process as well as any built later.
     """
-    def _forbidden():
+    def _forbidden(self):
         raise AssertionError(
             "A test tried to construct a real LLM client. Tests must never call "
             "a live model — use the `fake_llm` fixture, or FakeLLM directly."
         )
 
-    monkeypatch.setattr("nidan.infra.llm.gateway._get_client", _forbidden)
+    monkeypatch.setattr(
+        "nidan.infra.llm.provider.GroqProvider._get_client", _forbidden)
     monkeypatch.setenv("GROQ_API_KEY", "test-key-never-used")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_circuit_breaker():
+    """
+    The breaker is process state, and the suite is one process.
+
+    Autouse for the same reason `_no_real_llm` is: three tests that each
+    provoke one gateway failure would trip it between them, and the fourth
+    test would fail with `CircuitOpen` while asserting something unrelated.
+    Its own tests build a local `CircuitBreaker` with an injected clock and
+    never touch this one.
+    """
+    from nidan.infra.llm.breaker import breaker
+
+    breaker.reset()
+    yield
+    breaker.reset()
 
 
 @pytest.fixture

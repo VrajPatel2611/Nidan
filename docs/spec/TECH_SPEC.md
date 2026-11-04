@@ -332,9 +332,13 @@ def complete(*, messages, system, max_tokens, temperature,
 
 Determinism note: the patient runs at temperature 0.7 and is **not** deterministic. The **marking** is (PR-1). Conflating these is the most common misunderstanding of the architecture.
 
+**The Current column changes, and did.** This read "Llama 3.3 70B via Groq" until 2026-11-04, when it turned out Groq had **retired `llama-3.3-70b-versatile` on 2026-08-16** on the Free and Developer tiers; every Llama chat model went with it and the configured default had been returning 404 for eleven weeks. PR-1 is what contained the damage — the detectors, the 94.4% validation and the golden record are deterministic Python over stored questions, so none of them moved. What a model change *does* invalidate is the leakage tuning of the ten case personas, which were written against the retired model. `openai/gpt-oss-120b` is Groq's own named replacement and is cheaper on both meters ($0.15/$0.60 per million against $0.59/$0.79).
+
+**It is a reasoning model, which the gateway has to account for.** `max_tokens` covers deliberation *and* content, so `GroqProvider` sends `reasoning_effort="low"` — measured at 34 completion tokens against 73 at medium for the same one-sentence reply. The deliberation arrives in a separate `message.reasoning` field and is **never read**: on these models it discusses the system prompt, which for the patient is the whole case including the answer. Falling back to it when `content` is empty would be the CT-1 leak by a route `case_view.py` does not guard.
+
 | Purpose | Requirement | Current | Selection criterion |
 |---|---|---|---|
-| Patient | Fast, cheap, disciplined about withholding | Llama 3.3 70B via Groq | **Leakage rate first**, then cost, then latency |
+| Patient | Fast, cheap, disciplined about withholding | `openai/gpt-oss-120b` via Groq | **Leakage rate first**, then cost, then latency |
 | Feedback | Pedagogical quality, obeys constraints | Same | Upgrade to a stronger model before launch |
 | Extraction | Strict schema adherence | — | Phase 7 |
 | Judge | Holistic clinical plausibility | — | **Must differ from extraction** — correlated errors otherwise |

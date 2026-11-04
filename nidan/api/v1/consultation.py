@@ -133,11 +133,12 @@ def ask_question(session_id: UUID):
     messages.append({"role": "user", "content": text})
 
     try:
-        reply = call_llm(
+        result = call_llm(
             messages=messages,
             system_instruction=(content or {}).get("system_prompt", ""),
             purpose="patient",
         )
+        reply = result.text
     except Exception:
         # 503, not 500: the request was fine and a dependency was not. The
         # reason is deliberately not echoed — a provider's error string can
@@ -162,6 +163,11 @@ def ask_question(session_id: UUID):
         if not early_already_noted and mentions_early_diagnosis(text):
             db.events.append(session_id, "early_diagnosis", {"text": text})
         db.sessions.touch(session_id)
+        # T-031 criterion 3. Written here and not in the gateway, which may
+        # not reach the database — see that module's docstring. This scope is
+        # already open for the events above, so the row costs no extra
+        # transaction.
+        db.llm_calls.record_call(result.call, session_id=session_id)
 
     # `questions_remaining` is in §6's example for this endpoint and is NOT
     # returned. The spec contradicts itself about it and API-6 logs the

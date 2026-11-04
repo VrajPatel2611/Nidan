@@ -60,7 +60,12 @@ A-bias-aware-vp-simulator/
 │   │   ├── feedback.py           feedback prompt building (no marking)
 │   │   └── types.py              shared type aliases
 │   ├── infra/              everything touching the outside world
-│   │   ├── llm/gateway.py        the ONE place we call a model
+│   │   ├── llm/ ★                everything that talks to a model
+│   │   │   ├── gateway.py          the ONE place we call a model; returns
+│   │   │   │                       metrics it may not write (T-031)
+│   │   │   ├── provider.py         the provider protocol + LLM_PROVIDER
+│   │   │   ├── breaker.py          the circuit breaker; process state ★
+│   │   │   └── pricing.py          per-model token prices, dated
 │   │   ├── auth/ ★                JWKS cache + token verification
 │   │   │   ├── jwks.py             cached 10 min; rotation handled
 │   │   │   └── tokens.py           aud + iss, not just the signature
@@ -78,7 +83,11 @@ A-bias-aware-vp-simulator/
 │   │   │       ├── results.py        session_results + engine_versions
 │   │   │       ├── selection.py      candidates · allowance · history
 │   │   │       ├── audit.py          every admin action, append-only
-│   │   │       ├── cases.py          published content, read-only
+│   │   │       ├── cases.py          learner reads; authoring needs AdminUser
+│   │   │       ├── reviews.py        review assignments + the rubric (T-023)
+│   │   │       ├── catalog.py        the universal menus; nothing per-case
+│   │   │       ├── idempotency.py    the §2.8 key store; hashes the body
+│   │   │       ├── llm.py            llm_calls — what each call cost (T-031)
 │   │   │       └── anonymous.py ⚠    the one path with RLS OFF
 │   │   ├── telemetry/            JSON logs, redaction, Sentry
 │   │   ├── storage.py            the research JSON export

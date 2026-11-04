@@ -175,6 +175,7 @@ class AnonymousRepositories:
 
     def __init__(self, conn: sa.engine.Connection, actor: AnonymousVisitor) -> None:
         from nidan.infra.db.repositories.cases import CaseRepository
+        from nidan.infra.db.repositories.llm import LlmCallRepository
 
         self.conn = conn
         self.actor = actor
@@ -188,6 +189,13 @@ class AnonymousRepositories:
         # Safe under a bypassing role because every query in CaseRepository
         # filters `status = 'published'` itself rather than trusting the policy.
         self.cases = CaseRepository(conn, actor)
+        # Accounting, and the trial needs it MORE than a signed-in session
+        # does: this is the unauthenticated, free, rate-limited path, which
+        # is the one whose cost someone would watch. Leaving it out would
+        # make the dashboard under-report exactly that traffic. Insert-only,
+        # and the row holds tokens, cost and latency -- nothing personal, so
+        # nothing the missing RLS could expose.
+        self.llm_calls = LlmCallRepository(conn, actor)
 
 
 @contextmanager

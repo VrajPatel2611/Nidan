@@ -141,13 +141,22 @@ def _register_health_endpoints(app: Flask) -> None:
         — so this reports what is true today rather than pretending. Each check
         is added as its dependency arrives.
         """
+        from nidan.infra.llm.breaker import breaker
+
         checks = {
             "config": True,                      # validated at import (T-006)
             "cases_loaded": _cases_loaded(),
             "llm_configured": settings.llm_configured,
+            # T-031. `TECH_SPEC` §11 lists "circuit breaker open" among the
+            # five things that page, so something has to say so; this is the
+            # endpoint ops already polls.
+            "llm_circuits_open": breaker.open_keys(),
         }
         # llm_configured is reported, not required: the app serves the case list
-        # and feedback fallback without a key.
+        # and feedback fallback without a key. An open circuit is reported for
+        # the same reason and a stronger one — failing readiness would pull the
+        # worker out of the load balancer during a provider outage, which takes
+        # down the nine-tenths of the product that needs no model at all.
         ready = checks["config"] and checks["cases_loaded"]
         return jsonify({"status": "ready" if ready else "not ready",
                         "checks": checks}), (200 if ready else 503)

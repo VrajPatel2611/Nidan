@@ -98,6 +98,14 @@ def test_the_trial_scope_reaches_nothing_but_its_own_consultation(app_db):
     feedback (`PRD` FR-2.2), so it is assessed like any other consultation, and
     the assessment is scoped to the visitor exactly as their events are. It is
     listed here as a decision rather than arriving with a refactor.
+
+    `llm_calls` joined it in T-031, and this test is why the decision got made
+    rather than defaulted. A trial visitor's patient turns cost real money on
+    the one path that is unauthenticated and free, so omitting them would make
+    the cost dashboard under-report precisely the traffic worth watching. It is
+    insert-only and the row holds tokens, cost and latency — nothing personal,
+    so nothing the absent RLS on this path could expose, and no read: the
+    visitor cannot see their own row, let alone anyone else's.
     """
     with anonymous_scope("visitor-a") as db:
         assert not hasattr(db, "profiles")
@@ -108,7 +116,7 @@ def test_the_trial_scope_reaches_nothing_but_its_own_consultation(app_db):
         # a decision someone made, not something that arrived with a refactor.
         assert sorted(k for k in vars(db) if not k.startswith("_")) == [
             "actor", "cases", "conn", "engines", "events", "feedback",
-            "results", "sessions"]
+            "llm_calls", "results", "sessions"]
 
 
 def test_a_visitor_cannot_open_the_general_repositories(app_db):

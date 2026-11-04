@@ -172,6 +172,65 @@ The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
 their timestamps are synthetic because the JSON never recorded the interleaving.
 Any query computing think-time must filter them out. (`DATA_MODEL` §9.3)
 
+**The gateway cannot write its own `llm_calls` row, and that is enforced.**
+`pyproject.toml`'s import-linter contract forbids `nidan.infra.llm` from
+importing `nidan.infra.db.engine` and **counts indirect imports**, so every
+repository is out of reach too. `call_llm` therefore returns an `LLMResult`
+— `.text` plus an `LLMCall` — and the **caller** records it inside a scope it
+already holds. `infra/feedback.py` is under the same restriction and passes
+them up through `FeedbackResult.call`, which is `None` on the rule-based
+fallback because nothing was billed. (`tests/db/test_llm_calls.py`)
+
+**The configured model can be retired out from under you, and no test will
+say so.** `python test_api.py` is the only check, because T-002 criterion 1 is
+that no test makes a network call — so the suite never asks a provider whether
+`GROQ_MODEL` still exists. Groq retired `llama-3.3-70b-versatile` on
+2026-08-16 and it took until 2026-11-04 to notice. **Run `test_api.py` after
+changing a model and before any demo or reviewer session.** It goes through
+the real gateway on purpose: when it built its own client it reported "empty
+response" for a model the application handled fine. PR-1 is what makes this
+survivable — the detectors, the 94.4 % validation and the golden record never
+touch a model — but a model change *does* invalidate the leakage tuning of all
+ten case personas. (`TECH_SPEC` §5.2 · `pricing.py` carries `PRICES_CHECKED`)
+
+**The patient's model is a reasoning model, and `message.reasoning` must never
+be read.** `max_tokens` covers deliberation *and* content on `openai/gpt-oss`,
+so `GroqProvider` sends `reasoning_effort="low"` — without it a 60-token
+budget went entirely to deliberation and returned a sentence cut off mid-word,
+and a truncated reply is worse than a failure because it is logged as a
+`patient_reply` and the engine scores it. The deliberation comes back in a
+separate field that discusses the system prompt — for the patient, the whole
+case including the answer. **Falling back to it when `content` is empty is the
+CT-1 leak by a route `case_view.py` does not guard**, so an empty reply raises
+and the learner keeps their question.
+(`test_the_models_reasoning_never_becomes_the_patients_words`)
+
+**The circuit breaker is process state, and that does not break `ADR-0003`.**
+Three consecutive failed *calls* on one `provider:model` open it for 30 s;
+after that one probe decides whether it closes or reopens. "Session state is
+never held in the process" is about a learner's consultation — replaying the
+log must give the same answer on any worker. This holds no session, no learner
+and no event, only how a dependency is behaving right now, and losing it on
+restart costs a count. It is **per `provider:model`**, because `TECH_SPEC` §5.2
+routes feedback to a stronger model than the patient turn and a global breaker
+would silence working feedback over a rate-limited patient model. Each of the 2
+workers trips its own, and the lock is not decorative: `--workers 2 --threads
+4` means four threads share it. `CircuitOpen` is a plain `RuntimeError` so the
+callers that already degrade on `Exception` needed no change — 503
+`patient_unavailable` without consuming the question, and the rule-based
+feedback fallback. (`TECH_SPEC` §5.1 · `tests/test_circuit_breaker.py`)
+
+**`purpose` has five values and `playtest` is not one of them.** Migration
+015's CHECK allows `patient`, `feedback`, `extraction`, `judge`, `grounding`.
+Playtest passes `purpose="playtest"`, which is right for the log line and
+unrecordable — and migration 024 withheld `llm_calls` from `nidan_reviewer`
+on purpose, so recording it would mean widening a CHECK *and* granting the
+narrowest role INSERT on the billing table, to account for an author's own
+turns against a draft. The admin Playtest route logs and records nothing;
+`repositories/llm.py` mirrors the five as `PURPOSES` and raises in Python
+rather than letting a CheckViolation abort a transaction opened for work that
+mattered more.
+
 **A failed LLM call must not consume the question.** The question event is
 appended only AFTER the reply returns, which is the opposite of orthodox
 event sourcing and deliberate twice over: `UX_SPEC` S-10 needs the typed
@@ -256,7 +315,11 @@ nidan/
     feedback.py           feedback prompt construction (prose only, no marking)
     feedback_view.py      the feedback screen, recomputed from the log
   infra/                everything that touches the outside world
-    llm/gateway.py        the single call site for the LLM
+    llm/gateway.py        the single call site for the LLM; returns metrics,
+                          cannot write them — see the rule below
+    llm/provider.py       the provider protocol; LLM_PROVIDER resolves it
+    llm/breaker.py        the circuit breaker — process state, on purpose
+    llm/pricing.py        per-model token prices, dated. cost_usd is NOT NULL
     auth/jwks.py          Supabase's signing keys, cached 10 min
     auth/tokens.py        JWT verification — aud and iss, not just the signature
     db/actor.py           who is asking — decides the DB role and auth.uid()
@@ -270,6 +333,7 @@ nidan/
       reviews.py            review assignments and the rubric; T-023
       catalog.py            the universal menus; no case-specific column
       idempotency.py        the §2.8 key store; hashes the body, never keeps it
+      llm.py                llm_calls — what each model call cost (T-031)
       progress.py           trends computed on read; user_progress stays empty
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
@@ -328,7 +392,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 913 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 979 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -344,7 +408,7 @@ python scripts/build_docx.py       # regenerate every .docx from its Markdown
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 32 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 342 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 360 schema, repository and route tests, real Postgres
 ```
 
 ---

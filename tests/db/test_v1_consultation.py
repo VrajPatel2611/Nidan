@@ -23,6 +23,7 @@ import pytest
 import sqlalchemy as sa
 
 from nidan.app import create_app
+from nidan.config import settings
 from tests.app_config import TEST_SECRET, TRUNCATE_SESSION_TABLES
 
 
@@ -179,6 +180,58 @@ def test_an_empty_question_is_refused(client, account, session_id):
 
 # ── §6 · the failure that must not cost the learner anything ─────────
 
+def test_a_question_records_what_the_call_cost(
+        client, account, session_id, fake_llm, live_db):
+    """
+    T-031 criterion 3. The gateway cannot write this row — `nidan.infra.llm`
+    may not reach the connection pool, and `lint-imports` enforces it — so the
+    handler writes it, inside the scope it already opened to append the events.
+
+    Asserted on the tokens, not just the row count: a zero-token row is the
+    shape a broken accounting path produces, and a count alone would pass
+    against one.
+    """
+    _, headers = account
+    r = client.post(f"/v1/sessions/{session_id}/questions",
+                    json={"text": "Does the pain radiate to your arm?"},
+                    headers=headers)
+    assert r.status_code == 201, r.get_json()
+
+    with live_db.connect() as c:
+        row = c.execute(sa.text(
+            "SELECT purpose, prompt_tokens, output_tokens, latency_ms, status "
+            "FROM llm_calls WHERE session_id = :sid"),
+            {"sid": session_id}).mappings().one()
+
+    assert row["purpose"] == "patient"
+    assert row["prompt_tokens"] == fake_llm.PROMPT_TOKENS
+    assert row["output_tokens"] == fake_llm.OUTPUT_TOKENS
+    assert row["status"] == "ok"
+
+
+def test_a_failed_call_records_nothing(
+        client, account, session_id, live_db, monkeypatch):
+    """
+    The same reasoning as the question event beside it: nothing happened that
+    a provider would bill for, so there is nothing to account. A row here
+    would put failed calls into cost-per-session reporting.
+    """
+    def boom(*args, **kwargs):
+        raise RuntimeError("provider down")
+
+    monkeypatch.setattr("nidan.api.v1.consultation.call_llm", boom)
+
+    _, headers = account
+    client.post(f"/v1/sessions/{session_id}/questions",
+                json={"text": "Where is the pain?"}, headers=headers)
+
+    with live_db.connect() as c:
+        n = c.execute(sa.text(
+            "SELECT count(*) FROM llm_calls WHERE session_id = :sid"),
+            {"sid": session_id}).scalar_one()
+    assert n == 0
+
+
 def test_patient_unavailable_does_not_consume_the_question(
         client, account, session_id, live_db, monkeypatch):
     """
@@ -207,6 +260,56 @@ def test_patient_unavailable_does_not_consume_the_question(
             "WHERE session_id = :sid AND type = 'question'"),
             {"sid": session_id}).scalar_one()
     assert n == 0, "the question was consumed by a failed model call"
+
+
+def test_an_open_circuit_still_does_not_consume_the_question(
+        client, account, session_id, live_db, monkeypatch):
+    """
+    T-031 criterion 5, reached the new way. The breaker is a second route to
+    `patient_unavailable`, and it bypasses the provider entirely — so the
+    guarantee has to be re-checked rather than assumed, which is the whole
+    reason `CircuitOpen` is a plain `RuntimeError` the existing `except`
+    already catches.
+    """
+    from nidan.infra.llm import provider
+    from nidan.infra.llm.breaker import breaker
+
+    # A provider that WOULD succeed, and counts. Without it this test passes
+    # for the wrong reason: the autouse no-network guard also produces a 503
+    # with nothing written, so disabling the breaker left the test green.
+    # Watched failing with `before_call` commented out.
+    class _WouldSucceed:
+        name = "groq"
+        calls = 0
+
+        def complete(self, **kwargs):
+            type(self).calls += 1
+            return provider.Completion(text="It aches at night.",
+                                       prompt_tokens=10, output_tokens=5)
+
+    monkeypatch.setattr(provider, "for_name", lambda name=None: _WouldSucceed())
+    for _ in range(breaker.threshold):
+        breaker.record_failure("groq:" + settings.GROQ_MODEL)
+
+    _, headers = account
+    r = client.post(f"/v1/sessions/{session_id}/questions",
+                    json={"text": "Does the pain wake you at night?"},
+                    headers=headers)
+    assert r.status_code == 503
+    assert r.get_json()["error"]["code"] == "patient_unavailable"
+    assert _WouldSucceed.calls == 0, "the breaker was open and the provider was called"
+
+    with live_db.connect() as c:
+        events = c.execute(sa.text(
+            "SELECT count(*) FROM session_events "
+            "WHERE session_id = :sid AND type = 'question'"),
+            {"sid": session_id}).scalar_one()
+        calls = c.execute(sa.text(
+            "SELECT count(*) FROM llm_calls WHERE session_id = :sid"),
+            {"sid": session_id}).scalar_one()
+
+    assert events == 0, "an open circuit consumed the question"
+    assert calls == 0, "a call that never happened was accounted"
 
 
 def test_the_failure_message_does_not_echo_the_provider(
