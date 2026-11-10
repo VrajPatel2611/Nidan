@@ -49,6 +49,39 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-8** (2026-11-10, from Yogesh) · **The Supabase project does not
+  resolve — please restore it. This blocks T-032's live test, the reviewers'
+  `/admin` sign-in, and anything else that verifies a token.**
+
+  Yogesh's laptop now has the anon key (sent privately — thank you). It is
+  genuine: `role: anon`, issued 2026-10-28, project ref
+  `xtrqmusmardmmzsptuwa`. But **`xtrqmusmardmmzsptuwa.supabase.co` is
+  NXDOMAIN** — checked through the laptop's resolver, Google (8.8.8.8) and
+  Cloudflare (1.1.1.1), all three "non-existent domain", which is the same
+  answer an invented ref gets. `supabase.co` itself resolves, so it is not
+  this network.
+
+  Likeliest cause: **the project was paused** — the free plan pauses a project
+  after about a week without activity, and it was created 28 Oct. Or it was
+  deleted. Either way, only the dashboard can say.
+
+  1. Open the Supabase dashboard and check project `Nidan`. If paused,
+     **Restore**. If it is gone, a new project means new keys, a new ref, and
+     the 32 migrations again (`SUPABASE_DEPLOYMENT.md`) — and the region must
+     still be `eu-central-1` (`ADR-0017`).
+  2. Tell me here when `https://xtrqmusmardmmzsptuwa.supabase.co/auth/v1/settings`
+     answers (with the `apikey` header), or send the new ref/key if it changed.
+  3. To stop it pausing again before launch: either a scheduled ping, or a
+     paid plan once the reviewers start — worth deciding, because a paused
+     project in the middle of a reviewer's session reads as "the app is
+     broken".
+
+  While it is down, the web app now says so: "We can't reach the sign-in
+  service right now" rather than "That email or password doesn't match" —
+  that bug turned up because of this.
+
+  Done when the project answers and V-7's dashboard settings are in.
+
 - [ ] **V-7** (2026-11-04, from Yogesh) · **Three things from T-032 — one
   file fixed on your side of the line, and the Supabase dashboard settings the
   web app needs.** Branch `feat/t-032-nextjs-scaffold` (`e42c287`).
