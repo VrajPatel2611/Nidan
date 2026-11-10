@@ -13,6 +13,7 @@ import { createProfile } from "@/lib/api";
 import { env } from "@/lib/env";
 import { landingPath, safeNext } from "@/lib/redirects";
 import { createSupabase, currentUser } from "@/lib/supabase/server";
+import { UNREACHABLE } from "@/lib/authCopy";
 import { emailError, normaliseEmail, passwordError } from "@/lib/validation";
 
 export type FormState = {
@@ -38,6 +39,18 @@ function isRateLimit(err: { status?: number; code?: string }): boolean {
   return err.status === 429 || Boolean(err.code?.startsWith("over_"));
 }
 
+/**
+ * Supabase itself could not answer — network, DNS, a paused project, a 5xx.
+ * Says so (U5: fail visibly), rather than reading as "wrong password" or
+ * "check your inbox", either of which would be false.
+ */
+function isUnreachable(err: { status?: number; name?: string }): boolean {
+  return !err.status || err.status >= 500 || err.name === "AuthRetryableFetchError";
+}
+
+const unreachable = (email?: string): FormState =>
+  ({ banner: { tone: "error", text: UNREACHABLE }, email });
+
 // ── S-02 · Signup ─────────────────────────────────────────────────────
 
 export async function signUp(_: FormState, fd: FormData): Promise<FormState> {
@@ -54,6 +67,7 @@ export async function signUp(_: FormState, fd: FormData): Promise<FormState> {
 
   if (error) {
     if (isRateLimit(error)) return { banner: { tone: "error", text: "Too many attempts. Try again in 15 minutes." }, retryUntil: Date.now() + RATE_LIMIT_S * 1000, email };
+    if (isUnreachable(error)) return unreachable(email);
     if (error.code === "weak_password") {
       return { fieldErrors: { password: "That password is too common — try something less predictable" }, email };
     }
@@ -87,6 +101,7 @@ export async function logIn(_: FormState, fd: FormData): Promise<FormState> {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
     if (isRateLimit(error)) return { banner: { tone: "error", text: "Too many attempts. Try again in 15 minutes." }, retryUntil: Date.now() + RATE_LIMIT_S * 1000, email };
+    if (isUnreachable(error)) return unreachable(email);
     if (error.code === "email_not_confirmed") redirect(`/verify?email=${encodeURIComponent(email)}`);
     // Never say which of the two was wrong (S-03); a deleted account reads the same.
     return { banner: { tone: "error", text: "That email or password doesn't match." }, email };
@@ -131,9 +146,10 @@ export async function requestReset(_: FormState, fd: FormData): Promise<FormStat
   if (emailError(email)) return { fieldErrors: { email: emailError(email)! }, email };
 
   const supabase = await createSupabase();
-  // The result is deliberately ignored: the confirmation is the same whether
-  // or not the address has an account (S-04).
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: callbackUrl({ type: "recovery" }) });
+  // The confirmation is the same whether or not the address has an account
+  // (S-04). An outage is not an answer about the account, so it alone is said.
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: callbackUrl({ type: "recovery" }) });
+  if (error && isUnreachable(error)) return unreachable(email);
   return { sent: email };
 }
 
@@ -178,5 +194,6 @@ export async function resendVerification(_: FormState, fd: FormData): Promise<Fo
   if (error && isRateLimit(error)) {
     return { banner: { tone: "error", text: "You've asked for a lot of links today. Try again tomorrow." }, email };
   }
+  if (error && isUnreachable(error)) return unreachable(email);
   return { banner: { tone: "success", text: "Sent. Check your inbox." }, retryUntil: Date.now() + 60_000, email };
 }

@@ -28,7 +28,7 @@ web/src/lib/                              env · Supabase clients · API client 
 openapi.yaml                              duplicated key fixed (§4.1)
 ```
 
-**105 tests** (Vitest), plus `tsc`, ESLint, the stale-types check, `npm audit`
+**118 tests** (Vitest), plus `tsc`, ESLint, the stale-types check, `npm audit`
 (0 vulnerabilities) and a production build — all of which the new CI job runs.
 
 ---
@@ -123,7 +123,22 @@ Supabase clients, redirects and API client. Locally everything worked, because
 the files were on disk; a clone would have failed to build. Re-included from
 `web/.gitignore`; the Python rule is untouched.
 
-### 4.3 jsdom wants Node 22.22+
+### 4.3 An outage read as "wrong password" — fixed 10 Nov
+
+With the anon key in place the project turned out to be unreachable (§6), and
+that showed the gap: Supabase failing to answer at all came back through the
+generic branch, so log-in said "That email or password doesn't match." and the
+reset form claimed to have sent a link. `isUnreachable()` now answers network
+errors, DNS failures and 5xx with "We can't reach the sign-in service right
+now" (U5: fail visibly). 13 action tests cover each Supabase answer; switching
+the check off turns 6 of them red.
+
+Running the real dev server also caught what the tests could not: a
+`"use server"` module may export async functions only, and exporting the
+message string from `actions.ts` failed every page with a 500. It lives in
+`lib/authCopy.ts`.
+
+### 4.4 jsdom wants Node 22.22+
 
 This laptop has 22.19 and the tests pass with a warning. CI uses the latest
 22.x.
@@ -142,8 +157,14 @@ This laptop has 22.19 and the tests pass with a warning. CI uses the latest
 
 ## 6 · Before this is called done — needs the live project
 
-None of the following can be checked from code; all need the Supabase project
-and its anon key, which this laptop does not have yet (handoff Y-4).
+None of the following can be checked from code; all need the Supabase project.
+
+**10 Nov: the anon key arrived, and the project does not resolve.** The key is
+genuine (`role: anon`, issued 28 Oct, project ref `xtrqmusmardmmzsptuwa`), but
+`xtrqmusmardmmzsptuwa.supabase.co` is NXDOMAIN from Google and Cloudflare DNS
+alike, while `supabase.co` resolves — the same answer as an invented ref. The
+project is paused or deleted; the free plan pauses inactive projects. Vraj to
+restore it (handoff V-8). Everything below waits on that.
 
 1. A real sign-up → verification email → callback → `POST /me` → `/welcome`.
 2. Log in, sign out, log back in.
@@ -166,7 +187,7 @@ npm ci
 npm run check:api        # src/api/schema.ts matches openapi.yaml
 npm run typecheck        # clean
 npm run lint             # clean
-npm test                 # 105 passed
+npm test                 # 118 passed
 npm audit --omit=dev     # 0 vulnerabilities
 npm run build            # 11 routes + proxy
 ```
