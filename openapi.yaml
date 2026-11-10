@@ -106,8 +106,8 @@ paths:
         erasure that redacts what the learner typed cannot run, and a 204
         having only anonymised the profile would claim an erasure that did not
         happen. See open question API-9.
-      description: >
-        Requires explicit confirmation. Session results and the research
+
+        Once it runs: requires explicit confirmation. Session results and the research
         pseudonym are retained so published analyses stay reproducible; the
         deletion screen must say so (`DATA_MODEL` §10.2).
       responses:

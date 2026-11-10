@@ -1,0 +1,14 @@
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Local configuration. .env.example is the committed template.
+.env*.local
+.env
+
+# The repository root ignores `lib/` (Python build output). This app's source
+# has a src/lib/ that must be committed.
+!src/lib/
