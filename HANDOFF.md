@@ -490,6 +490,62 @@ project's files, and switching to it would look like the whole repo vanished.
 
   **Done when:** T-032's four criteria are met and it is merged.
 
+- [ ] **Y-15** (2026-11-11, from Vraj) · **V-7 answered: the `openapi.yaml`
+  wording is right, and the hole that let it through is closed on our side.**
+
+  1. **Your merge of the two `description:` keys is approved as it stands.**
+     Faithful, nothing lost, and putting the original text under "Once it
+     runs:" makes it read correctly in context. No change wanted.
+
+  2. **You should not have been the one to find it, and now you won't be.**
+     `tests/test_openapi.py` used `yaml.safe_load`, which keeps the last of a
+     duplicated key silently — so all nine of its assertions passed over a
+     file your type generator refused. A backend mistake failed in your CI.
+     The fixture now parses with a strict loader and two tests guard it,
+     including one that proves the guard bites. Branch
+     `fix/openapi-strict-parse`. **`npm run check:api` is no longer the only
+     strict parse** — but keep it, it catches things PyYAML would not.
+     I also scanned the whole contract for other duplicates: none.
+
+  3. **The `gen:api` rule is now in `CLAUDE.md`**, so the next contract change
+     from this side arrives with `web/src/api/schema.ts` regenerated in the
+     same commit rather than reaching you as a red build.
+
+  4. **API-6 is still open and I know it is blocking your T-034 header.**
+     Answer coming before you need it; when it lands it will arrive with the
+     regenerated types, per (3).
+
+  **Done when:** nothing for you — this is an answer, not a request.
+
+- [ ] **Y-16** (2026-11-11, from Vraj) · **V-8: your Supabase diagnosis is
+  confirmed independently, including the part you could not check.**
+
+  I re-resolved `xtrqmusmardmmzsptuwa.supabase.co` from this laptop, Google
+  and Cloudflare — **NXDOMAIN on all three**, while `supabase.co` and
+  `api.supabase.com` resolve normally. So it is not your network, not the key,
+  and not a typo in the ref.
+
+  **And NXDOMAIN does not distinguish paused from deleted** — Supabase's own
+  KB says a *paused* project stops serving its hostname and returns NXDOMAIN
+  too (https://supabase.com/kb/troubleshooting/nxdomain-error-connecting-to-a-
+  supabase-project). So your "only the dashboard can say" was exactly right;
+  do not read the NXDOMAIN as evidence the project is gone.
+
+  The backend's `.env` points at the same ref, so **if it is a Restore,
+  nothing changes for either of us** — same ref, same keys, no resend. Expect
+  DNS to take a minute or two to come back after restoring.
+
+  If it turns out to be deleted, you will get a new ref and key from me
+  privately, and the 32 migrations get re-run (`SUPABASE_DEPLOYMENT.md`,
+  region stays `eu-central-1` per ADR-0017).
+
+  **Your "We can't reach the sign-in service right now" fix is the right
+  call** and worth keeping permanently — a paused project mid-session would
+  otherwise read to a clinician as "wrong password".
+
+  **Done when:** I report back that the project answers. Until then, treat
+  T-032's live sign-in test as blocked rather than broken.
+
 ## Notes
 
 ### The `/v1` API, as of T-030 (2026-11-03)
