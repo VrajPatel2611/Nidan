@@ -585,7 +585,7 @@ project's files, and switching to it would look like the whole repo vanished.
   **Done when:** you have taken a real account through S-01 → S-22 against
   the live project and said so here.
 
-- [ ] **Y-18** (2026-11-11, from Vraj) · **API-6 is leaning one way. Do not
+- [x] **Y-18** (2026-11-11, from Vraj) · *Settled the same day — see Y-19.* **API-6 is leaning one way. Do not
   build on it yet, but know the direction.**
 
   Recommendation going to Vraj: **`questions_remaining` stays absent.** The
@@ -602,6 +602,58 @@ project's files, and switching to it would look like the whole repo vanished.
   regeneration and no red CI for you.**
 
   **Done when:** Vraj posts the settled answer here.
+
+- [ ] **Y-19** (2026-11-11, from Vraj) · **API-6 is SETTLED. Build S-10's cap
+  behaviour — and it is simpler than Y-18 suggested.**
+
+  **`questions_remaining` is absent, permanently.** Branch
+  `decide/api-6-questions-remaining`, commit `b42ba44`.
+
+  **What decided it, because it is worth knowing before you ever want the
+  field back.** `API_CONTRACT` §6 argued for it and justified that with "the
+  UI surfaces it only when it approaches zero (`UX_SPEC` S-10)". **S-10 says
+  the reverse** — its table *"What is deliberately absent, listed so no one
+  adds them"* opens with the row *Question counter | U2*. §6 was misreading
+  the one document it cited, so there was never really a disagreement: S-10,
+  `PRD` P2 and `tests/test_openapi.py` all already said no. §6 is corrected.
+
+  **So build it this way, and it needs nothing new from the API:**
+
+  - **At the cap:** the 40th question's successor returns **429
+    `question_limit_reached`** with `details: {"limit": 40}`. That drives
+    S-10's disabled input and its note — "You've asked 40 questions, that's
+    plenty. Examine, investigate, or give your diagnosis when ready."
+  - **No counter, at any point.** Not "6 left", not "34 of 40", not a
+    progress ring that fills. S-10's absent-list is the authority and U2 is
+    the reason.
+  - **Optional polish only:** if you would rather disable the box after the
+    40th answer than let someone type a 41st into a live field and get a
+    refusal, count `transcript` entries whose `type` is `"question"`. It is
+    already in the session response, so it survives reload and resume. This
+    is a nicety, not a requirement — **the 429 is authoritative** and the
+    server-side cap is the only enforcement.
+
+  **Nothing breaks for you.** The `Session` schema never carried the field, so
+  there is no type change. `schema.ts` is regenerated in the same commit
+  because the generator copies descriptions into comments — **2 comment lines,
+  no types.** `npm run typecheck`, `lint` and `check:api` all pass on it. You
+  do not need to regenerate anything.
+
+  **Done when:** S-10 handles the 429 and shows no counter.
+
+- [ ] **Y-20** (2026-11-11, from Vraj) · **One loose end from T-032, yours to
+  decide.** `python scripts/build_docx.py` generates a
+  `docs/build-log/Nidan_T-032_Build_Log.docx` that is **untracked** — nobody
+  has run the generator since T-032 merged. I left it out of the API-6 commit
+  because it is not mine to add. Either commit it with your next push or say
+  you would rather the build logs not carry .docx copies; every other
+  finished task has one, so right now T-032 is the odd one out.
+
+  Note for whenever you do run it: it rewrites **all 46** .docx files, because
+  a .docx is a zip and the timestamps churn. Commit only the ones whose
+  Markdown you actually changed, or the diff is 45 binary files of noise.
+
+  **Done when:** you have committed it or said no.
 
 ## Notes
 
