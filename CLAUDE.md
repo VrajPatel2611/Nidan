@@ -99,6 +99,20 @@ counter.
 question counter, no topic hints, no completeness nudge before submitting. A
 visible metric teaches the metric, not the skill. (`PRD` P2 · contract tests CT-1, CT-2)
 
+**The one place the spec disagreed with that is settled: `questions_remaining`
+is absent, permanently.** `API_CONTRACT` §6 argued for it and cited `UX_SPEC`
+S-10 as surfacing it near zero — and S-10's table of what is deliberately
+absent *opens* with "Question counter | U2", so §6 was misreading the document
+it leaned on. Nothing is lost: the cap is a refusal, not a gauge. 429
+`question_limit_reached` carries `{"limit": 40}`, which is what drives S-10's
+disabled input, and a client that wants the figure earlier counts `transcript`
+entries of `type: question` from the response it already has — so
+`QUESTION_CAP` in `sessions.py` stays the single home for the 40.
+`test_the_cap_stays_derivable_without_a_counter_field` pins that premise,
+because if the transcript ever loses its discriminator the argument for
+re-adding the field becomes true. (API-6, settled 11 Nov 2026 ·
+`API_CONTRACT` §13)
+
 **Never use bias vocabulary in user-facing text.** Not "bias", "anchoring",
 "premature closure", or "confirmation bias". User-facing headings are
 *Diagnostic focus · History completeness · Evidence exploration*. (`PRD` P1 · CT-5)
@@ -281,7 +295,9 @@ fails otherwise. (CT-6, CT-7)
 **Touching `openapi.yaml` means three things in one commit, not one.**
 The contract, the code, **and** `web/src/api/schema.ts` — run `npm run gen:api`
 in `web/` and commit the result, or the "Web app" CI job fails on
-`npm run check:api`. That includes the API-6 decision whenever it lands.
+`npm run check:api`. **A description-only edit counts** — the generator copies
+them into `schema.ts` comments, which is why settling API-6 touched the
+frontend despite changing no field.
 And **YAML permits a duplicated key while a contract does not**: T-030 slice 5
 added a second `description:` to `DELETE /me` without removing the first, and
 because `yaml.safe_load` keeps the last one silently, every assertion in

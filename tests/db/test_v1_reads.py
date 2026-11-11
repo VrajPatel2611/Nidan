@@ -572,10 +572,11 @@ def test_no_assessment_state_reaches_a_live_consultation(
     """
     CT-2 and `PRD` P2, on the responses rather than on the schema.
 
-    `questions_remaining` is in this list and `API_CONTRACT` §6 says it should
-    be returned. The two halves of the spec disagree; API-6 logs it, and until
-    it is settled the field is absent. If it is ever added deliberately, this
-    line is the one to change — and changing it should take an argument.
+    `questions_remaining` is in this list and stays there: API-6 settled it
+    as permanently absent on 11 Nov 2026. §6 had argued for it while citing
+    `UX_SPEC` S-10, which lists "Question counter | U2" among what it says no
+    one should add; §6 has been corrected, so the sources now agree. Removing
+    this entry means reopening API-6, not fixing a test.
     """
     _, headers = account
     created = _start_session(client, headers)

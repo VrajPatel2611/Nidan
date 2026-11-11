@@ -188,15 +188,19 @@ def list_sessions():
 # `API_CONTRACT` §2.9: "Questions per session | 40 total". Enforcing it is
 # slice 3.
 #
-# **Not reported in the response**, although §6 says it should be:
-# "`questions_remaining` is included deliberately — it is a hard cap, not a
-# progress metric". `tests/test_openapi.py` names the field in the forbidden
-# set of `test_the_session_schema_exposes_no_assessment_state`, under PRD P2
-# and CT-1/CT-2 — so the two halves of the spec disagree, and the test is the
-# half that is executable. `CLAUDE.md` reads the same way about the monthly
-# allowance: "a visible counter teaches the counter."
+# **Not reported in the response**, and settled as API-6 on 11 Nov 2026.
+# §6 used to say it should be — "a hard cap, not a progress metric" — and
+# justified that by citing `UX_SPEC` S-10 as surfacing it near zero. S-10's
+# table of what is deliberately absent opens with "Question counter | U2", so
+# §6 was misreading its own cited source; it has been corrected. `PRD` P2,
+# CT-1/CT-2 and `tests/test_openapi.py` never disagreed, and `CLAUDE.md` reads
+# the same way about the monthly allowance: "a visible counter teaches the
+# counter."
 #
-# Left out until someone settles it on purpose. Logged in API_CONTRACT §13.
+# The cap stays a refusal: 429 `question_limit_reached` carries {"limit": 40}.
+# A client needing the figure counts `transcript` entries of type "question",
+# which the session response already returns — so this constant stays the one
+# home for the 40. Reasoning in full at API_CONTRACT §13 API-6.
 QUESTION_CAP = 40
 
 

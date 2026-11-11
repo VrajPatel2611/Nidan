@@ -242,6 +242,13 @@ class TestProductGuarantees:
         PRD P2 / CT-1, CT-2. A coverage figure or readiness hint on the session
         response teaches the metric instead of the skill, and the client would
         happily render it.
+
+        `questions_remaining` is in this set on purpose and stays: API-6
+        settled it as permanently absent on 11 Nov 2026. `API_CONTRACT` §6 had
+        argued for it, citing `UX_SPEC` S-10 — whose table of what is
+        deliberately absent opens with "Question counter | U2". §6 has been
+        corrected. Deleting the entry reopens a decision; it does not fix a
+        test.
         """
         session = api["components"]["schemas"]["Session"]["properties"]
         forbidden = {
@@ -251,6 +258,39 @@ class TestProductGuarantees:
         }
         leaked = forbidden & set(session)
         assert not leaked, f"assessment state exposed mid-consultation: {leaked}"
+
+    def test_the_cap_stays_derivable_without_a_counter_field(self, api):
+        """
+        The other half of API-6, and the half a schema change could break
+        silently.
+
+        Omitting `questions_remaining` costs nothing only because a client can
+        count its own questions out of what it is already sent: `transcript`
+        entries carry a `type`, and "question" is one of its values. If that
+        discriminator is ever dropped or renamed, the 40 has no second route to
+        a client and the pressure to re-add the forbidden field comes straight
+        back — with the argument that there is no alternative, which would by
+        then be true.
+
+        So this is not a test of `TranscriptEntry` for its own sake. It pins
+        the premise the decision rests on.
+        """
+        entry = api["components"]["schemas"]["TranscriptEntry"]["properties"]
+        assert "type" in entry, (
+            "TranscriptEntry lost its `type` discriminator — a client can no "
+            "longer tell a question from a reply, and API-6's reasoning "
+            "(API_CONTRACT §13) no longer holds"
+        )
+        values = entry["type"].get("enum")
+        assert values is not None, (
+            "TranscriptEntry.type has no enum, so nothing says `question` is "
+            "a value a client may rely on"
+        )
+        assert "question" in values, (
+            f"`question` is not among TranscriptEntry.type: {values}. API-6 "
+            f"assumes a client can count its own questions from the "
+            f"transcript it already has"
+        )
 
     def test_feedback_headings_are_the_neutral_ones(self, api):
         heading = (api["components"]["schemas"]["Feedback"]["properties"]
