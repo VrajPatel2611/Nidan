@@ -1028,7 +1028,7 @@ export interface components {
         };
         /**
          * @description Deliberately carries NO assessment state — no coverage, no question count against a target, no topic hints, no readiness (CT-1, CT-2).
-         *     `questions_remaining` is the one exception and API_CONTRACT §6 argues it explicitly: it is a hard cap of 40 (§2.9) rather than a progress metric, UX_SPEC S-10 surfaces it only as it approaches zero, and it says nothing about how much of the history has been covered.
+         *     There is no exception. `questions_remaining` was argued for in API_CONTRACT §6 and is **settled as absent** (API-6, 11 Nov 2026): §6 justified the field with "the UI surfaces it only when it approaches zero (UX_SPEC S-10)", and S-10's table "What is deliberately absent -- listed so no one adds them" opens with the row "Question counter | U2". The cap is a refusal, not a gauge.
          *     **Reconciled with API_CONTRACT §6 in T-030 slice 2b.** This schema had drifted from the prose spec — `id` for `session_id`, a flat `patient` with no case title, `{role, text}` transcript entries, `examinations_performed` for `examinations_done`, and no `questions_remaining` at all — and nothing compared the two, so neither side knew. T-032 generates the frontend types from this file, so the schema is what a client will actually be built against.
          */
         Session: {
@@ -1067,7 +1067,7 @@ export interface components {
         };
         /**
          * @description What the patient said, and nothing about how the learner is doing. matched_topics is computed and stored on the patient_reply event (DATA_MODEL §8.2) and never returned — that is CT-2 and PRD FR-4.7.
-         *     Neither `questions_asked` nor `questions_remaining` is here. The schema carried `questions_asked` ("a running count only, never a count against a target") and API_CONTRACT §6's example shows `questions_remaining`; CLAUDE.md's rule is "no coverage meter, no question counter". Logged as API-6 and left out until it is settled — the 429 refusal carries the limit in `details`, so a learner who runs out is told why without a counter running all session.
+         *     Neither `questions_asked` nor `questions_remaining` is here, and that is settled (API-6, 11 Nov 2026). The schema once carried `questions_asked` ("a running count only, never a count against a target") and API_CONTRACT §6's example once showed `questions_remaining`; both are gone. CLAUDE.md's rule is "no coverage meter, no question counter", and UX_SPEC S-10 lists "Question counter | U2" among the things it says no one should add. The 429 refusal carries the limit in `details`, so a learner who runs out is told why without a counter running all session.
          */
         PatientReply: {
             seq?: number;

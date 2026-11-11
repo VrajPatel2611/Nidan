@@ -423,12 +423,15 @@ Full state, for resuming (`PRD` FR-4).
   ],
   "investigations_done": [
     { "key": "ecg", "label": "ECG (12-lead)", "result": "Normal sinus rhythm…", "at": "…" }
-  ],
-  "questions_remaining": 34
+  ]
 }
 ```
 
-**`questions_remaining` is included deliberately** — it is a hard cap, not a progress metric, and the UI surfaces it only when it approaches zero (`UX_SPEC` S-10). It is not a coverage indicator and does not violate U2.
+**`questions_remaining` is deliberately absent** — settled as API-6 on 11 Nov 2026, reversing what this section used to say. The old text read "included deliberately… the UI surfaces it only when it approaches zero (`UX_SPEC` S-10)", and S-10 says the opposite: its table **"What is deliberately absent — listed so no one adds them"** begins with the row *Question counter | U2*. §6 cited as support the one document that forbids it.
+
+Nothing is lost by omitting it. The 40 is a refusal, not a gauge: a learner who reaches it gets 429 `question_limit_reached` carrying `{"limit": 40}` in `details`, which is what drives S-10's disabled input and its "You've asked 40 questions — that's plenty" note. A client that wants to disable the box before the 41st keystroke rather than on the refusal can count `transcript` entries whose `type` is `question` — the session response already carries them, across reloads and resumes, so the figure needs no field and no second source of truth for the cap.
+
+See §13 API-6 for the full reasoning.
 
 ---
 
@@ -447,8 +450,7 @@ Ask the patient. **The highest-volume endpoint.**
 {
   "seq": 7,
   "question": { "text": "Does the pain get worse after meals?", "at": "…" },
-  "reply":    { "text": "Yes, especially after dinner.",        "at": "…" },
-  "questions_remaining": 33
+  "reply":    { "text": "Yes, especially after dinner.",        "at": "…" }
 }
 ```
 
@@ -833,7 +835,7 @@ CI fails if `openapi.yaml` changes without the generated types being regenerated
 | API-3 | GraphQL alongside REST? | No. One client shape, known queries |
 | API-4 | Version the admin API separately? | No. Internal; ship breaking changes with the console |
 | API-5 | Return partial feedback while the LLM generates? | **No.** Partial Socratic feedback reads as broken. Poll instead |
-| API-6 | Does `questions_remaining` belong on the session response? | **⟨DECIDE⟩ — the spec contradicts itself, raised 2026-11-01 in T-030 slice 2b.** §6 says it is "included deliberately — a hard cap, not a progress metric… not a coverage indicator and does not violate U2". `tests/test_openapi.py::test_the_session_schema_exposes_no_assessment_state` names the field in its forbidden set, under `PRD` P2 and CT-1/CT-2, so someone considered this exact field and decided the other way. `CLAUDE.md` reads the same way about the monthly allowance: "Never show the remaining allowance during a consultation either… a visible counter teaches the counter." **Implemented as absent**, because omitting a field is one line to reverse and a U2 violation a client has started rendering is not. Settle before T-034 builds the consultation screen, which is where `UX_SPEC` S-10 wants to surface the cap as it approaches zero |
+| API-6 | Does `questions_remaining` belong on the session response? | **Settled 11 Nov 2026: no — absent, permanently.** Raised 2026-11-01 in T-030 slice 2b as a self-contradiction in this document. §6 argued the field was "included deliberately — a hard cap, not a progress metric", and justified it with "the UI surfaces it only when it approaches zero (`UX_SPEC` S-10)". **S-10 says the reverse**: its table *"What is deliberately absent — listed so no one adds them"* opens with *Question counter | U2*. So §6 was not a second opinion, it was a misreading of the document it cited, and three of the four sources never disagreed — S-10, `PRD` P2, and `tests/test_openapi.py::test_the_session_schema_exposes_no_assessment_state`, which names the field in its forbidden set under CT-1/CT-2. `CLAUDE.md` reads the same way about the monthly allowance: "a visible counter teaches the counter." **Nothing is lost.** The cap is a refusal, not a gauge: 429 `question_limit_reached` carries `{"limit": 40}` in `details`, which is what drives S-10's disabled input. A client wanting to disable the box before the 41st keystroke counts `transcript` entries of `type: question`, which the session response already carries — so the figure is derivable with no field, no duplicate source of truth for the 40, and no counter on screen. §6's example and prose corrected in the same commit; the `openapi.yaml` schema needed no change, because the field was never in it |
 | API-7 | §6's diagnosis table names `session_already_concluded`; §10's catalogue has `session_concluded` | **Typo in §6, raised 2026-11-03 in T-030 slice 4.** The catalogue governs — §10 says "once shipped, a code is never renamed or repurposed" — and `session_concluded` is what `nidan/api/errors.py` holds, what the enum lists, and what slice 3 already returns from three endpoints. Implemented as `session_concluded`; §6's mention should be corrected rather than a second code added |
 | API-8 | `GET /feedback` → `answer.trap_explanation` has no source | **Raised 2026-11-03 in T-030 slice 4.** §6's feedback example shows it, and no such field exists in `case_versions.content` (`DATA_MODEL` §8.1), in `cases.py`, or anywhere else — so there is nothing to return. Synthesising the prose server-side from `anchor_topic` would be inventing clinical explanation, which the LLM-never-marks rule exists to prevent in the other direction. **Implemented as `answer.anchor_topic`**, which is real. Giving each case a written trap explanation is content authoring for all ten cases plus a content-schema change; decide before T-036 builds the feedback screen |
 | API-9 | `DELETE /v1/me` cannot execute `DATA_MODEL` §10.2 | **⟨DECIDE⟩ — blocked, raised 2026-11-03 in T-030 slice 5, and the decision has a legal dimension.** §10.2's erasure runs `UPDATE session_events SET payload = jsonb_set(payload, '{text}', '"[redacted]"')`. Migration 010 applies `forbid_mutation()` to that table as `BEFORE UPDATE OR DELETE`, unconditionally — **verified that even the table owner is refused**. So the half of the erasure that redacts the learner's own free text cannot run. Four ways out, none of them a handler's to choose: (a) redact at read, leaving the text at rest — probably not erasure under GDPR; (b) narrow the trigger to permit a redaction that only overwrites `text`; (c) run erasure as a privileged offline job that disables the trigger; (d) retain the text and say so in the participant information, as §10.2 already does for `session_results`. **Implemented as 501**, because a 204 that anonymised only the profile would claim an erasure that did not happen — and §10.2 itself says a user "has a right to know what does not disappear" |

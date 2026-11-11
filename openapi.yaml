@@ -680,10 +680,12 @@ components:
         Deliberately carries NO assessment state — no coverage, no question
         count against a target, no topic hints, no readiness (CT-1, CT-2).
 
-        `questions_remaining` is the one exception and API_CONTRACT §6 argues
-        it explicitly: it is a hard cap of 40 (§2.9) rather than a progress
-        metric, UX_SPEC S-10 surfaces it only as it approaches zero, and it
-        says nothing about how much of the history has been covered.
+        There is no exception. `questions_remaining` was argued for in
+        API_CONTRACT §6 and is **settled as absent** (API-6, 11 Nov 2026):
+        §6 justified the field with "the UI surfaces it only when it
+        approaches zero (UX_SPEC S-10)", and S-10's table "What is
+        deliberately absent -- listed so no one adds them" opens with the
+        row "Question counter | U2". The cap is a refusal, not a gauge.
 
         **Reconciled with API_CONTRACT §6 in T-030 slice 2b.** This schema had
         drifted from the prose spec — `id` for `session_id`, a flat `patient`
@@ -715,21 +717,18 @@ components:
         investigations_done:
           type: array
           items: { $ref: '#/components/schemas/OrderResult' }
-        # questions_remaining is NOT here, and API_CONTRACT §6 says it should
-        # be: "included deliberately — it is a hard cap, not a progress
-        # metric... not a coverage indicator and does not violate U2."
+        # questions_remaining is NOT here, and that is settled rather than
+        # pending (API-6, 11 Nov 2026). API_CONTRACT §6 used to say it should
+        # be, citing UX_SPEC S-10 as surfacing it near zero; S-10 in fact
+        # lists "Question counter | U2" first among the things it says no one
+        # should add. §6 has been corrected.
         #
-        # tests/test_openapi.py names the field explicitly in the forbidden
-        # set of test_the_session_schema_exposes_no_assessment_state, under
-        # PRD P2 / CT-1 / CT-2. Someone considered this exact field and
-        # decided the other way, and CLAUDE.md's rule about the monthly
-        # allowance reads the same way: "Never show the remaining allowance
-        # during a consultation either... a visible counter teaches the
-        # counter."
-        #
-        # Left out until the conflict is settled deliberately. Omitting a
-        # field is one line to reverse; a U2 violation a client has started
-        # rendering is not. See docs/spec/API_CONTRACT.md §13.
+        # A client that wants the figure derives it: count `transcript`
+        # entries whose `type` is "question". It is already in this response,
+        # so the 40 keeps one home (API_CONTRACT §2.9, enforced server-side)
+        # and nothing on the wire teaches the counter. The at-cap state comes
+        # from the 429 `question_limit_reached`, whose `details` carry the
+        # limit -- that is what drives S-10's disabled input.
 
 
     SessionPage:
@@ -762,12 +761,14 @@ components:
         matched_topics is computed and stored on the patient_reply event
         (DATA_MODEL §8.2) and never returned — that is CT-2 and PRD FR-4.7.
 
-        Neither `questions_asked` nor `questions_remaining` is here. The
-        schema carried `questions_asked` ("a running count only, never a
-        count against a target") and API_CONTRACT §6's example shows
-        `questions_remaining`; CLAUDE.md's rule is "no coverage meter, no
-        question counter". Logged as API-6 and left out until it is settled —
-        the 429 refusal carries the limit in `details`, so a learner who runs
+        Neither `questions_asked` nor `questions_remaining` is here, and
+        that is settled (API-6, 11 Nov 2026). The schema once carried
+        `questions_asked` ("a running count only, never a count against a
+        target") and API_CONTRACT §6's example once showed
+        `questions_remaining`; both are gone. CLAUDE.md's rule is "no
+        coverage meter, no question counter", and UX_SPEC S-10 lists
+        "Question counter | U2" among the things it says no one should add.
+        The 429 refusal carries the limit in `details`, so a learner who runs
         out is told why without a counter running all session.
       properties:
         seq: { type: integer }

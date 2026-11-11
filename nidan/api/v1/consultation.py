@@ -169,10 +169,12 @@ def ask_question(session_id: UUID):
         # transaction.
         db.llm_calls.record_call(result.call, session_id=session_id)
 
-    # `questions_remaining` is in §6's example for this endpoint and is NOT
-    # returned. The spec contradicts itself about it and API-6 logs the
-    # conflict; the 429 above carries the limit in `details`, so a learner who
-    # runs out is told why without a counter running all session.
+    # `questions_remaining` is NOT returned, and API-6 settled that on
+    # 11 Nov 2026 rather than leaving it open: §6's example carried the field
+    # and its prose justified it by citing UX_SPEC S-10, which in fact lists
+    # "Question counter | U2" first among what it says no one should add. §6
+    # has been corrected. The 429 above carries the limit in `details`, so a
+    # learner who runs out is told why without a counter running all session.
     return jsonify({
         "seq": patient.seq,
         "question": {"text": text, "at": _iso(question.created_at)},
