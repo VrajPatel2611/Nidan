@@ -49,7 +49,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-- [ ] **V-8** (2026-11-10, from Yogesh) · **The Supabase project does not
+- [x] **V-8** (2026-11-10, from Yogesh) · *Answered 2026-11-11 — the project answers again; see Y-17.* **The Supabase project does not
   resolve — please restore it. This blocks T-032's live test, the reviewers'
   `/admin` sign-in, and anything else that verifies a token.**
 
@@ -545,6 +545,63 @@ project's files, and switching to it would look like the whole repo vanished.
 
   **Done when:** I report back that the project answers. Until then, treat
   T-032's live sign-in test as blocked rather than broken.
+
+- [ ] **Y-17** (2026-11-11, from Vraj) · **Supabase answers again — unblock
+  your sign-in testing. Two things to watch when you do.**
+
+  **1. The project is live.** `xtrqmusmardmmzsptuwa.supabase.co` now resolves
+  on this laptop, `8.8.8.8` and `1.1.1.1` (`104.18.38.10`, `172.64.149.246`),
+  and `/auth/v1/health` answers over HTTPS with
+  `sb-project-ref: xtrqmusmardmmzsptuwa` — the gateway recognises the ref and
+  routes it, which a paused project does not do. Same ref, same anon key,
+  **nothing in your `.env.local` changes.** Pull and try S-01 → S-22 again.
+
+  **2. Your redirect URL probably needs a globstar, not the exact path.**
+  `callbackUrl()` appends query params — `?next=…&tz=…`, and `?type=signup`
+  or `?type=recovery` on the email flows. Supabase's redirect docs document
+  wildcards (`*` stops at `/`, `**` crosses it) but **say nothing about how
+  query strings are compared**, and in their glob syntax a bare `?` is itself
+  a single-character wildcard. So a literal `http://localhost:3000/auth/callback`
+  entry may not match the URL your app actually sends.
+  https://supabase.com/docs/guides/auth/redirect-urls
+
+  I am adding **both** `http://localhost:3000/auth/callback` and
+  `http://localhost:3000/**` (the docs recommend the globstar for local
+  development). If a flow still bounces with `redirect_to` mismatch, compare
+  the URL in the browser address bar against the list rather than assuming the
+  provider is misconfigured — that is the only way to settle it.
+
+  **3. OAuth needs more than the Supabase toggle.** Google and Apple each
+  need their own client ID/secret in the Supabase provider panel, and their
+  consent screen needs
+  `https://xtrqmusmardmmzsptuwa.supabase.co/auth/v1/callback`
+  as an authorised redirect URI. I am enabling the toggles; if either provider
+  errors with `invalid_client` it is the upstream console, not your code.
+
+  **4. Email confirmation: I will tell you which way it is set** when I am in
+  the dashboard. It decides whether your S-03 "check your inbox" state can
+  happen at all, so do not harden that path until you hear.
+
+  **Done when:** you have taken a real account through S-01 → S-22 against
+  the live project and said so here.
+
+- [ ] **Y-18** (2026-11-11, from Vraj) · **API-6 is leaning one way. Do not
+  build on it yet, but know the direction.**
+
+  Recommendation going to Vraj: **`questions_remaining` stays absent.** The
+  reason it can resolve that way without losing `UX_SPEC` S-10 is that
+  **you can already derive it** — `Session.transcript` is an array of
+  `TranscriptEntry` with a `type`, so counting `type == "question"` gives the
+  figure from data the response already carries, across reloads and resumes.
+  Nothing new on the wire, and the 40 lives in one place as it does now.
+
+  If that is how it lands, S-10 shows **nothing** until the cap is close and
+  then a warning — not a running "n of 40", which is the counter `PRD` P2
+  forbids. **Wait for the settled answer before you wire the warning**, and
+  when it comes it is a docs-and-comments change, so **no `schema.ts`
+  regeneration and no red CI for you.**
+
+  **Done when:** Vraj posts the settled answer here.
 
 ## Notes
 
