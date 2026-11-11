@@ -278,6 +278,18 @@ is not catalogued, and on a status that contradicts the one §10 gives it —
 Adding a code means all three in one commit; `tests/test_api_contract.py`
 fails otherwise. (CT-6, CT-7)
 
+**Touching `openapi.yaml` means three things in one commit, not one.**
+The contract, the code, **and** `web/src/api/schema.ts` — run `npm run gen:api`
+in `web/` and commit the result, or the "Web app" CI job fails on
+`npm run check:api`. That includes the API-6 decision whenever it lands.
+And **YAML permits a duplicated key while a contract does not**: T-030 slice 5
+added a second `description:` to `DELETE /me` without removing the first, and
+because `yaml.safe_load` keeps the last one silently, every assertion in
+`tests/test_openapi.py` passed over a file the type generator refused — so a
+backend mistake surfaced in the frontend's CI four days later. That test now
+parses with a strict loader; `test_the_strict_loader_actually_rejects_a
+_duplicate` proves the guard bites.
+
 **Every operation `openapi.yaml` declares must answer.** If it is not
 built, it is listed in `nidan/api/v1/contract.py` and returns 501 with the
 envelope — which is what sync point S-1 means and what did not exist until
@@ -392,7 +404,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 979 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 981 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract

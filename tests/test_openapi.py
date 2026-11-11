@@ -22,9 +22,76 @@ yaml = pytest.importorskip("yaml")
 SPEC = pathlib.Path(__file__).resolve().parent.parent / "openapi.yaml"
 
 
+class DuplicateKey(ValueError):
+    """A mapping key given twice. YAML allows it; a contract cannot."""
+
+
+class _StrictLoader(yaml.SafeLoader):
+    """
+    `safe_load`, except a repeated key raises instead of winning.
+
+    **This file's docstring promised something `safe_load` does not deliver.**
+    PyYAML keeps the LAST of a duplicated key and says nothing, so when T-030
+    slice 5 added a second `description:` to `DELETE /me` without removing the
+    first, every assertion here passed over a file that strict parsers reject —
+    and the failure surfaced in the web app's type generator, on Yogesh's
+    laptop, four days later. The one guard was `npm run check:api`, which means
+    a backend mistake failed in the frontend's CI.
+    """
+
+
+def _no_duplicate_keys(loader, node, deep=False):
+    mapping: dict = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise DuplicateKey(
+                f"{key!r} is given twice in the same mapping, at line "
+                f"{key_node.start_mark.line + 1}. PyYAML keeps the last one "
+                f"silently; openapi-typescript refuses the file.")
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_StrictLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, _no_duplicate_keys)
+
+
 @pytest.fixture(scope="module")
 def api() -> dict:
-    return yaml.safe_load(SPEC.read_text(encoding="utf-8"))
+    """
+    The contract, parsed strictly.
+
+    Every other test in this file runs against this, so they all now fail on a
+    duplicated key rather than asserting over the last-one-wins result.
+    """
+    return yaml.load(SPEC.read_text(encoding="utf-8"), Loader=_StrictLoader)
+
+
+def test_the_contract_has_no_duplicate_keys():
+    """
+    Named separately from the fixture so the failure says what is wrong.
+
+    A fixture error reads as "every openapi test is broken"; this reads as
+    "line 103 defines `description` twice", which is the sentence someone
+    needs. Keep both.
+    """
+    yaml.load(SPEC.read_text(encoding="utf-8"), Loader=_StrictLoader)
+
+
+def test_the_strict_loader_actually_rejects_a_duplicate():
+    """
+    The guard above is only worth having if it bites, and `safe_load` passing
+    the same text is the whole point — that is what shipped the bug.
+    """
+    text = "paths:\n  /me:\n    delete:\n      description: first\n      description: second\n"
+
+    assert yaml.safe_load(text)["paths"]["/me"]["delete"]["description"] == "second", (
+        "safe_load should silently keep the last duplicate — if this fails, "
+        "PyYAML changed and the strict loader may be redundant")
+
+    with pytest.raises(DuplicateKey, match="description"):
+        yaml.load(text, Loader=_StrictLoader)
 
 
 def _as_openapi_path(rule: str) -> str:
