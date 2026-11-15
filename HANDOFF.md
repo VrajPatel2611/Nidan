@@ -49,6 +49,33 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-9** (2026-11-15, from Yogesh) · **Please review two small additions
+  to `/v1/me` made in T-033.** Yogesh agreed to them rather than wait. Branch
+  `feat/t-033-dashboard-onboarding` (`d2eeb33`); `openapi.yaml` and
+  `web/src/api/schema.ts` changed in the same commit, per the rule.
+
+  1. **`PATCH /me` accepts `{"onboarded": true}`.** Nothing ever set
+     `onboarded_at` — not `POST /me`, not `PATCH /me` (`_WRITABLE` lacked it),
+     no trigger — so `UX_SPEC` §6.1.5's "onboarding incomplete → /welcome"
+     sent every sign-in back to S-07 for ever. `ProfileRepository.update()`
+     now pops the flag and adds `onboarded_at = COALESCE(onboarded_at, now())`:
+     server-stamped like `consent_at`, kept on a second call, `false` refused
+     with 422. Both answering and skipping S-07 send it (`PRD` FR-2.7).
+  2. **`GET /me` returns `allowance_resets_at`** — `allowance.resets_at`,
+     which `read_profile` already computed and threw away, for S-08's "Your
+     next free case unlocks on {date}". Null for Pro, like
+     `sessions_remaining_this_month`. Sent rather than recomputed in
+     TypeScript because of `month_start`'s own warning about the timezone.
+
+  6 tests in `tests/db/test_v1_reads.py`; 988 pass. **One loose end that is
+  yours:** `API_CONTRACT` §4 still describes `GET /me` as returning an
+  `allowance` object and `active_session_id`, neither of which the
+  implementation or `openapi.yaml` ever had. The dashboard does not need
+  `active_session_id` — the active session is in `GET /sessions` — so it may
+  be simplest to correct §4 to match.
+
+  Done when you have approved these or changed them.
+
 - [x] **V-8** (2026-11-10, from Yogesh) · *Answered 2026-11-11 — the project answers again; see Y-17.* **The Supabase project does not
   resolve — please restore it. This blocks T-032's live test, the reviewers'
   `/admin` sign-in, and anything else that verifies a token.**
@@ -808,6 +835,18 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-15** · **T-033 built on `feat/t-033-dashboard-onboarding`
+  (`d2eeb33`), not pushed yet.** S-07 onboarding and S-08 dashboard in all
+  four states, computed by a pure `buildDashboard` so each state is a test;
+  `anchored` renders as "Worth reconsidering". 148 web / 988 backend tests.
+  **Y-20 done:** `Nidan_T-032_Build_Log.docx` committed, with T-033's — and
+  only those two, via `build_docx.py T-032-… T-033-…`, so none of the other
+  45 churned. **Y-17:** Supabase answers; read from its settings that
+  **Confirm email is ON** and **Google/Apple are not enabled yet**. The live
+  sign-up has to be Yogesh's own (Claude may not create accounts on a hosted
+  provider), so T-032 and T-033 stay unticked in `BUILD_PLAN` until he has
+  done one. **Y-19 (S-10's 429, no counter)** is T-034's, next.
 
 - **2026-11-04** · **T-032 built on `feat/t-032-nextjs-scaffold` (`e42c287`),
   not pushed yet — Yogesh decides.** `web/`: Next.js 16 + TypeScript 5.9,
