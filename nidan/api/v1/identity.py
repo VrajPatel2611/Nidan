@@ -13,6 +13,7 @@ the code against `API_CONTRACT` §10 before answering.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import datetime
 from typing import Any
 
 from flask import jsonify, make_response, request
@@ -34,6 +35,7 @@ from nidan.infra.db.repositories.trial import CLAIM_WINDOW_DAYS, TrialRepository
 _WRITABLE = frozenset({
     "display_name", "professional_role", "year_of_training", "country",
     "timezone", "consent_research", "consent_version",
+    "onboarded",          # T-033: ends S-07, answered or skipped; stamps onboarded_at
 })
 
 
@@ -43,7 +45,8 @@ _UNSET = object()
 
 
 def _profile_json(row: Mapping[str, Any],
-                  remaining: Any = _UNSET) -> dict[str, Any]:
+                  remaining: Any = _UNSET,
+                  resets_at: datetime | None = None) -> dict[str, Any]:
     """
     A profile as the contract describes it (`openapi.yaml` → `Profile`).
 
@@ -73,6 +76,13 @@ def _profile_json(row: Mapping[str, Any],
     }
     if remaining is not _UNSET:
         body["sessions_remaining_this_month"] = remaining
+        # When the free allowance resets, for S-08's "Your next free case
+        # unlocks on {date}" (T-033). Sent rather than left to the client: the
+        # month boundary is in the learner's timezone (`selection.month_start`),
+        # and a second copy of that arithmetic in TypeScript is how the reset
+        # comes to be a day out once a month. Null for Pro, like the count.
+        body["allowance_resets_at"] = (
+            resets_at.isoformat() if remaining is not None and resets_at else None)
     return body
 
 
@@ -195,7 +205,7 @@ def read_profile():
             now=now, timezone_name=row["timezone"],
             free_limit=settings.FREE_TIER_SESSIONS_PER_MONTH)
 
-    return jsonify(_profile_json(row, allowance.remaining)), 200
+    return jsonify(_profile_json(row, allowance.remaining, allowance.resets_at)), 200
 
 
 @bp.patch("/me")

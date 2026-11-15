@@ -1,0 +1,39 @@
+/* Signed-in pages (S-08 and those after it). */
+.page { min-height: 100vh; background: var(--paper); }
+.header {
+  display: flex; align-items: center; gap: var(--s-8);
+  padding: var(--s-3) var(--s-8); border-bottom: 1px solid var(--rule); background: var(--paper);
+}
+.brand { font: var(--t-h3); color: var(--teal); text-decoration: none; }
+.nav { display: flex; gap: var(--s-6); }
+.navLink { font: var(--t-body-sm); font-weight: 600; color: var(--muted); text-decoration: none; padding: var(--s-1) 0; border-bottom: 2px solid transparent; }
+.navLink:hover { color: var(--ink); }
+.navLink[aria-current="page"] { color: var(--ink); border-bottom-color: var(--teal); }
+.right { margin-left: auto; display: flex; align-items: center; gap: var(--s-4); }
+.allowance { font: var(--t-caption); color: var(--muted); }
+
+.main { max-width: 880px; margin: 0 auto; padding: var(--s-8) var(--s-6) var(--s-16); }
+.greeting { font: var(--t-h1); margin: 0 0 var(--s-6); }
+.hero { display: flex; justify-content: space-between; align-items: center; gap: var(--s-6); margin-bottom: var(--s-6); }
+.heroTitle { font: var(--t-h2); margin: 0 0 var(--s-1); }
+.heroBody { color: var(--muted); margin: 0; }
+.heroActions { display: flex; gap: var(--s-2); flex-shrink: 0; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-4); margin-bottom: var(--s-8); }
+.sectionHead { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s-3); }
+.sectionTitle { font: var(--t-h3); margin: 0; }
+.list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rule); border-radius: var(--r-md); }
+.row { display: grid; grid-template-columns: 1fr auto auto; gap: var(--s-4); align-items: center; padding: var(--s-3) var(--s-4); }
+.row + .row { border-top: 1px solid var(--rule); }
+.rowTitle { font-weight: 600; }
+.rowWhen { font: var(--t-body-sm); color: var(--muted); }
+.bannerRow { display: flex; justify-content: space-between; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
+.bannerActions { display: flex; gap: var(--s-2); }
+
+@media (max-width: 767px) {
+  .header { padding: var(--s-3) var(--s-4); gap: var(--s-4); flex-wrap: wrap; }
+  .nav { order: 3; width: 100%; }
+  .hero { flex-direction: column; align-items: flex-start; }
+  .tiles { grid-template-columns: 1fr 1fr; }
+  .row { grid-template-columns: 1fr auto; }
+  .rowWhen { grid-column: 1; }
+}

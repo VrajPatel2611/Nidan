@@ -167,6 +167,73 @@ def test_consent_with_a_version_is_recorded_with_a_server_timestamp(
     assert row["consent_at"] is not None
 
 
+def _onboarded_at(live_db, user_id):
+    with live_db.connect() as c:
+        return c.execute(sa.text("SELECT onboarded_at FROM profiles WHERE id = :id"),
+                         {"id": user_id}).scalar()
+
+
+def test_onboarded_stamps_the_time_once_and_keeps_the_first(client, account, live_db):
+    """
+    T-033. Nothing set `onboarded_at` before this, so S-07 could never end and
+    every sign-in landed back on it. The server stamps it, like `consent_at`,
+    and a second PATCH does not move it.
+    """
+    user_id, headers = account
+    assert _onboarded_at(live_db, user_id) is None
+
+    r = client.patch("/v1/me", json={"professional_role": "intern",
+                                     "year_of_training": 1, "onboarded": True},
+                     headers=headers)
+    assert r.status_code == 200
+    first = _onboarded_at(live_db, user_id)
+    assert first is not None
+    assert r.get_json()["onboarded_at"] is not None
+
+    client.patch("/v1/me", json={"onboarded": True}, headers=headers)
+    assert _onboarded_at(live_db, user_id) == first
+
+
+def test_skipping_onboarding_needs_nothing_but_the_flag(client, account, live_db):
+    """`PRD` FR-2.7: skipping never blocks usage — and it still ends onboarding."""
+    user_id, headers = account
+    r = client.patch("/v1/me", json={"onboarded": True}, headers=headers)
+    assert r.status_code == 200
+    assert _onboarded_at(live_db, user_id) is not None
+
+
+@pytest.mark.parametrize("value", [False, "yes", 1])
+def test_onboarded_accepts_only_true(client, account, live_db, value):
+    user_id, headers = account
+    r = client.patch("/v1/me", json={"onboarded": value}, headers=headers)
+    assert r.status_code == 422
+    assert _onboarded_at(live_db, user_id) is None
+
+
+def test_get_me_says_when_the_free_allowance_resets(client, account, live_db):
+    """
+    S-08's "Your next free case unlocks on {date}" (T-033). The first instant of
+    next month in the learner's timezone — computed by the server so the client
+    has no second copy of that arithmetic. Null for Pro, like the count.
+    """
+    from datetime import UTC, datetime
+
+    user_id, headers = account
+    body = client.get("/v1/me", headers=headers).get_json()
+    resets = datetime.fromisoformat(body["allowance_resets_at"])
+    now = datetime.now(UTC)
+    expected = (datetime(now.year + 1, 1, 1, tzinfo=UTC) if now.month == 12
+                else datetime(now.year, now.month + 1, 1, tzinfo=UTC))
+    assert resets == expected            # the fixture's profile is in UTC
+
+    with live_db.begin() as c:
+        c.execute(sa.text("UPDATE profiles SET subscription_tier = 'pro' WHERE id = :id"),
+                  {"id": user_id})
+    body = client.get("/v1/me", headers=headers).get_json()
+    assert body["sessions_remaining_this_month"] is None
+    assert body["allowance_resets_at"] is None
+
+
 def test_patch_on_a_missing_profile_is_404_not_a_create(client, authority, live_db):
     """
     §4 gives `POST /me` the job of creating one. A PATCH that created one
