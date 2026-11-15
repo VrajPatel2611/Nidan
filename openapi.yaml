@@ -587,6 +587,14 @@ components:
           description: >
             Free tier only. Shown on the dashboard, NEVER during a consultation
             (`PRD` P2).
+        allowance_resets_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: >
+            When the free allowance resets — the first instant of the learner's
+            next month, in their timezone. GET /me only; null for Pro. Drives
+            S-08's "Your next free case unlocks on {date}".
 
     ProfileCreate:
       type: object
@@ -608,6 +616,13 @@ components:
         country: { type: string, minLength: 2, maxLength: 2 }
         timezone: { type: string }
         consent_research: { type: boolean }
+        onboarded:
+          type: boolean
+          enum: [true]
+          description: >
+            Ends onboarding (S-07), whether its questions were answered or
+            skipped. The server stamps `onboarded_at` the first time and keeps
+            it; `false` is refused — there is no un-onboarding.
 
     CatalogItem:
       type: object

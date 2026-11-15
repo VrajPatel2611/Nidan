@@ -1,0 +1,17 @@
+.card { width: 100%; max-width: 520px; background: var(--paper); border-radius: var(--r-lg); box-shadow: var(--shadow-1); padding: var(--s-8); }
+.title { font: var(--t-h1); margin: 0 0 var(--s-2); }
+.lede { color: var(--muted); margin: 0 0 var(--s-6); }
+.fieldset { border: 0; padding: 0; margin: 0 0 var(--s-6); }
+.question { font: var(--t-h3); margin-bottom: var(--s-3); padding: 0; }
+.options { display: flex; flex-direction: column; gap: var(--s-2); }
+.years { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-2); }
+.option {
+  display: flex; align-items: center; gap: var(--s-2); cursor: pointer;
+  padding: var(--s-3) var(--s-4); border: 1px solid var(--rule); border-radius: var(--r-sm);
+  font: var(--t-body); background: var(--paper);
+}
+.option:hover { background: var(--surface-2); }
+.option[data-selected] { border-color: var(--teal); background: var(--teal-subtle); }
+.option input { accent-color: var(--teal); }
+.actions { display: flex; justify-content: space-between; align-items: center; }
+.step { font: var(--t-caption); color: var(--muted); text-align: center; margin: var(--s-4) 0 0; }

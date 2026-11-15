@@ -108,16 +108,28 @@ class ProfileRepository(Repository):
         """
         user_id: UUID = self._user_id()
         allowed = {"display_name", "professional_role", "year_of_training",
-                   "country", "timezone", "consent_research", "consent_version"}
+                   "country", "timezone", "consent_research", "consent_version",
+                   "onboarded"}
         unknown = set(fields) - allowed
         if unknown:
             raise ValueError(f"not a profile column: {sorted(unknown)}")
 
-        if not fields:
+        # `onboarded` is a flag, not a column (T-033). Answering or skipping
+        # S-07 both end onboarding (`PRD` FR-2.7: skipping never blocks), so
+        # the server stamps `onboarded_at` -- once, keeping the first time --
+        # for the same reason it stamps `consent_at`: a caller who could choose
+        # the time could rewrite when someone joined. There is no un-onboarding.
+        onboarded = fields.pop("onboarded", None)
+        if onboarded is not None and onboarded is not True:
+            raise ValueError("onboarded can only be true")
+
+        if not fields and not onboarded:
             return self.get()
 
         assignments = []
         params: dict[str, Any] = {"id": user_id}
+        if onboarded:
+            assignments.append("onboarded_at = COALESCE(onboarded_at, now())")
         for key, value in fields.items():
             # professional_role is an enum; psycopg sends a plain string and
             # Postgres will not implicitly cast one in a parameterised UPDATE.
