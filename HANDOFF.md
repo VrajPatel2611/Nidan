@@ -49,7 +49,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-- [ ] **V-11** (2026-11-29, from Yogesh) · **`openapi.yaml`'s feedback
+- [x] **V-11** (2026-11-29, from Yogesh) · *Answered 2026-11-22 — see Y-22.* · **`openapi.yaml`'s feedback
   contract had drifted — fixed — and this is the third drift in three tasks,
   so it is worth a test.** Branch `feat/t-036-feedback` (`18502cc`).
 
@@ -77,7 +77,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
   Done when you have looked at 1–3 and decided on the test.
 
-- [ ] **V-10** (2026-11-22, from Yogesh) · **Three things from T-034 — one
+- [x] **V-10** (2026-11-22, from Yogesh) · *Answered 2026-11-22 — see Y-22.* · **Three things from T-034 — one
   contract fix I made, one decision, one backend gap.** Branch
   `feat/t-034-consultation` (`b48b54e`).
 
@@ -107,7 +107,7 @@ project's files, and switching to it would look like the whole repo vanished.
   Done when (1) is looked at, (2) is decided, and (3) has an owner and a
   task — it is not in `BUILD_PLAN`.
 
-- [ ] **V-9** (2026-11-15, from Yogesh) · **Please review two small additions
+- [x] **V-9** (2026-11-15, from Yogesh) · *Answered 2026-11-22 — see Y-22.* · **Please review two small additions
   to `/v1/me` made in T-033.** Yogesh agreed to them rather than wait. Branch
   `feat/t-033-dashboard-onboarding` (`d2eeb33`); `openapi.yaml` and
   `web/src/api/schema.ts` changed in the same commit, per the rule.
@@ -770,6 +770,141 @@ project's files, and switching to it would look like the whole repo vanished.
   one-line "approved".
 
   **Done when:** T-037 is open and moving.
+
+- [ ] **Y-22** (2026-11-22, from Vraj) · **V-9, V-10 and V-11 all answered.
+  Your three contract fixes are approved, you were right about the test, and
+  it found four more drifts on its first run.**
+
+  **T-035 is done** — branch `feat/t-035-patient-data-guard`. Phase 3 is now
+  **6 of 8**, and T-037 is the only thing left in it.
+
+  ### Your fixes: all three approved, unchanged
+
+  1. **`DiagnosisCreate` `diagnosis` → `text`** (V-10.1) — correct. §6,
+     `conclusion.py` and all 14 calls in `test_v1_conclusion.py` agree with
+     you.
+  2. **Rating `helpful` → `was_helpful`, `comment` dropped** (V-11.2) —
+     correct.
+  3. **The `Feedback` schema rewrite** (V-11.1) — correct, and I checked it
+     against `conclusion.py` field by field. Your two reworked tests
+     (`label`/`id` and `reason`) are right; thank you for not just renaming
+     the assertions to pass.
+
+  ### You were right about the test, and it earned its keep immediately
+
+  Folded into T-035: `tests/test_request_body_conformance.py`. It walks the
+  AST of `api/v1/` for the keys each handler takes off the JSON body and
+  compares them with the schema the contract attaches to that operation, both
+  directions. Static — no database, no app, 0.2 s — so **it still runs when
+  Docker is down**, which is exactly when a contract change gets made in a
+  hurry.
+
+  Your diagnosis of the cause was exactly right and worth repeating: the CT
+  tests guard what must be **absent** from a response, and nothing checked
+  that the shape we *declare* is the shape we *read*.
+
+  **Three real drifts on the first run, and one of them is a bug you should
+  know about:**
+
+  - **`PATCH /me` reads `consent_version` and the contract never declared
+    it.** The handler *requires* it when `consent_research` is true, so a
+    client generated from `openapi.yaml` had no way to send it and **could
+    never give research consent at all**. Declared now. If you built a consent
+    toggle in T-033 and it seemed not to work, this is why.
+  - **`POST /me` accepts seven fields the contract never mentioned** —
+    `identity.py` validates POST and PATCH against one `_WRITABLE` set, so you
+    could have set a display name at sign-up without a second PATCH. Declared
+    now.
+  - **`confidence_post` declared on the diagnosis body, never read** — V-10.2,
+    which you raised and left. **Removed.** Storing it needs a column or an
+    event field, a migration, and a decision about the research export; a
+    field you can send that the server silently discards is worse than no
+    field, because it looks like it works. Confidence *calibration* (pre
+    vs post) is a real teaching signal and `PRD` FR-3 already has the "pre"
+    half — if we want it, it deserves a task, not a silent key.
+
+  **And one false positive, which was mine, fixed before committing** — the
+  walk did not understand `identity.py`'s `{k: v for k, v in body.items() if
+  k in _WRITABLE}` idiom and reported six invented problems on `PATCH /me`. It
+  resolves module-level string sets now. It had also silently skipped the
+  busiest endpoint in the API, because Flask spells the parameter
+  `<uuid:session_id>` and the contract spells it `{id}` — there is now a guard
+  test that fails if the walk stops matching routes, since otherwise every
+  assertion passes over an empty set.
+
+  **`schema.ts` is regenerated in the same commit**: 16 insertions, 1
+  deletion. Every insertion is an **optional** field and the one deletion is
+  `confidence_post`, which your client never sent — so **T-034 and T-036 are
+  unaffected** and `typecheck`, `lint` and `check:api` are clean. No action
+  for you.
+
+  ### V-9: both `/v1/me` additions approved, and your loose end is fixed
+
+  `PATCH /me {"onboarded": true}` and `GET /me`'s `allowance_resets_at` are
+  both right, and the server-stamped `onboarded_at` with `false` refused is
+  the correct shape — a caller that could choose it could un-onboard or
+  backdate.
+
+  **`API_CONTRACT` §4 is corrected**, as you suggested. It had described a
+  nested `allowance` object, a `subscription_ends` and an `active_session_id`,
+  **none of which the implementation or `openapi.yaml` ever had**. You were
+  right that §4 was the half that was wrong. And right that
+  `active_session_id` is unnecessary — the active session is in
+  `GET /sessions`, and a second source for the same fact is a second thing to
+  keep true.
+
+  ### T-035, and the one thing in it that touches your code
+
+  Nothing — your T-034 frontend was already the whole client half, and I built
+  the server to it rather than the other way round. The modal, the
+  `patient_data_detected` → `{state: "blocked"}` mapping and your mocked test
+  all now fire against a real 422.
+
+  Two things worth knowing:
+
+  - **The guard runs on the prototype's `/chat` too**, not just `/v1`. `PRD`
+    P4 does not exempt anonymous visitors, and per your own V-10.3 the
+    prototype is the only path they have. It returns 422 with
+    `{"blocked": true}` there.
+  - **It is deliberately conservative.** A bare name, a bare date and an age
+    do **not** block — "Did Dr Mehta mention it?", "Did the pain start before
+    Diwali?", "A 54-year-old man". A false block discards the learner's typed
+    question, and that costs more than the rare miss. If S-10 ever looks like
+    it is blocking something innocent, tell me the string rather than working
+    around it.
+
+  ### V-10.3 is still open, and it is not mine to close alone
+
+  The anonymous trial still cannot use `/v1` — every consultation endpoint is
+  `@require_auth` while `UX_SPEC` S-09/S-10 say "Auth: Both". **It is not in
+  `BUILD_PLAN`.** P4 holds either way now, because T-035 guards both paths,
+  but the web app is signed-in only until someone owns this. I have not
+  invented a task for it; it needs to go in the plan properly, and `PRD` FR-2
+  makes the trial a launch feature, so it cannot just be dropped quietly.
+
+  **Done when:** nothing for you in V-9/V-10/V-11 — they are closed. T-037 is
+  your last Phase 3 task.
+
+- [ ] **Y-23** (2026-11-22, from Vraj) · **I marked your three merged tasks
+  DONE in `BUILD_PLAN`. Say if you disagree.**
+
+  `STATUS.md` had been stale since 4 Nov and still said 21 of 34 with Phase 3
+  at 1 of 8, because only T-031 carried a DONE marker even though T-032,
+  T-033, T-034 and T-036 were merged with build logs. That made planning
+  misleading, so I marked them with their merge dates (T-032 2026-11-10,
+  T-033 2026-11-15, T-034 and T-036 2026-11-22) along with T-035.
+
+  **STATUS now reads 26 of 34 (76%), Phase 3 at 6 of 8, 9 d left.** If you
+  consider any of yours not finished, say so and I will unmark it — I am
+  recording that they merged, not judging that you are happy with them.
+
+  **T-030 is deliberately still unmarked**, and it is mine: `DELETE /me` is a
+  501 (API-9 is open and has a legal dimension), `/me/export` has no worker
+  behind its 202 (API-10 needs a task), and it has no build log. Those are the
+  9 days left in Phase 3 together with your T-037, and the honest reading is
+  that Phase 3 is not done when T-037 lands — T-030 still needs closing out.
+
+  **Done when:** you have confirmed or objected.
 
 ## Notes
 
