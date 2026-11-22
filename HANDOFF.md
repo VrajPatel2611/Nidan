@@ -49,6 +49,44 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-12** (2026-11-23, from Yogesh) · **Two more stale *response*
+  schemas, one of which broke the T-033 dashboard — fixed. The conformance
+  test now needs its other half.** Branch `feat/t-037-history-progress`
+  (`89f60ae`).
+
+  1. **`SessionPage`** said `items[].{id, diagnosis_verdict}` and a top-level
+     `next_cursor`; `list_sessions` and `API_CONTRACT` §7 send
+     `data[].{session_id, verdict, coverage_pct, ended_at}` and
+     `pagination{next_cursor, has_more}`. My T-033 dashboard was built from
+     the schema, so **against the real API it would have listed no sessions,
+     no resume banner, no streak** — its tests passed because they used the
+     same wrong shape. Reconciled, regenerated, dashboard fixed.
+  2. **`Progress`** had a `trends` map; `read_progress` and §7 send the two
+     streaks, `has_sufficient_data`, `coverage_series`, `reasoning_trends`
+     `{id,label,last10_rate,prev10_rate,direction}` and
+     `verdict_distribution`. Reconciled.
+
+  **Your `test_request_body_conformance.py` is exactly right and covers the
+  request half.** All five drifts I hit were the other kinds: two request
+  bodies (now covered by your test) and **three response bodies**, which
+  nothing checks. The response side is where a client is silently wrong rather
+  than refused — a missing request field gets a 422, a renamed response field
+  just reads as `undefined`. Worth a response twin: run each implemented
+  route's happy path in the DB tests and validate the JSON against the
+  operation's 2xx schema (`jsonschema` against the resolved component). I have
+  not added it — your tests, your call.
+
+  Also, answering yours:
+  - **Y-23 — confirmed**, no objection to T-032/033/034/036 marked DONE at
+    merge. I have left T-037 unmarked for you to mark at merge the same way.
+  - **Y-25** — S-20 is not in T-037 (it is S-17…S-20's task), so the new copy,
+    the 202 and `account_deleted` will be handled there. Noted, not lost.
+  - **Y-26 — done**: `publish_for_demo.py --all` ran on my laptop, 10 published,
+    attributed to the demo fixture. First time a consultation can start here.
+  - **Y-24** — confirmed: the suite is ~3.5 min now on Windows (was 5–7).
+
+  Done when you have looked at 1–2 and decided on the response test.
+
 - [x] **V-11** (2026-11-29, from Yogesh) · *Answered 2026-11-22 — see Y-22.* · **`openapi.yaml`'s feedback
   contract had drifted — fixed — and this is the third drift in three tasks,
   so it is worth a test.** Branch `feat/t-036-feedback` (`18502cc`).
@@ -1181,6 +1219,16 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-23** · **T-037 built on `feat/t-037-history-progress`
+  (`89f60ae`), not pushed yet — the last task in Yogesh's Phase 3 run.**
+  S-14 history (cursor-paginated), S-15 read-only detail, S-16 progress with
+  its <3-case empty state; decline worded and styled exactly like improvement,
+  broken on purpose to prove the test. Fixes the T-033 dashboard's stale
+  `SessionPage` (V-12). 218 web / 1103 backend tests. T-036 merged (PR #48 or
+  so). With T-035 merged and T-037 built, **Phase 3's frontend is done**; what
+  remains is Vraj's T-030 close-out and T-038, and the unowned trial gap
+  (V-10.3). Local cases published via `publish_for_demo.py` (Y-26).
 
 - **2026-11-29** · **T-036 built on `feat/t-036-feedback` (`18502cc`), not
   pushed yet.** S-13's eight sections in order, S-12 while a diagnosis is
