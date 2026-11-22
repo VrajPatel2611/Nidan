@@ -9,7 +9,7 @@ const base: DashboardInput = {
   remaining: 2, resetsAt: "2026-11-30T18:30:00Z", sessions: [], progress: null, now: NOW,
 };
 const done = (id: string, iso: string, verdict = "correct") =>
-  ({ id, case_title: `Case ${id}`, started_at: iso, status: "completed", diagnosis_verdict: verdict });
+  ({ session_id: id, case_title: `Case ${id}`, started_at: iso, status: "completed", verdict });
 
 describe("the four states (S-08)", () => {
   it("empty: no sessions — stat tiles hidden", () => {
@@ -35,7 +35,7 @@ describe("the four states (S-08)", () => {
 
   it("unfinished session: a banner, alongside whichever hero applies", () => {
     const d = buildDashboard({ ...base, remaining: 0, sessions: [
-      { id: "live", case_title: "Chest pain, 48M", started_at: "2026-11-15T12:00:00Z", status: "active" },
+      { session_id: "live", case_title: "Chest pain, 48M", started_at: "2026-11-15T12:00:00Z", status: "active" },
       done("a", "2026-11-14T10:00:00Z"),
     ] });
     expect(d.active).toEqual({ id: "live", caseTitle: "Chest pain, 48M", startedAt: "today" });

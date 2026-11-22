@@ -18,8 +18,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 const NOW = new Date("2026-11-15T13:30:00Z");
 const base: DashboardInput = { displayName: "Aarav", timezone: "UTC", tier: "free", remaining: 3,
   resetsAt: "2026-12-01T00:00:00Z", sessions: [], progress: null, now: NOW };
-const completed = { id: "s1", case_title: "Chest pain, 48M", started_at: "2026-11-14T10:00:00Z",
-  status: "completed", diagnosis_verdict: "anchored" };
+const completed = { session_id: "s1", case_title: "Chest pain, 48M", started_at: "2026-11-14T10:00:00Z",
+  status: "completed", verdict: "anchored" };
 
 // The words PRD P1 / UX_SPEC §9 keep off every learner-facing screen.
 // No \b: textContent joins elements without spaces ("2 days agoanchored"),
@@ -83,7 +83,7 @@ describe("S-08 · dashboard", () => {
 
   it("unfinished session: the banner, and abandon asks first", () => {
     render(<DashboardView d={buildDashboard({ ...base, sessions: [
-      { id: "live", case_title: "Breathlessness, 29F", started_at: "2026-11-15T12:00:00Z", status: "active" },
+      { session_id: "live", case_title: "Breathlessness, 29F", started_at: "2026-11-15T12:00:00Z", status: "active" },
     ] })} />);
     expect(screen.getByText(/You have a consultation in progress — Breathlessness, 29F, started today/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Start a case" })).toBeDisabled();

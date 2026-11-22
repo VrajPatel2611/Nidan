@@ -13,7 +13,7 @@ export type Profile = components["schemas"]["Profile"];
 export type ProfileCreate = components["schemas"]["ProfileCreate"];
 export type ProfileUpdate = components["schemas"]["ProfileUpdate"];
 export type SessionPage = components["schemas"]["SessionPage"];
-export type SessionSummary = NonNullable<SessionPage["items"]>[number];
+export type SessionSummary = NonNullable<SessionPage["data"]>[number];
 export type Session = components["schemas"]["Session"];
 export type Progress = components["schemas"]["Progress"];
 export type ApiError = components["schemas"]["Error"];
@@ -66,9 +66,13 @@ export function updateProfile(token: string, body: ProfileUpdate) {
   return call<Profile>("PATCH", "/me", token, body);
 }
 
-/** Newest first (`openapi.yaml` GET /sessions). The dashboard reads one page. */
-export function listSessions(token: string, limit = 20) {
-  return call<SessionPage>("GET", `/sessions?limit=${limit}`, token);
+/**
+ * Newest first, 20 a page, cursor-paginated (API_CONTRACT §2.5 — never an
+ * offset). The dashboard reads the first page; S-14 follows `next_cursor`.
+ */
+export function listSessions(token: string, limit = 20, cursor?: string | null) {
+  const q = new URLSearchParams({ limit: String(limit), ...(cursor ? { cursor } : {}) });
+  return call<SessionPage>("GET", `/sessions?${q}`, token);
 }
 
 /** Trends need three completed sessions; below that the averages are null. */

@@ -43,7 +43,7 @@ export default async function DashboardPage() {
     tier: profile.data.subscription_tier,
     remaining: profile.data.sessions_remaining_this_month,
     resetsAt: profile.data.allowance_resets_at,
-    sessions: sessions.data.items ?? [],
+    sessions: sessions.data.data ?? [],
     progress: progress.ok ? progress.data : null,
     now: new Date(),
   });

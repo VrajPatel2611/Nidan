@@ -26,8 +26,9 @@ export type DashboardInput = {
   /** Free tier only; null or absent for Pro (unlimited). */
   remaining?: number | null;
   resetsAt?: string | null;
-  sessions: Array<{ id?: string; case_title?: string; started_at?: string; status?: string; diagnosis_verdict?: string }>;
-  progress?: { sessions_completed?: number; mean_coverage_last10?: number | null } | null;
+  /** `GET /sessions` `data[]` — `session_id` and `verdict`, as API_CONTRACT §7 has them. */
+  sessions: Array<{ session_id?: string; case_title?: string; started_at?: string; status?: string; verdict?: string | null; coverage_pct?: number | null }>;
+  progress?: { sessions_completed?: number; mean_coverage_last10?: number | null; current_streak_days?: number } | null;
   now: Date;
 };
 
@@ -105,7 +106,7 @@ export function formatResetDate(iso: string, timezone?: string | null): string {
 export function buildDashboard(input: DashboardInput): Dashboard {
   const { sessions, now, timezone } = input;
   const completed = sessions.filter((s) => s.status === "completed");
-  const activeRow = sessions.find((s) => s.status === "active" && s.id);
+  const activeRow = sessions.find((s) => s.status === "active" && s.session_id);
   const isFree = input.tier !== "pro" && typeof input.remaining === "number";
 
   const hero: Dashboard["hero"] =
@@ -118,25 +119,28 @@ export function buildDashboard(input: DashboardInput): Dashboard {
     greeting: greeting(now, timezone, input.displayName),
     hero,
     active: activeRow
-      ? { id: activeRow.id!, caseTitle: activeRow.case_title || "a case", startedAt: relativeDay(activeRow.started_at ?? now.toISOString(), now, timezone) }
+      ? { id: activeRow.session_id!, caseTitle: activeRow.case_title || "a case", startedAt: relativeDay(activeRow.started_at ?? now.toISOString(), now, timezone) }
       : null,
     allowance: isFree
       ? { remaining: Math.max(0, input.remaining!), resetsOn: input.resetsAt ? formatResetDate(input.resetsAt, timezone) : null }
       : null,
     stats: hero === "empty" ? null : {
       completed: input.progress?.sessions_completed ?? completed.length,
-      streakDays: streakDays(completed.flatMap((s) => (s.started_at ? [s.started_at] : [])), now, timezone),
+      // The API counts streaks in the learner's timezone (`progress.streaks`); the
+      // local count is only a fallback for when /progress could not be read.
+      streakDays: input.progress?.current_streak_days
+        ?? streakDays(completed.flatMap((s) => (s.started_at ? [s.started_at] : [])), now, timezone),
       // Already a percentage: the average of session_results.coverage_pct.
       coveragePct: coverage == null ? null : Math.round(coverage),
     },
     recent: sessions
-      .filter((s) => s.status !== "active" && s.id)
+      .filter((s) => s.status !== "active" && s.session_id)
       .slice(0, 5)
       .map((s) => ({
-        id: s.id!,
+        id: s.session_id!,
         caseTitle: s.case_title || "Case",
         when: s.started_at ? relativeDay(s.started_at, now, timezone) : "",
-        verdict: s.diagnosis_verdict && s.diagnosis_verdict in VERDICTS ? VERDICTS[s.diagnosis_verdict as Verdict] : null,
+        verdict: s.verdict && s.verdict in VERDICTS ? VERDICTS[s.verdict as Verdict] : null,
         status: s.status ?? "",
       })),
   };

@@ -841,20 +841,36 @@ components:
 
     SessionPage:
       type: object
+      description: >
+        **Reconciled with API_CONTRACT §7 and `sessions.py` in T-037.** This
+        said `items[].{id, diagnosis_verdict}` and a top-level `next_cursor`;
+        the handler and §7 send `data[].{session_id, verdict, coverage_pct,
+        ended_at}` and a `pagination` object. The T-033 dashboard was built
+        from this schema and would have listed nothing against the real API.
       properties:
-        items:
+        data:
           type: array
           items:
             type: object
             properties:
-              id: { type: string, format: uuid }
+              session_id: { type: string, format: uuid }
               case_title: { type: string }
-              started_at: { type: string, format: date-time }
-              status: { type: string }
-              diagnosis_verdict:
+              status:
                 type: string
-                enum: [correct, partial, anchored, other]
-        next_cursor: { type: string, nullable: true }
+                enum: [active, completed, abandoned, expired]
+              verdict:
+                type: string
+                nullable: true
+                enum: [correct, partial, anchored, other, null]
+                description: Null for a session with no result — active or abandoned.
+              coverage_pct: { type: number, nullable: true }
+              started_at: { type: string, format: date-time }
+              ended_at: { type: string, format: date-time, nullable: true }
+        pagination:
+          type: object
+          properties:
+            next_cursor: { type: string, nullable: true }
+            has_more: { type: boolean }
 
     QuestionCreate:
       type: object
@@ -1032,13 +1048,52 @@ components:
 
     Progress:
       type: object
+      description: >
+        **Reconciled with API_CONTRACT §7 and `account.py` in T-037** — this
+        had a `trends` map and none of the streaks, the coverage series, the
+        verdict distribution or `has_sufficient_data`. The figures are
+        returned below three sessions too; `has_sufficient_data` is what tells
+        a client to show S-16's empty state instead of a two-point "trend".
       properties:
         sessions_completed: { type: integer }
+        current_streak_days: { type: integer }
+        longest_streak_days: { type: integer }
         mean_coverage_last10: { type: number, nullable: true }
-        trends:
-          type: object
-          additionalProperties:
+        has_sufficient_data: { type: boolean }
+        coverage_series:
+          type: array
+          items:
             type: object
             properties:
-              last10: { type: number }
-              prev10: { type: number, nullable: true }
+              session_index: { type: integer }
+              coverage_pct: { type: number }
+              at: { type: string, format: date-time, nullable: true }
+        reasoning_trends:
+          type: array
+          description: >
+            Behavioural ids only (CT-4, CT-5). A rate is the share of the last
+            ten (or the ten before) where the pattern was flagged; fewer is
+            better, so a falling rate is `improving`. `direction` is null with
+            no previous ten to compare.
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                enum: [diagnostic_focus, history_completeness, evidence_exploration]
+              label:
+                type: string
+                enum: [Diagnostic focus, History completeness, Evidence exploration]
+              last10_rate: { type: number, nullable: true }
+              prev10_rate: { type: number, nullable: true }
+              direction:
+                type: string
+                nullable: true
+                enum: [improving, stable, declining, null]
+        verdict_distribution:
+          type: object
+          properties:
+            correct: { type: integer }
+            partial: { type: integer }
+            anchored: { type: integer }
+            other: { type: integer }
