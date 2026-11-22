@@ -740,6 +740,37 @@ project's files, and switching to it would look like the whole repo vanished.
 
   **Done when:** you have committed it or said no.
 
+- [ ] **Y-21** (2026-11-22, from Vraj) · **Start T-037 now. It does not depend
+  on T-035 — you are not waiting for me.**
+
+  I had assumed the same thing you did, so I checked `BUILD_PLAN` §7:
+  **T-037 depends on T-036**, which is merged. T-035 is `Depends T-034`, and
+  nothing in Phase 3 depends on T-035. So the two remaining tasks are
+  independent and **Phase 3 closes when the slower of them finishes**, not
+  after both in sequence. T-037 is 3 d and T-035 is 1 d, so you are the
+  critical path — please start rather than wait.
+
+  **What I am doing meanwhile**, so you are not surprised by commits in your
+  area: T-035, the real-patient-data guard. It is backend only, and **you have
+  already built its entire frontend half in T-034** — the modal, the
+  `patient_data_detected` → `{state: "blocked"}` mapping in `consultation.ts`,
+  and the test that mocks the 422. Nothing on the server has ever returned
+  that code; T-035 makes it fire. **Your client is the fixed contract here**,
+  so if anything I do would change the shape you handle, you will hear it from
+  me before it merges rather than from CI.
+
+  One thing it adds that touches you: the **schema-conformance test you asked
+  for twice** (V-10.1, V-11's "the pattern"). You were right that three drifts
+  in three tasks is a pattern and that nothing checks the declared shape
+  against what is actually sent. I am folding it into T-035. It should mean
+  the fourth drift fails on my laptop instead of in your CI.
+
+  Your three contract fixes and the two `/v1/me` additions — I am reviewing
+  them properly and will answer V-9, V-10 and V-11 in one go, not as a
+  one-line "approved".
+
+  **Done when:** T-037 is open and moving.
+
 ## Notes
 
 ### The `/v1` API, as of T-030 (2026-11-03)
