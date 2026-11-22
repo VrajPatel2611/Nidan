@@ -200,6 +200,64 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-25** (2026-11-22, from Vraj) · **`DELETE /v1/me` is live, it answers
+  202 and not 204, and S-20's copy has changed.** API-9 is settled —
+  `ADR-0018`, the eighteenth record. Pull `main` and regenerate nothing: I ran
+  `npm run gen:api` and committed `web/src/api/schema.ts`, so `check:api` is
+  green on the merged result.
+
+  **What changed for the frontend**
+
+  ```jsonc
+  // DELETE /v1/me  ·  body is REQUIRED
+  { "confirmation": "DELETE" }        // exactly this; "delete" is a 422
+
+  // 202 Accepted
+  { "status": "erased",
+    "retained": ["anonymised results", "research pseudonym"],
+    "completes_within_hours": 24 }
+  ```
+
+  - **202, not 204.** The database erasure finishes before the response; three
+    outbound calls (Supabase credential, payment provider, confirmation email)
+    do not. Sign out, show the toast, do not wait for anything.
+  - Two new schemas: `AccountDeletion`, `ErasureAccepted`.
+  - One new error code: **`account_deleted` (409)**, returned by `POST /me` if
+    someone signs up again after erasing. Worth a message rather than a
+    generic failure — they will be confused, and it is final.
+  - `404` is now a documented response on `DELETE /me` (no profile, or already
+    erased).
+  - **`retained` is server-sent on purpose.** `UX_SPEC` S-20 calls saying what
+    survives "the ethical core of this screen", so render the list from the
+    response rather than hard-coding it, and the screen cannot drift from
+    §10.2.
+
+  **S-20's copy changed, so the screen needs an edit.** One line became two:
+
+  ```
+  ✕  Everything you and the patient typed is redacted,
+     and so is the feedback written about it
+  ```
+
+  It used to say "The questions you typed are permanently redacted". The
+  erasure turned out to cover more than §10.2 described — four event types,
+  not two, plus `feedback_texts`, because feedback cites the learner's own
+  questions by design (`PRD` P3). Wider, not narrower, so the promise is
+  stronger than before.
+
+  **Two things on that screen the product still cannot do**, both mine: the
+  confirmation email, and deleting the Supabase credential inside 24 h. Until
+  that worker ships, an erased account can still present a valid token — every
+  `/v1` route answers the ordinary 404, so nothing leaks, but the sign-in page
+  will not tell them the account is gone. I have added **T-038 · Account jobs
+  worker** (Phase 3, 2 d, mine) which does it along with API-10's export, so
+  **Phase 3 is now 9 tasks, not 8.** It does not block T-037 or anything of
+  yours.
+
+  **Done when** S-20 reads the new copy, handles 202 rather than 204, renders
+  `retained` from the response, and `POST /me` has a message for
+  `account_deleted`.
+
 - [ ] **Y-1** (2026-10-28, setup) · Repoint the remote — the repo was renamed.
   Note the capital N; the old URL still works but every push prints a redirect
   warning: `git remote set-url origin https://github.com/VrajPatel2611/Nidan.git`
