@@ -59,6 +59,12 @@ cover/
 
 # Django stuff:
 *.log
+# The whole directory, not just *.log — `nidan/infra/email/outbox.py` writes
+# each message here, and a data export's attachment contains the learner's own
+# questions and the patient's replies. `*.log` alone left `logs/outbox/<id>/
+# nidan-export.json` committable, which was found by checking the claim rather
+# than by anything failing (T-038).
+logs/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal

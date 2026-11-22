@@ -4,14 +4,15 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 7 of 9 — 27 of
-35 tasks, 63 days of 85.** The research is published and validated; the
-platform has a schema, a repository layer with tenant scoping, event-sourced
-sessions, authentication, anonymous trials, a replayable assessment engine,
-the free-tier allowance, the 16 pilot sessions imported into it, the whole
-admin console (case editor, Playtest, clinical review), the `/v1` JSON API,
-and a Next.js web app a learner can sign in to, take a consultation in, and
-read feedback from.
+**Current state:** Phases 0, 1, 2 and **3 complete — 29 of 35 tasks, 68 days
+of 85.** The research is published and validated; the platform has a schema, a
+repository layer with tenant scoping, event-sourced sessions, authentication,
+anonymous trials, a replayable assessment engine, the free-tier allowance, the
+16 pilot sessions imported into it, the whole admin console (case editor,
+Playtest, clinical review), the `/v1` JSON API, a Next.js web app a learner
+can sign in to, take a consultation in, and read feedback from, their own
+history and progress, and a worker that performs the outbound work behind both
+202s.
 
 **T-030 closed on 22 Nov 2026** — 19 days after its code merged, because it
 had raised five questions about its own contract and two were blocking. The
@@ -20,19 +21,27 @@ worth reading before Phase 4: three items in it were found while writing the
 log rather than while building the task, and **item 5 is a launch feature with
 no owner** (see below).
 
-**Two tasks are left in Phase 3, and they are independent.** T-037 (history
-and progress, Yogesh, 3 d) depends on T-036, which is merged. **T-038**
-(account jobs worker, Vraj, 2 d) is new — added when API-9 was settled,
-because `DELETE /me` and `/me/export` both now return a 202 with three
-outbound calls behind it and nothing performing them. Until it ships, two
-lines printed on `UX_SPEC` S-20 are promises the product cannot keep.
+**Phase 3 closed on 23 Nov 2026** with T-037 (history and progress, Yogesh)
+and T-038 (account jobs worker, Vraj). T-038 found two things its own
+acceptance criteria assumed and the codebase did not have: **there is no
+payment provider** — Stripe is T-041, one phase later — so the erasure's
+billing step records `no_provider_configured` rather than claiming a
+cancellation; and there was no email infrastructure, so the sender is a port
+whose one adapter writes each message to `logs/outbox/` as files. **Nothing
+reaches an inbox until `EMAIL_ADAPTER` names a real provider**, and S-20's two
+promises are now kept only when that and `SUPABASE_SERVICE_ROLE_KEY` are set —
+but a missing one refuses visibly rather than recording the step as done.
+
+**Next is Phase 4, commercial readiness — 6 tasks, 17 d.** T-041 (Stripe) is
+the one that retires `api/v1/contract.py`'s remaining three 501s and fills in
+`infra/billing.py`'s empty seam.
 
 **The gap with no task: the anonymous trial cannot use `/v1`.** Every
 consultation endpoint is `@require_auth`, while `UX_SPEC` S-09/S-10 say
 "Auth: Both" — so a trial visitor's only path is the `api/routes.py`
 prototype, and `PRD` FR-2 makes the trial a launch feature. Raised in T-030's
-build log as debt item 5. **It needs a task and an owner, and it is the one
-thing in Phase 3's vicinity that nobody is holding.**
+build log as debt item 5. **It needs a task and an owner, and with Phase 3
+closed it is the only launch feature nobody is holding.**
 
 **The gate is open.** Phase 2's goal was one sentence — *clinicians can review
 cases without reading code* — and T-023 met it on 29 Oct 2026. The two
@@ -54,10 +63,9 @@ cannot start because the console only runs on `localhost` and no task in any
 of the seven phases deploys it. That is the single thing standing between ten
 finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
 
-**Next: finish Phase 3** — T-037 (Yogesh) and T-038 (Vraj), 5 d between them
-and no dependency either way — then Phase 4, commercial readiness (6 tasks,
-17 d). Clinical review still runs beside all of it: it is calendar time, and
-ten reviewed cases is the launch gate.
+**Next: Phase 4, commercial readiness** (6 tasks, 17 d). Clinical review still
+runs beside all of it: it is calendar time, and ten reviewed cases is the
+launch gate.
 
 ---
 
@@ -428,6 +436,67 @@ duplicated ignore lists are now one `_IGNORE` constant, and
 a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
 build tool fills, add it there too. (T-035)
 
+**`audit_log` is the jobs queue, and it refuses UPDATE — so a job cannot be
+marked done.** It is done when its per-step completion rows exist, and
+`AuditRepository.pending()` is the difference between the two sets. Three
+things follow and they are not incidental: a crash between a remote call and
+its completion row costs one retry rather than a lost request; a step whose
+row exists is never re-attempted, so a retry does not send a second
+confirmation email; and adding a step to `STEPS` makes **every past request
+pending again for that step alone**, which is what you want and is why each
+step must be separately skippable rather than keyed off the request.
+`test_every_step_the_vocabulary_declares_has_an_implementation` is what stops
+a new step from making every run fail. (T-038 · `tests/db/test_jobs_worker.py`)
+
+**The worker sends the confirmation BEFORE deleting the credential, and the
+order is forced.** The address lives in `auth.users`, which Supabase owns and
+`nidan_service` has no grant on — so after the deletion there is nothing left
+to fetch. `UX_SPEC` S-20 says "sent to the old address before it is removed";
+that is a description of the only workable order, not a preference.
+`test_the_email_is_sent_before_the_credential_is_deleted` asserts the call
+order rather than reading the step list, because the step list is what someone
+changing this would edit.
+
+**`SUPABASE_SERVICE_ROLE_KEY` bypasses RLS entirely and belongs to the jobs
+worker alone.** `nidan/infra/identity_admin.py` is the only module that reads
+it. Never in `web/`, never as any `NEXT_PUBLIC_*` variable, never in
+`HANDOFF.md`, not in docker-compose's `app` service, and never in a log line,
+an exception message or an `audit_log` row — a `job.step_failed` row survives
+the erasure, so a key in one would outlive the account it deleted. **When it
+is absent the step refuses**, typed `NotConfigured` (not retryable) rather
+than `CredentialDeletionFailed` (retryable), and is never recorded as done:
+recording it would make S-20's "within 24 h" permanently and silently false.
+(`SECURITY_SPEC` §7.9)
+
+**The export reads no detector column, and that is CT-5 by construction.**
+`session_results` has `bias_detail`, `anchoring_detected` and six more, and an
+export is a file emailed to the learner — so `PRD` P1 applies to it exactly as
+it applies to a response. `repositories/export.py` does not read those columns
+at all rather than reading and filtering them. It also omits `research_pid`,
+which is the key linking an erased account to retained results: a copy in a
+file the learner keeps hands whoever later reads that file the one value that
+re-identifies the anonymised dataset. The import-linter contract **"the jobs
+worker must not import the web layer"** is what keeps this decision in place —
+`import nidan.api.v1.reasoning` would execute `api/v1/__init__.py` and
+register every route on a Flask blueprint as a side effect.
+
+**Nothing emails anyone yet, and `EMAIL_ADAPTER` must never fall back.** The
+only adapter built writes each message to `logs/outbox/` as files. An unknown
+adapter name **raises**, because a deployment that asked for a real provider
+and silently got a directory would believe it had sent mail it had not sent,
+and the only evidence would be the absence of complaints. `logs/` is gitignored
+as a whole directory — `*.log` alone left `logs/outbox/<id>/nidan-export.json`
+committable, and that file is a learner's own questions.
+(`tests/test_outbox_is_not_committable.py`)
+
+**There is no payment provider, so the erasure's billing step says so.**
+Stripe is T-041, one phase later. `NoProvider.cancel()` returns
+`no_provider_configured` and the worker records that verbatim. A row claiming
+a payment provider was cancelled, written by a system with no payment
+provider, is a false statement in the one record that survives an erasure —
+and it would read as true for ever, including to whoever eventually asks
+whether an erased user was still being billed.
+
 **`DATABASE_URL` lives in `.env` and alembic cannot see it there.** The
 application reads `.env` through pydantic-settings; `migrations/env.py` reads
 `os.getenv("DATABASE_URL")` and nothing else. So the app can be correctly
@@ -500,11 +569,23 @@ nidan/
       idempotency.py        the §2.8 key store; hashes the body, never keeps it
       llm.py                llm_calls — what each model call cost (T-031)
       progress.py           trends computed on read; user_progress stays empty
+      export.py             a learner's own data as JSON. Reads NO detector
+                            column and omits research_pid — CT-5 by omission
+      audit.py              ...and the jobs queue: pending() is request rows
+                            minus per-step completion rows, because audit_log
+                            refuses UPDATE
       base.py               repo_scope(actor) — SET LOCAL ROLE + set_config
       events.py             the append-only log; seq collisions retried
       anonymous.py          ⚠️ the one path where RLS is OFF — keep it that way
     storage.py            session JSON read/write (the research export)
     feedback.py           calls the gateway with domain-built prompts
+    identity_admin.py     ⚠️ the ONLY user of SUPABASE_SERVICE_ROLE_KEY — the
+                          Supabase admin API: delete auth.users, read an address
+    billing.py            the payment-provider seam. One adapter: NoProvider,
+                          which says `no_provider_configured`. Stripe is T-041
+    email/port.py         EmailPort + the Email it sends; `redacted()` is what
+                          a log line gets instead of an address
+    email/outbox.py       the only adapter — writes each message to a file
   api/routes.py         Flask blueprint "web" — the prototype. Reads cases from
                         cases.py, NOT the published bank; survives until T-034
   api/errors.py         the error envelope + the §10 catalogue AS DATA — shared
@@ -522,6 +603,10 @@ nidan/
     pagination.py         §2.5 cursors — never offsets
     account.py            §4, §7 · /progress, /me/export
     contract.py           the 501s openapi.yaml declares, and the JSON 404/405
+  jobs/                 the account jobs worker (T-038) — `python -m nidan.jobs`
+    runner.py             the two jobs, one step at a time, per-step scopes
+    messages.py           the two emails, as pure functions
+    __main__.py           `run` and `status`; exit 1 on a failed step
   api/auth.py           @require_auth · @require_tier('pro') · @require_admin
   api/trial.py          the anonymous trial and its httpOnly cookie
   web/                  templates and static assets
@@ -559,7 +644,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1103 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1159 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -571,13 +656,15 @@ python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
 ./scripts/demo_up.sh               # db + migrations + cases + warm LLM + API + web app
+python -m nidan.jobs status        # the account jobs queue — what is outstanding
+python -m nidan.jobs run           # ...and do it (T-038; idempotent)
 pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 33 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 395 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 418 schema, repository and route tests, real Postgres
 ```
 
 ---

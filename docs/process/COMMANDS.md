@@ -413,6 +413,82 @@ On a laptop there is no identity provider, so `--create-auth-user` inserts the
 stub row as well. It refuses to do that unless it can prove the table is the
 three-column stub from migration 001.
 
+### Running the account jobs worker
+
+```bash
+python -m nidan.jobs status
+python -m nidan.jobs run
+```
+
+`status` lists what is outstanding and does nothing. `run` processes every
+pending step and exits — **idempotent, so running it twice is harmless**, and
+that is a property of the queue rather than something the command arranges.
+
+| Exit | Meaning |
+|---|---|
+| 0 | nothing pending, or everything attempted succeeded |
+| 1 | at least one step failed — see the log, and `audit_log` for a `job.step_failed` row |
+| 2 | bad usage |
+
+A step that has failed 5 times is **stuck, not failed**, and does not set a
+non-zero code: a permanently stuck job would otherwise make every scheduled
+run report failure for ever, which is how a monitor gets switched off.
+`status` is how you find those.
+
+**What it does.** The outbound work behind the two 202s — building and
+emailing a data export (`PRD` FR-11.3), and finishing an erasure: the
+confirmation email, the payment provider, the Supabase credential
+(`DATA_MODEL` §10.2, `UX_SPEC` S-20).
+
+**Two things it will tell you it cannot do on a fresh checkout**, printed at
+the top of every `run`:
+
+```
+email adapter : outbox   (EMAIL_FROM is not set)
+billing       : none
+supabase key  : NOT SET — the credential-deletion step cannot run
+```
+
+* **Nothing is delivered to an inbox.** `EMAIL_ADAPTER=outbox` is the only
+  adapter built, and it writes each message to
+  `logs/outbox/<timestamp>-<subject>-<id>/` as three files: `message.json`,
+  `body.txt` and the attachment. Open them — that is the point. A real
+  provider is a new class and a dict entry in
+  `nidan/infra/email/__init__.py`; an unknown `EMAIL_ADAPTER` **raises**
+  rather than falling back, so a deployment that asked for one cannot
+  silently get a directory of files and believe it sent mail.
+* **The credential is not deleted without `SUPABASE_SERVICE_ROLE_KEY`.** That
+  key bypasses RLS entirely — `SECURITY_SPEC` §7.9 — so it belongs in this
+  worker's environment and nowhere else. Without it the step refuses and
+  records `job.step_failed` with `retryable: false`. It is **never** recorded
+  as done, because that would make S-20's "within 24 h" silently false.
+
+**There is no payment provider to cancel at.** Stripe is T-041, one phase
+later, so the billing step records `no_provider_configured` rather than
+claiming a cancellation it could not have made. `DATA_MODEL` §10.2's
+transaction has already cancelled the subscription in the one place a
+subscription exists.
+
+**Scheduling it.** Nothing in the project schedules anything. On a laptop, run
+it by hand, or add a cron line:
+
+```bash
+*/15 * * * * cd /path/to/Nidan && venv/bin/python -m nidan.jobs run >> logs/jobs.log 2>&1
+```
+
+Not a thread inside the API: the app runs on two gunicorn workers, so an
+in-process scheduler would be two schedulers racing for the same jobs — and
+`audit_log` rows cannot be claimed — and it would put the `service_role` key
+into the process that serves public requests.
+
+**Why `audit_log` is the queue.** It refuses UPDATE, including to the table
+owner, and `ADR-0018` kept it that way because the record of an erasure must
+not be editable by the thing performing one. So a job cannot be *marked*
+done: it is done when its per-step completion rows exist, and
+`AuditRepository.pending()` is the difference between the two sets. A crash
+between a remote call and its completion row costs one retry rather than a
+lost request.
+
 ### Bringing the whole demo up — one command
 
 ```bash

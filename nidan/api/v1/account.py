@@ -100,13 +100,18 @@ def request_export():
 
     202 is the whole contract here: it means "accepted, not done". So an
     implementation that durably records the request and reports when it should
-    be ready IS the endpoint — what is missing is the worker that builds the
-    file and the mail that sends it, and neither has a task in `BUILD_PLAN`.
-    Logged as API-10 so it is not mistaken for finished.
+    be ready IS the endpoint — and since T-038 the work behind it happens.
+    `python -m nidan.jobs run` builds the JSON and emails it; API-10 is
+    closed.
 
     Recorded in `audit_log`, which is append-only and already the record of
     things done to an account. A data-subject access request is exactly the
-    kind of event you want to be able to prove you received.
+    kind of event you want to be able to prove you received — **and it is also
+    the queue.** `audit_log` refuses UPDATE, so the worker cannot mark this
+    row done; it appends `export.built` and `export.emailed`, and
+    `AuditRepository.pending()` is the difference between the two sets. This
+    row is therefore the only durable record of the request, which is what
+    T-038 criterion 3 means by "a crash loses nothing".
     """
     now = utc_now()
     ready_at = now + timedelta(hours=EXPORT_SLA_HOURS)
@@ -141,6 +146,11 @@ def delete_account():
     answer 500 on a partial failure, with no retry and an account in an
     unknown state. `UX_SPEC` S-20 already told the user "within 24 h"; the
     contract was the thing out of step.
+
+    Since T-038 those three steps are performed by `python -m nidan.jobs run`,
+    in S-20's order — the confirmation email first, because the address lives
+    in `auth.users` and after the credential is deleted there is nothing left
+    to fetch.
 
     **What does happen before this returns is everything in the database**,
     in one transaction: billing cancelled, the profile anonymised and stamped

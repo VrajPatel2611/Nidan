@@ -1371,10 +1371,13 @@ BEGIN;
   VALUES (:uid, 'profile.erased', 'profile', :uid, '...', '{...counts...}');
 COMMIT;
 -- auth.users deletion, the payment provider and the confirmation email are
--- issued separately by the erasure worker (T-038). Until it runs the user's
--- token stays valid, which is why every learner route reaches the profile
--- through `ProfileRepository.get()` and that method filters `deleted_at IS
--- NULL`.
+-- issued separately by the erasure worker -- T-038, built 2026-11-23:
+-- `python -m nidan.jobs run`. It reads its work from the `profile.erased` row
+-- above, because this table refuses UPDATE and a job therefore cannot be
+-- marked done; `AuditRepository.pending()` is the difference between request
+-- rows and per-step completion rows. Until it runs the user's token stays
+-- valid, which is why every learner route reaches the profile through
+-- `ProfileRepository.get()` and that method filters `deleted_at IS NULL`.
 ```
 
 **Why the `session_events` UPDATE is possible at all.** Migration 010 made the

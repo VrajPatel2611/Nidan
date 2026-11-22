@@ -128,6 +128,57 @@ class Settings(BaseSettings):
                     "Nothing reads it yet — schema and repositories are T-010/T-012.",
     )
 
+    # ── the account jobs worker (T-038) ─────────────────────────────
+    EMAIL_ADAPTER: str = Field(
+        default="outbox",
+        description="Which email sender the jobs worker uses. 'outbox' writes "
+                    "each message to EMAIL_OUTBOX_DIR as files and delivers "
+                    "nothing — the only adapter built. An unknown name raises "
+                    "rather than falling back, so a deployment that asked for "
+                    "a provider cannot silently get a directory.",
+    )
+    EMAIL_FROM: str = Field(
+        default="",
+        description="The From address. No default on purpose: a From address "
+                    "is a claim about an identity, and an invented one is how "
+                    "mail gets classified as spam at the first real send. The "
+                    "outbox records it so the omission is visible.",
+    )
+    EMAIL_OUTBOX_DIR: str = Field(
+        default="logs/outbox",
+        description="Where the 'outbox' adapter writes messages. Under "
+                    "logs/, which .gitignore excludes as a whole directory — "
+                    "an export's attachment contains the learner's own "
+                    "questions, and `*.log` alone did not cover it. "
+                    "tests/test_outbox_is_not_committable.py asserts the "
+                    "exclusion.",
+    )
+    SUPABASE_SERVICE_ROLE_KEY: str = Field(
+        default="",
+        description="Deletes auth.users through the Supabase admin API "
+                    "(ADR-0002: we do not own that table). It BYPASSES RLS "
+                    "entirely, so it belongs to the jobs worker's environment "
+                    "and nowhere else — never in web/, never NEXT_PUBLIC_*, "
+                    "never in HANDOFF.md. Empty means the credential-deletion "
+                    "step refuses to run and says so, rather than being "
+                    "recorded as done.",
+    )
+    BILLING_PROVIDER: str = Field(
+        default="none",
+        description="Which payment provider the jobs worker cancels at. "
+                    "'none' is the only one built and reports "
+                    "no_provider_configured honestly — Stripe is T-041, so "
+                    "there is nothing outside our own subscriptions table "
+                    "holding a subscription yet.",
+    )
+    JOB_MAX_SECONDS: int = Field(
+        default=300, ge=1, le=3600,
+        description="Wall-clock budget for one `python -m nidan.jobs run`. A "
+                    "worker that runs longer than its schedule's interval "
+                    "would overlap with itself, and nothing here can be "
+                    "claimed.",
+    )
+
     @field_validator("LOG_LEVEL")
     @classmethod
     def _known_log_level(cls, v: str) -> str:
