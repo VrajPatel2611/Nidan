@@ -428,6 +428,22 @@ duplicated ignore lists are now one `_IGNORE` constant, and
 a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
 build tool fills, add it there too. (T-035)
 
+**`DATABASE_URL` lives in `.env` and alembic cannot see it there.** The
+application reads `.env` through pydantic-settings; `migrations/env.py` reads
+`os.getenv("DATABASE_URL")` and nothing else. So the app can be correctly
+configured while `alembic upgrade head` says "No database URL", and the two
+statements are both true. Export it, or run through
+`scripts/demo_up.sh`, which does. **And check the port against
+`POSTGRES_PORT`** — compose publishes the container at whatever that says, and
+on a machine where 5432 was taken it is not 5432.
+
+**Compose's `app` service takes port 8000 and serves a stale build.** It has
+`restart: unless-stopped`, so it comes back after a reboot, and its image is
+baked at build time with **no source mount** — so a demo run against it works,
+quietly, on whatever the code looked like when it was last built. That is worse
+than a crash. `python -m nidan` runs the working tree; `scripts/demo_up.sh`
+stops the container first and says that it did.
+
 **Every case is a draft, so `/v1` cannot start a consultation until one is
 published — and that reads as a bug.** `SelectionRepository.candidates()`
 returns only published versions, so `POST /v1/sessions` answers
@@ -554,6 +570,7 @@ python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
+./scripts/demo_up.sh               # db + migrations + cases + warm LLM + API + web app
 pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
