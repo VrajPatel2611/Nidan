@@ -49,7 +49,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-- [ ] **V-12** (2026-11-23, from Yogesh) · **Two more stale *response*
+- [x] **V-12** (2026-11-23, from Yogesh) · *Answered 2026-11-23 — see Y-27.* · **Two more stale *response*
   schemas, one of which broke the T-033 dashboard — fixed. The conformance
   test now needs its other half.** Branch `feat/t-037-history-progress`
   (`89f60ae`).
@@ -237,6 +237,91 @@ project's files, and switching to it would look like the whole repo vanished.
   `openapi.yaml` wording.
 
 ## Inbox — for Yogesh
+
+- [ ] **Y-27** (2026-11-23, from Vraj) · **T-038 is merged-pending and Phase 3
+  is complete. Your V-12 is answered: yes to the response conformance test,
+  and it is mine. Two things change for you, one of them in copy you have not
+  written yet.** Branch `feat/t-038-account-jobs-worker` (`52471ed`).
+
+  **1 · V-12, both halves — looked at, and thank you.** `SessionPage` and
+  `Progress` were both wrong in `openapi.yaml` and your fixes match
+  `list_sessions`/`read_progress` and `API_CONTRACT` §7. Nothing to change.
+
+  The `SessionPage` one is the worst drift we have had, and worth naming for
+  the record: your T-033 dashboard was built from the schema, so against the
+  real API it would have shown no sessions, no resume banner and no streak —
+  **and its tests passed, because they used the same wrong shape.** That is
+  the failure mode a schema is supposed to prevent, working in reverse.
+
+  **2 · The response conformance test: yes, build it, and I am taking it.**
+  Your reasoning is right and the asymmetry is the point — a missing *request*
+  field gets a 422, a renamed *response* field just reads as `undefined`, so
+  the client is silently wrong rather than refused. Five drifts, three of them
+  responses, nothing watching that side.
+
+  I will write the twin of `test_request_body_conformance.py`: run each
+  implemented route's happy path in the DB tests and validate the JSON against
+  the operation's 2xx schema, `jsonschema` against the resolved component.
+  **Do not start it** — I do not want two of them. If it is not pushed within
+  a few days, chase me.
+
+  One thing I want it to do that the request version does not: fail on a
+  response field the schema does **not** declare, not only on a declared one
+  that is missing. `case_versions.content` is JSONB, so a new key can arrive
+  from a case-editor save with no migration — which is the CT-1 shape, and
+  `case_view.py` is the only thing standing in front of it.
+
+  **3 · `DELETE /me` and `POST /me/export` now actually complete.**
+  `python -m nidan.jobs run` performs the outbound work: the export is built
+  and emailed, and an erasure's confirmation email, payment-provider
+  cancellation and Supabase credential deletion all happen. The API responses
+  did **not** change — still 202, same bodies — so **no `gen:api`, no
+  `schema.ts` change, nothing for you to regenerate.** `openapi.yaml` is
+  untouched in this branch.
+
+  **4 · S-20's copy, for whenever you build T-042.** Y-25 was right that S-20
+  belongs to the pricing-and-account-screens task, not T-037. When you get to
+  it, the spec has changed under you in a good way: the two lines
+  `UX_SPEC` S-20 §8.7 used to describe as *"promises the product cannot
+  keep"* are now kept — the confirmation email and "removed within 24 h" for
+  the credential. Read that section before writing the screen; I rewrote the
+  paragraph.
+
+  The honest caveat, which the spec now states: both depend on configuration I
+  hold, not on your screen. Nothing reaches an inbox until `EMAIL_ADAPTER`
+  names a real provider (the only adapter built writes each message to a file
+  under `logs/`), and the credential is deleted only when the Supabase
+  service-role key is set. **Neither failure is silent** — both record a
+  failure row and make the worker's exit code non-zero. So the screen can say
+  what S-20 says.
+
+  **5 · Do not ever put the Supabase `service_role` key in `web/`.** New
+  section `SECURITY_SPEC` §7.9 says why at length; the short version is that
+  it bypasses row-level security completely, so every guarantee in `ADR-0016`
+  is void for any process holding it. It belongs to the jobs worker's
+  environment and nowhere else — **never as a `NEXT_PUBLIC_*` variable of any
+  name**, because those are compiled into the browser bundle, and never in
+  this file. `web/.env.example` already said so in a comment; it is a spec
+  section now because T-038 is the first thing that legitimately needs the
+  key.
+
+  **6 · Two commits had gone missing, in case you hit the same thing.** PR #50
+  was merged before I pushed `a80991c` (`scripts/demo_up.sh`) and `609cdca` to
+  that branch, so neither reached `main` and I only noticed when a
+  `COMMANDS.md` edit would not apply. Both are cherry-picked onto this branch.
+  Pushing to a branch after its PR is merged puts the commits nowhere.
+
+  **7 · `scripts/demo_up.sh` is new and will probably help you.** One command:
+  Postgres, migrations, publishing the draft cases, warming the LLM, the API,
+  then `npm run dev`. Ctrl+C stops both. `--api-only` skips Next.js. It also
+  stops the compose `app` container if it is running — that container holds
+  port 8000 and **serves a stale baked image with no source mount**, so a
+  local run against it works quietly on old code. Worth knowing even if you
+  do not use the script.
+
+  Done when you have read §4's `UX_SPEC` change (before T-042, not now) and
+  confirmed you are not also building the response test.
+
 
 - [ ] **Y-26** (2026-11-23, from Vraj) · **If `POST /v1/sessions` has ever
   given you a 503 `no_cases_available`, this is why, and there is now a script
