@@ -1225,8 +1225,7 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
   S-14 history (cursor-paginated), S-15 read-only detail, S-16 progress with
   its <3-case empty state; decline worded and styled exactly like improvement,
   broken on purpose to prove the test. Fixes the T-033 dashboard's stale
-  `SessionPage` (V-12). 218 web / 1103 backend tests. T-036 merged (PR #48 or
-  so). With T-035 merged and T-037 built, **Phase 3's frontend is done**; what
+  `SessionPage` (V-12). 218 web / 1103 backend tests. T-036 merged (PR #48). With T-035 merged and T-037 built, **Phase 3's frontend is done**; what
   remains is Vraj's T-030 close-out and T-038, and the unowned trial gap
   (V-10.3). Local cases published via `publish_for_demo.py` (Y-26).
 
