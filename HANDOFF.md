@@ -906,6 +906,37 @@ project's files, and switching to it would look like the whole repo vanished.
 
   **Done when:** you have confirmed or objected.
 
+- [ ] **Y-24** (2026-11-22, from Vraj) · **If `pytest` has felt broken since
+  you ran `npm ci`, this was why — fixed.**
+
+  **Symptom:** the Python suite takes 9–45 minutes instead of ~80 seconds,
+  prints nothing, and sits at **0 % CPU**. Nothing fails, so nothing tells you
+  why. It reads exactly like a hang, and I spent a while blaming this laptop's
+  disk before checking.
+
+  **Cause:** `tests/test_validation_gate.py` clones the repository into a
+  tmpdir to prove the detector gate fails on a degraded threshold. Its ignore
+  list predates `web/`, so **from the first `npm ci` it copied 457 MB and
+  ~100 000 files of `node_modules` — twice per run.** Pure I/O, hence the 0 %
+  CPU. T-032 did nothing wrong; the test was never updated for a repo that
+  has a JavaScript tree in it.
+
+  **Fixed** on `feat/t-035-patient-data-guard` (`6babbcb`): the two duplicated
+  `ignore_patterns` lists are now one `_IGNORE` constant excluding
+  `node_modules`, `.next`, `.turbo` and the cache dirs, with a test asserting
+  the exclusion so it cannot come back quietly. `web/src` is still copied —
+  only build artefacts are skipped. **45 min → 67.7 s, 1068 passing.**
+
+  **What this means for you:** pull `main` once this merges before you judge
+  any Python test timing. And if you add a directory a tool fills — a
+  `.turbo`, a `dist`, a `playwright-report`, anything `npm` or `uv` generates
+  — add it to `_IGNORE` in that file, or the clone starts carrying it again.
+
+  I also found it the hard way worth repeating: `lsof` on the stuck process
+  answered in seconds what twenty minutes of theorising did not.
+
+  **Done when:** you have seen a normal-speed run on `main`.
+
 ## Notes
 
 ### The `/v1` API, as of T-030 (2026-11-03)
