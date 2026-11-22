@@ -27,6 +27,7 @@ from nidan.domain.selection import allowance_for, month_start
 from nidan.infra.clock import utc_now
 from nidan.infra.db.actor import ServiceActor
 from nidan.infra.db.repositories import repo_scope
+from nidan.infra.db.repositories.profiles import AccountErased
 from nidan.infra.db.repositories.trial import CLAIM_WINDOW_DAYS, TrialRepository
 
 # Fields a user may set on themselves. The repository has its own allow-list;
@@ -128,6 +129,10 @@ def create_profile():
         with repo_scope(current_actor()) as db:
             existed = db.profiles.get() is not None
             row = db.profiles.ensure(**fields)
+    except AccountErased as e:
+        # 409, not 422: the body is fine, the account's state is the problem.
+        # An erasure a retried sign-up could undo is not an erasure (API-9).
+        return error("account_deleted", str(e) + ".")
     except ValueError as e:
         return error("validation_failed", str(e), 422)
 

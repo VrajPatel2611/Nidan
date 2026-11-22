@@ -399,67 +399,14 @@ def test_an_export_request_is_accepted_and_recorded(
     assert row["metadata"]["sla_hours"] == 24
 
 
-# ── §4 · the deletion that cannot run ────────────────────────────────
-
-def test_account_deletion_is_501_and_says_so_in_the_envelope(client, account):
-    """
-    `DELETE /me` is blocked, not unfinished. §4 says it executes `DATA_MODEL`
-    §10.2, and §10.2's erasure UPDATEs `session_events` — a table migration
-    010 makes append-only with an unconditional trigger that refuses even the
-    table owner.
-
-    **This test exists so the 501 is a decision rather than an omission.** If
-    someone implements the endpoint, this fails and they have to come and read
-    API-9 before changing it. Returning 204 having anonymised only the profile
-    would claim an erasure that did not happen, and §10.2 itself says a user
-    "has a right to know what does not disappear".
-    """
-    _, headers = account
-    r = client.delete("/v1/me", json={"confirmation": "DELETE"}, headers=headers)
-    assert r.status_code == 501
-    assert r.get_json()["error"]["code"] == "not_implemented"
-
-
-def test_the_append_only_trigger_really_does_refuse_the_erasure(live_db):
-    """
-    The claim above, verified against the running database rather than taken
-    from a migration file.
-
-    If this ever stops raising — someone narrows the trigger, or disables it —
-    then API-9 has been resolved and `DELETE /me` can be built. The test
-    failing is the signal to go and build it.
-    """
-    # A row must exist, or the UPDATE matches nothing and the trigger never
-    # fires — which would make this pass for the wrong reason. The first
-    # version of this test did exactly that.
-    with live_db.connect() as c:
-        with pytest.raises(sa.exc.ProgrammingError, match="append-only"):
-            with c.begin():
-                version = c.execute(sa.text(
-                    "SELECT id FROM case_versions LIMIT 1")).scalar_one()
-                owner = uuid.uuid4()
-                c.execute(sa.text("INSERT INTO auth.users (id) VALUES (:id)"),
-                          {"id": owner})
-                c.execute(sa.text(
-                    "INSERT INTO profiles (id, timezone) VALUES (:id, 'UTC')"),
-                    {"id": owner})
-                sid = uuid.uuid4()
-                c.execute(sa.text("""
-                    INSERT INTO sessions (id, user_id, case_version_id,
-                                          sequence_index, status)
-                    VALUES (:id, :uid, :vid, 1, 'active')
-                """), {"id": sid, "uid": owner, "vid": version})
-                c.execute(sa.text("""
-                    INSERT INTO session_events (session_id, seq, type, payload)
-                    VALUES (:sid, 1, 'question', CAST(:p AS jsonb))
-                """), {"sid": sid, "p": '{"text": "real text", "char_count": 9}'})
-
-                c.execute(sa.text("""
-                    UPDATE session_events
-                       SET payload = jsonb_set(payload, '{text}', '"[redacted]"')
-                     WHERE session_id = :sid AND type = 'question'
-                """), {"sid": sid})
-
-    # The transaction aborted, so nothing above persisted.
-    with live_db.begin() as c:
-        c.exec_driver_sql(TRUNCATE_SESSION_TABLES)
+# ── §4 · the deletion ────────────────────────────────────────────────
+#
+# Two tests lived here until API-9 was settled on 22 Nov 2026, and both existed
+# to fail on the day it was: one asserted `DELETE /me` was a 501, the other
+# asserted the append-only trigger refused §10.2's redaction. Migration 033
+# gives `session_events` a single permitted mutation, so both claims are now
+# false by design.
+#
+# The whole story moved to `tests/db/test_erasure.py` rather than growing here:
+# it is one endpoint, one migration and one repository, and the thing most
+# worth testing is what the trigger still refuses.

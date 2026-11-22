@@ -57,7 +57,7 @@ read only those sections.
 |---|---|
 | Anything at all | This file, then `docs/PROJECT_MAP.md` |
 | What is every file in here? | `docs/PROJECT_MAP.md` — the full tree, annotated |
-| Why was X chosen? | `docs/spec/adr/` — 17 one-page records. **Check here before re-arguing a decision** |
+| Why was X chosen? | `docs/spec/adr/` — 18 one-page records. **Check here before re-arguing a decision** |
 | Building a feature | `docs/spec/BUILD_PLAN.md` → find the task → read only its `Spec` refs |
 | Schema / migration | `docs/spec/DATA_MODEL.md` — the relevant table section only |
 | An endpoint | `docs/spec/API_CONTRACT.md` §4–9 + `openapi.yaml` |
@@ -71,7 +71,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 3 task** | `BUILD_PLAN` §7 — T-030 … T-037. There are no Phase 3 briefs; `docs/process/phase-2-briefs/` is historical |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 32 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 33 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
@@ -354,14 +354,47 @@ envelope — which is what sync point S-1 means and what did not exist until
 T-030. The list only shrinks, and a line left behind after a slice
 implements it fails the suite rather than shadowing the real route.
 
-**`session_events` and `audit_log` refuse UPDATE and DELETE, including to
-the table owner.** Migration 002's `forbid_mutation` is unconditional, so
-a teardown or a cleanup must TRUNCATE, never DELETE — and a cascade into
-either table fails the whole transaction, which is why deleting a profile
-needs the session tables truncated first. **`DATA_MODEL` §10.2's erasure
-cannot run**: it UPDATEs `session_events`, so `DELETE /me` is a 501 and
-API-9 is the open decision. (verified against the running database ·
-`tests/db/test_v1_progress.py`)
+**`session_events` and `audit_log` refuse DELETE, and `audit_log` refuses
+UPDATE, including to the table owner.** So a teardown or a cleanup must
+TRUNCATE, never DELETE — and a cascade into either table fails the whole
+transaction, which is why deleting a profile needs the session tables
+truncated first.
+
+**`session_events` permits exactly one UPDATE, and nothing else.** Migration
+033 (API-9, `ADR-0018`) replaced the unconditional trigger with one that
+allows `payload->'text'` to become `"[redacted]"` provided `id`,
+`session_id`, `seq`, `type` and `created_at` are identical and no other key
+is added, removed or altered — and refuses everything else. That single
+transition is what makes `DATA_MODEL` §10.2's erasure possible, so
+`DELETE /me` is a real 202 rather than a 501. **Do not widen it.** The whole
+safety argument for the decision is how narrow it is, and
+`TestWhatTheTriggerStillRefuses` enumerates eight mutations it still
+refuses — including the one that matters, smuggling a second change into the
+same statement as the redaction. `audit_log` keeps `forbid_mutation()`,
+because the record of an erasure must not be editable by the thing
+performing one. (verified against the running database ·
+`tests/db/test_erasure.py`)
+
+**The erasure covers four event types and a table §10.2 forgot.** `question`,
+`early_diagnosis`, `diagnosis` **and `patient_reply`** all carry `text`; the
+repository's predicate is `payload ? 'text'` rather than a list of names, so
+a type added later is covered on the day it is added. And
+`feedback_texts.lines` is in it, because `PRD` P3 requires feedback to cite
+the learner's own questions — without that statement their words survive
+verbatim in a table the erasure never looked at. §10.2 named two of the six
+places for nineteen days.
+
+**An erased profile is invisible, and that is one filter in one method.**
+`ADR-0002` means the token stays valid until T-038's worker deletes the
+credential, so for up to 24 h an erased account can still make authenticated
+requests. `ProfileRepository.get()` filters `deleted_at IS NULL` and every
+learner route reaches the profile through it. `update()` and
+`touch_last_active()` are scoped the same way — **the first version was not**,
+and a `PATCH /me` wrote the display name back onto the erased row and then
+returned 404, so the refusal looked right while the erasure was being undone.
+`ensure()` raises `AccountErased` → 409 `account_deleted` rather than
+resurrecting the row, because `ON CONFLICT DO NOTHING` makes a resurrection
+attempt indistinguishable from a retry.
 
 **A test that copies the repository must exclude `node_modules`.**
 `tests/test_validation_gate.py` clones the repo into a tmpdir to prove the
@@ -451,7 +484,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                           bodies handlers actually read — AST, no DB)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    32 Alembic migrations ← the schema's source of truth
+migrations/versions/    33 Alembic migrations ← the schema's source of truth
                         (017, 019, 026-032 are generated from cases.py
                          and topics.py; see the rule below)
 docs/build-log/         what was actually built, one doc per finished task
@@ -491,7 +524,7 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 32 migrations
+alembic upgrade head               # apply all 33 migrations
 alembic downgrade base             # tear the schema down
 pytest tests/db -q --no-cov        # 360 schema, repository and route tests, real Postgres
 ```

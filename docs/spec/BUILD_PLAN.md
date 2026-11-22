@@ -463,10 +463,11 @@ Done     Queue + assignment + rubric form beside Playtest + publish in nidan/web
 
 ---
 
-# 7. API and web app — Phase 3 · T-030 … T-037
+# 7. API and web app — Phase 3 · T-030 … T-038
 
 **Goal:** a real product a user can use.
-**Effort:** 22 d
+**Effort:** 24 d — 22 d planned, plus T-038's 2 d, added 2026-11-22 when
+`ADR-0018` made the work behind two 202s concrete.
 
 ---
 
@@ -558,6 +559,29 @@ Accept   1. Paginated history; session detail reuses the feedback layout read-on
          2. Progress requires ≥ 3 sessions; empty state below that
          3. Decline shown neutrally, no alarm styling
 ```
+
+**T-038 · Account jobs worker**
+```
+Phase    3            Depends  T-030          Est  2 d      Owner  V
+Spec     DATA_MODEL §10.2 · API_CONTRACT §4 · ADR-0018 · UX_SPEC S-20
+Accept   1. `POST /me/export` builds the JSON export and emails it (API-10)
+         2. `DELETE /me`'s three remaining steps run: auth.users deleted via
+            the Supabase admin API, the payment provider cancelled, the
+            confirmation email sent to the old address before it is removed
+         3. Both read their work from `audit_log` — `profile.export_requested`
+            and `profile.erased` with `pending` — so a crash loses nothing
+         4. Idempotent: re-running either must be safe, because an external
+            call that times out is indistinguishable from one that failed
+         5. S-20's 24 h is met or the failure is visible to an admin
+```
+
+**Why one task and not two.** API-9 and API-10 both left a 202 with external
+work behind it, and the work is the same shape both times: read a request out
+of the append-only log, make calls we do not own, retry safely. Building two
+workers for that would be two places for the retry logic to be subtly
+different. Raised as API-10 on 2026-11-03 with no task at all, and given one
+when `ADR-0018` made the deletion's remainder concrete — see that record's
+consequences: **this is the one promise in S-20 the product cannot yet keep.**
 
 ---
 

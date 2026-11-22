@@ -333,12 +333,49 @@ Setting `consent_research: true` requires `consent_version`; the server records 
 ```
 
 ## `DELETE /v1/me`
-**Auth:** `user` · Requires `{ "confirmation": "DELETE" }` → `204`.
+**Auth:** `user` · Requires `{ "confirmation": "DELETE" }` → `202`.
 
 Executes §10.2 of `DATA_MODEL`. Irreversible.
 
+```jsonc
+{
+  "status": "erased",
+  "retained": ["anonymised results", "research pseudonym"],
+  "completes_within_hours": 24
+}
+```
+
+**202, not 204 — changed when API-9 was settled (`ADR-0018`, 22 Nov 2026).**
+The database half completes before the response and in one transaction:
+billing cancelled, the profile anonymised and stamped `deleted_at`, every
+`payload->text` redacted, feedback prose replaced, and the `audit_log` row
+that attests to it written last so it cannot exist unless the rest committed.
+
+What remains are three outbound calls we do not own — deleting the credential
+at Supabase (`ADR-0002`), cancelling at the payment provider, and the
+confirmation email — so a handler attempting them would answer 500 on a
+partial failure, with no retry and an account in an unknown state. 202 here
+means "your data is erased, the external cleanup follows", which is the
+honest reading of the status. `UX_SPEC` S-20 already said "within 24 h"; this
+document was the one out of step.
+
+`retained` travels in the response as well as on the screen before it.
+`UX_SPEC` S-20 calls saying what survives "the ethical core of this screen",
+and a client generated from the contract should not have to go and read §10.2
+to render it.
+
+**The user's token stays valid until the worker deletes the credential**, so
+for up to 24 hours an erased account can still present one. Every learner
+route reaches the profile through one method that filters `deleted_at IS
+NULL`, so they all answer the ordinary 404 — the same 404 as a profile that
+was never created, which §2.7 prefers to a status distinguishing the two.
+`POST /me` is the exception, because `ON CONFLICT DO NOTHING` would make a
+resurrection attempt indistinguishable from a retry: it answers 409
+`account_deleted`.
+
 | Status | Code |
 |---|---|
+| 404 | `not_found` — no profile, or already erased |
 | 422 | `confirmation_required` |
 
 ---
@@ -785,6 +822,7 @@ Stable identifiers. **Once shipped, a code is never renamed or repurposed.**
 | `session_not_concluded` | 409 | Feedback requested too early |
 | `trial_already_used` | 409 | One trial per browser |
 | `no_approving_review` | 409 | Publish blocked (FR-12.5) |
+| `account_deleted` | 409 | `POST /me` after an erasure; an account that a retried sign-up could undo is not erased (API-9) |
 | `validation_failed` | 422 | Generic; `details` lists fields |
 | `question_too_long` | 422 | > 500 chars |
 | `diagnosis_empty` | 422 | Empty diagnosis |
@@ -851,7 +889,7 @@ CI fails if `openapi.yaml` changes without the generated types being regenerated
 | API-6 | Does `questions_remaining` belong on the session response? | **Settled 11 Nov 2026: no — absent, permanently.** Raised 2026-11-01 in T-030 slice 2b as a self-contradiction in this document. §6 argued the field was "included deliberately — a hard cap, not a progress metric", and justified it with "the UI surfaces it only when it approaches zero (`UX_SPEC` S-10)". **S-10 says the reverse**: its table *"What is deliberately absent — listed so no one adds them"* opens with *Question counter | U2*. So §6 was not a second opinion, it was a misreading of the document it cited, and three of the four sources never disagreed — S-10, `PRD` P2, and `tests/test_openapi.py::test_the_session_schema_exposes_no_assessment_state`, which names the field in its forbidden set under CT-1/CT-2. `CLAUDE.md` reads the same way about the monthly allowance: "a visible counter teaches the counter." **Nothing is lost.** The cap is a refusal, not a gauge: 429 `question_limit_reached` carries `{"limit": 40}` in `details`, which is what drives S-10's disabled input. A client wanting to disable the box before the 41st keystroke counts `transcript` entries of `type: question`, which the session response already carries — so the figure is derivable with no field, no duplicate source of truth for the 40, and no counter on screen. §6's example and prose corrected in the same commit; the `openapi.yaml` schema needed no change, because the field was never in it |
 | API-7 | §6's diagnosis table names `session_already_concluded`; §10's catalogue has `session_concluded` | **Typo in §6, raised 2026-11-03 in T-030 slice 4.** The catalogue governs — §10 says "once shipped, a code is never renamed or repurposed" — and `session_concluded` is what `nidan/api/errors.py` holds, what the enum lists, and what slice 3 already returns from three endpoints. Implemented as `session_concluded`; §6's mention should be corrected rather than a second code added |
 | API-8 | `GET /feedback` → `answer.trap_explanation` has no source | **Raised 2026-11-03 in T-030 slice 4.** §6's feedback example shows it, and no such field exists in `case_versions.content` (`DATA_MODEL` §8.1), in `cases.py`, or anywhere else — so there is nothing to return. Synthesising the prose server-side from `anchor_topic` would be inventing clinical explanation, which the LLM-never-marks rule exists to prevent in the other direction. **Implemented as `answer.anchor_topic`**, which is real. Giving each case a written trap explanation is content authoring for all ten cases plus a content-schema change; decide before T-036 builds the feedback screen |
-| API-9 | `DELETE /v1/me` cannot execute `DATA_MODEL` §10.2 | **⟨DECIDE⟩ — blocked, raised 2026-11-03 in T-030 slice 5, and the decision has a legal dimension.** §10.2's erasure runs `UPDATE session_events SET payload = jsonb_set(payload, '{text}', '"[redacted]"')`. Migration 010 applies `forbid_mutation()` to that table as `BEFORE UPDATE OR DELETE`, unconditionally — **verified that even the table owner is refused**. So the half of the erasure that redacts the learner's own free text cannot run. Four ways out, none of them a handler's to choose: (a) redact at read, leaving the text at rest — probably not erasure under GDPR; (b) narrow the trigger to permit a redaction that only overwrites `text`; (c) run erasure as a privileged offline job that disables the trigger; (d) retain the text and say so in the participant information, as §10.2 already does for `session_results`. **Implemented as 501**, because a 204 that anonymised only the profile would claim an erasure that did not happen — and §10.2 itself says a user "has a right to know what does not disappear" |
+| ~~API-9~~ | `DELETE /v1/me` cannot execute `DATA_MODEL` §10.2 | ✅ **Settled 2026-11-22 by `ADR-0018`.** Option (b), implemented far more strictly than "narrow the trigger": migration 033 permits **one** state transition on `session_events` — `payload->'text'` becoming `"[redacted]"` with `id`, `session_id`, `seq`, `type` and `created_at` identical and no other key touched — and refuses everything else, DELETE included. A `BEFORE UPDATE` trigger sees `OLD` and `NEW`, so the whole predicate is checkable in the database, for every role including the owner. It is idempotent, so a worker retry is safe, and `"[redacted]"` is a value rather than an absence, so a reader can tell text was removed — which is what option (a) could not offer. (c) was rejected because it needs an owner credential in a job and an `ACCESS EXCLUSIVE` lock that stalls every live consultation while the guarantee is off globally; (d) because it withdraws a promise already printed on S-20, and its central argument was false — §11.7's research export selects **no text column**, so the research never reads the prose it wanted retained. Settling it also found two gaps in §10.2 itself: it redacted two of the four text-bearing event types, and never mentioned `feedback_texts`, where `PRD` P3 requires the learner's own questions to be quoted. `DELETE /v1/me` now returns **202**, because three steps are outbound calls we do not own — S-20's "within 24 h" was right and §4's 204 was wrong |
 | API-10 | `POST /v1/me/export` returns 202 and nothing builds the export | **Raised 2026-11-03 in T-030 slice 5.** 202 means "accepted, not done", so recording the request durably and reporting an ETA is a correct implementation of the *endpoint*. What does not exist is the worker that builds the JSON and the mail that sends it, and neither has a task in `BUILD_PLAN`. The request is written to `audit_log` so a data-subject access request can be proven received. Needs a task before the 24-hour SLA in `PRD` FR-11.3 means anything |
 
 ---

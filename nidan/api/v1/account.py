@@ -1,16 +1,17 @@
 """
 `/v1` progress and account lifecycle (`API_CONTRACT` §4, §7).
 
-Three endpoints, and only two of them ship. `DELETE /me` is deliberately still
-a 501 — see `nidan/api/v1/contract.py` and API-9 in `API_CONTRACT` §13 for why
-that is an honest answer rather than unfinished work.
+Three endpoints, and all three ship. `DELETE /me` was a 501 until API-9 was
+settled on 22 Nov 2026: migration 033 gives `session_events` a single
+permitted mutation, so `DATA_MODEL` §10.2's erasure can finally run. See
+`ADR-0018` for why that exception is narrower than it sounds.
 """
 
 from __future__ import annotations
 
 from datetime import timedelta
 
-from flask import jsonify
+from flask import jsonify, request
 
 from nidan.api.auth import current_actor, current_user_id, require_auth
 from nidan.api.errors import error
@@ -23,6 +24,12 @@ from nidan.infra.db.repositories.progress import MIN_SESSIONS_FOR_TRENDS
 
 # §4: "Generates a JSON export, emailed within 24 h" (`PRD` FR-11.3).
 EXPORT_SLA_HOURS = 24
+
+# `UX_SPEC` S-20: "Your name, email and profile are removed within 24 h".
+# The same number as the export SLA today and deliberately not the same
+# constant: they are promises about different things, and one of them
+# moving should not move the other by accident.
+ERASURE_SLA_HOURS = 24
 
 # Every verdict `session_results` allows, so the distribution has all four
 # keys at zero rather than omitting them. A client that must handle a missing
@@ -118,3 +125,96 @@ def request_export():
 
     return jsonify({"status": "queued",
                     "estimated_ready_at": iso(ready_at)}), 202
+
+
+@bp.delete("/me")
+@require_auth
+def delete_account():
+    """
+    `DELETE /v1/me` → **202 Accepted** (§4, `DATA_MODEL` §10.2). Irreversible.
+
+    **202, not 204 — and that is the change API-9 forced.** §4 said 204, which
+    claims the erasure finished inside the request. Three of its steps are
+    outbound calls we do not own: deleting the credential through the Supabase
+    admin API (`ADR-0002`), cancelling at the payment provider, and the
+    confirmation email S-20 promises. A handler that attempted them would
+    answer 500 on a partial failure, with no retry and an account in an
+    unknown state. `UX_SPEC` S-20 already told the user "within 24 h"; the
+    contract was the thing out of step.
+
+    **What does happen before this returns is everything in the database**,
+    in one transaction: billing cancelled, the profile anonymised and stamped
+    `deleted_at`, every `payload->'text'` redacted, feedback prose replaced.
+    So 202 here means "your data is erased; the external cleanup follows",
+    not "queued, nothing done yet" — which is the honest reading of the
+    status and the opposite of what `/me/export` can currently claim.
+
+    The confirmation is checked before anything else. §4 requires
+    `{"confirmation": "DELETE"}` and S-20 disables the button until the word
+    is typed exactly; a destructive endpoint should not depend on the client
+    having implemented that.
+    """
+    body = request.get_json(silent=True) or {}
+    if body.get("confirmation") != "DELETE":
+        return error(
+            "confirmation_required",
+            'Deleting an account requires {"confirmation": "DELETE"}. '
+            'This cannot be undone.')
+
+    user_id = current_user_id()
+
+    # One transaction, as the user themselves. Three reasons, and the first is
+    # the one that decided it:
+    #
+    # `AuditRepository.record` takes the actor from the scope and refuses to be
+    # told who acted — "an audit log that can be made to lie about who acted is
+    # worse than none". Under a service actor there is no `user_id` to record,
+    # and splitting the audit row into a second scope would mean either logging
+    # an intention before the work (a lie if it then fails) or committing the
+    # erasure and the proof of it separately.
+    #
+    # It also makes the whole erasure atomic: billing, profile, events and
+    # feedback either all go or none do. And RLS applies on top of the explicit
+    # `WHERE user_id = :uid` in the repository, so the statements are scoped
+    # twice — which is what `ADR-0016` means by defence in depth.
+    with repo_scope(current_actor()) as db:
+        if db.profiles.get() is None:
+            # Already erased, or never created. The same 404 either way: §2.7
+            # declines to confirm the existence of things, and "you have
+            # already been deleted" is a fact about an account we have just
+            # been asked to forget.
+            return error("not_found", "No profile yet. Create one with POST /me.")
+
+        result = db.erasure.erase(user_id)
+
+        # Append-only, and the only record that survives the erasure. Counts,
+        # never content — an audit row naming what was redacted would be the
+        # erasure keeping what it erased (`domain/guard.py` has the same rule).
+        #
+        # Written last, inside the same transaction, so it cannot exist unless
+        # the erasure it attests to also committed.
+        db.audit.record(
+            action="profile.erased",
+            entity_type="profile",
+            entity_id=user_id,
+            reason="account deletion requested by the user (DATA_MODEL §10.2)",
+            metadata={
+                "events_redacted": result.events_redacted,
+                "feedback_redacted": result.feedback_redacted,
+                "subscriptions_cancelled": result.subscriptions_cancelled,
+                # What is left, named so the worker's job is legible from the
+                # record rather than only from this docstring.
+                "pending": ["auth.users", "payment_provider",
+                            "confirmation_email"],
+                "sla_hours": ERASURE_SLA_HOURS,
+            },
+        )
+
+    return jsonify({
+        "status": "erased",
+        # S-20's "what we keep, and why", in the response as well as on the
+        # screen. A user has a right to know what does not disappear, and a
+        # client built from the schema should not have to go and read §10.2.
+        "retained": ["anonymised results", "research pseudonym"],
+        "completes_within_hours": ERASURE_SLA_HOURS,
+    }), 202

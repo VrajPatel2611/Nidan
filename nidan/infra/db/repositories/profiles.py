@@ -19,16 +19,50 @@ import sqlalchemy as sa
 from nidan.infra.db.repositories.base import Repository
 
 
+class AccountErased(Exception):
+    """
+    `POST /me` was called by someone whose account has been erased.
+
+    Its own exception rather than a `ValueError`, because the two mean
+    different things to the route: a `ValueError` from this module is a bad
+    field and belongs in a 422 naming it, while this is a conflict with the
+    account's state and maps to `account_deleted` (409).
+
+    It exists because `ensure()` is an INSERT with `ON CONFLICT DO NOTHING`.
+    Against a soft-deleted row that does nothing at all, and the caller would
+    get whichever answer the following SELECT happened to give -- a 500 once
+    `get()` started hiding erased profiles. An erasure that a retried sign-up
+    could undo is not an erasure.
+    """
+
+
 class ProfileRepository(Repository):
 
     def get(self) -> Mapping[str, Any] | None:
-        """The actor's own profile. Deliberately unfiltered -- see the module docstring."""
+        """
+        The actor's own profile, unless it has been erased.
+
+        Deliberately unfiltered by id -- see the module docstring. The one
+        `WHERE` is `deleted_at IS NULL`, and it is the exception that proves
+        the rule: RLS can say "yours", but it cannot say "still exists".
+
+        **An erased account keeps a valid token until Supabase deletes the
+        credential** (`ADR-0002`: we do not own `auth.users`, so that is an
+        admin-API call the erasure worker makes, inside S-20's 24 hours).
+        Without this filter the window between the two is an account that
+        answers `GET /me` with an anonymised profile and can start a new
+        consultation. Every learner route reaches the profile through this
+        method, so one filter closes all of them; the 404 they get is the
+        same 404 as a profile that was never created, which §2.7 prefers to
+        a status that distinguishes the two.
+        """
         row = self._conn.execute(sa.text("""
             SELECT id, display_name, professional_role, platform_role, year_of_training,
                    country, timezone, research_pid, subscription_tier,
                    subscription_ends, onboarded_at, consent_research,
                    platform_role
             FROM profiles
+            WHERE deleted_at IS NULL
         """)).mappings().first()
         return row
 
@@ -52,6 +86,17 @@ class ProfileRepository(Repository):
         unknown = set(fields) - allowed
         if unknown:
             raise ValueError(f"not a profile column: {sorted(unknown)}")
+
+        # Before the INSERT, because `ON CONFLICT DO NOTHING` would make a
+        # resurrection attempt indistinguishable from an ordinary retry.
+        # `get()` hides erased profiles, so this is the only place left that
+        # can see one.
+        erased = self._conn.execute(sa.text(
+            "SELECT 1 FROM profiles WHERE deleted_at IS NOT NULL"
+        )).first()
+        if erased is not None:
+            raise AccountErased(
+                "this account has been deleted and cannot be recreated")
 
         cols = ["id", *fields]
         params: dict[str, Any] = {"id": user_id, **fields}
@@ -149,14 +194,20 @@ class ProfileRepository(Repository):
                     "was shown; consent to an unnamed document is not consent")
             assignments.append("consent_at = now()")
 
+        # `AND deleted_at IS NULL`: without it a PATCH would write to an
+        # erased row and then return 404 because `get()` hides it -- so the
+        # caller sees a refusal while the display name they sent is back in
+        # the table. rowcount then being 0 is what makes the 404 true.
         result = self._conn.execute(sa.text(
             f"UPDATE profiles SET {', '.join(assignments)} "  # noqa: S608
-            f"WHERE id = :id"
+            f"WHERE id = :id AND deleted_at IS NULL"
         ), params)
         if result.rowcount == 0:
             return None
         return self.get()
 
     def touch_last_active(self) -> None:
+        """Activity on an erased profile is not activity -- see `update()`."""
         self._conn.execute(sa.text(
-            "UPDATE profiles SET last_active_at = now()"))
+            "UPDATE profiles SET last_active_at = now() "
+            "WHERE deleted_at IS NULL"))
