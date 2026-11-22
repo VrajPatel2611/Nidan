@@ -4,12 +4,22 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0, 1 and **2 complete — 20 of 34 tasks, 38 days of
-83.** The research is published and validated; the platform has a schema, a
-repository layer with tenant scoping, event-sourced sessions, authentication,
-anonymous trials, a replayable assessment engine, the free-tier allowance, the
-16 pilot sessions imported into it, and the whole admin console: case editor,
-Playtest, and the clinical review workflow.
+**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 6 of 8 — 26 of
+34 tasks, 57 days of 83.** The research is published and validated; the
+platform has a schema, a repository layer with tenant scoping, event-sourced
+sessions, authentication, anonymous trials, a replayable assessment engine,
+the free-tier allowance, the 16 pilot sessions imported into it, the whole
+admin console (case editor, Playtest, clinical review), the `/v1` JSON API,
+and a Next.js web app a learner can sign in to, take a consultation in, and
+read feedback from.
+
+**Two tasks are left in Phase 3, and they are independent.** T-037 (history
+and progress, Yogesh, 3 d) depends on T-036, which is merged — so it is not
+waiting on anything. **T-030 is the other**, and it is the one that is easy
+to miss: it is merged but deliberately **not** marked DONE, because
+`DELETE /me` is a 501 (API-9 is open and has a legal dimension), `/me/export`
+has no worker behind its 202 (API-10 has no task), and it has no build log.
+Phase 3 is not finished when T-037 lands.
 
 **The gate is open.** Phase 2's goal was one sentence — *clinicians can review
 cases without reading code* — and T-023 met it on 29 Oct 2026. The two
@@ -31,10 +41,10 @@ cannot start because the console only runs on `localhost` and no task in any
 of the seven phases deploys it. That is the single thing standing between ten
 finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
 
-**Next: Phase 3 — the API and the web app** (8 tasks, 28 d), with review
-running beside it rather than after it. T-030 (JSON API, Vraj) and T-032
-(Next.js scaffold, Yogesh) have no dependency on each other and can start
-together.
+**Next: finish Phase 3** — T-037 (Yogesh) and T-030's closeout (Vraj), 9 d
+between them and no dependency either way — then Phase 4, commercial
+readiness (6 tasks, 17 d). Clinical review still runs beside all of it: it is
+calendar time, and ten reviewed cases is the launch gate.
 
 ---
 
@@ -181,6 +191,23 @@ and an admin reviewing a case holds the reviewer's smaller role.
 (`migrations/023`, `024` · `tests/db/test_case_authoring.py`,
 `tests/db/test_clinical_review.py`)
 
+**The real-patient-data guard never stores what it refused, and the guard
+runs on BOTH question paths.** `domain/guard.py` returns a reason code and
+never a fragment of the input: `DATA_MODEL` §8.2 says `input_blocked` records
+"never the offending text", and storing it would put real patient data into
+the table we keep for ever, under the name of protecting it. Three things hold
+it — `Detection` carries one catalogued field, `events.py` refuses the append
+if the payload has `text`/`content`/`message`/`input`, and
+`test_the_blocked_text_reaches_nothing` reads **every** payload back out of
+Postgres rather than checking the one event it expects. The 422 names the
+category, never the characters. It is wired into `api/v1/consultation.py`
+*and* `api/routes.py`, because `PRD` P4 does not exempt anonymous visitors and
+the prototype is the only path they have — every `/v1` consultation endpoint
+is `@require_auth`. **It is deliberately conservative**: a bare name, a bare
+date and an age do not block, because a false block discards the learner's
+question (`UX_SPEC` S-10) and teaches them the tool is broken. Tighten it on
+evidence from `input_blocked` reasons, not on a hunch. (T-035 · `PRD` P4)
+
 **Backfilled events are marked and must be excluded from timing analysis.**
 The 16 pilot sessions carry `provenance: "backfilled"` in every event payload;
 their timestamps are synthetic because the JSON never recorded the interleaving.
@@ -306,6 +333,21 @@ backend mistake surfaced in the frontend's CI four days later. That test now
 parses with a strict loader; `test_the_strict_loader_actually_rejects_a
 _duplicate` proves the guard bites.
 
+**A request body the contract declares must be one a handler reads.**
+`tests/test_request_body_conformance.py` walks the AST of `api/v1/` for the
+keys each handler takes off the JSON body and compares them with the schema
+the contract attaches to that operation — in both directions. It exists
+because the CT tests guard what must be **absent** from a response, and
+nothing checked that the shape we *declare* is the shape we *read*: three
+drifts in three consecutive tasks (`diagnosis` for `text`, `helpful` for
+`was_helpful`, the whole `Feedback` schema) each passed CI here and failed
+only in the frontend's CI. On its first run it found three more, including
+`consent_version` — read and required by `PATCH /me`, declared nowhere, so a
+generated client **could never give research consent**. It is static, so it
+runs in 0.2 s and still runs when Docker is down. If it ever reports a field
+`identity.py`-style whitelist filtering makes it miss, fix the walk; a test
+with false positives gets switched off. (T-035)
+
 **Every operation `openapi.yaml` declares must answer.** If it is not
 built, it is listed in `nidan/api/v1/contract.py` and returns 501 with the
 envelope — which is what sync point S-1 means and what did not exist until
@@ -320,6 +362,18 @@ needs the session tables truncated first. **`DATA_MODEL` §10.2's erasure
 cannot run**: it UPDATEs `session_events`, so `DELETE /me` is a 501 and
 API-9 is the open decision. (verified against the running database ·
 `tests/db/test_v1_progress.py`)
+
+**A test that copies the repository must exclude `node_modules`.**
+`tests/test_validation_gate.py` clones the repo into a tmpdir to prove the
+detector gate fails on a degraded threshold. T-032 added `web/`, and from the
+first `npm ci` that clone carried 457 MB and ~100 000 files — twice per run.
+**The suite went from 80 seconds to over 45 minutes at 0 % CPU with no
+output**, which reads as a hang rather than a fault, and nothing failed so
+nothing said why; it was found by `lsof`-ing the stuck process. The two
+duplicated ignore lists are now one `_IGNORE` constant, and
+`test_the_repo_copy_excludes_the_javascript_tree` asserts the exclusion — not
+a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
+build tool fills, add it there too. (T-035)
 
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
@@ -340,6 +394,7 @@ nidan/
     selection.py          which case, and how much of the month is left
     session.py            session state — create, update, and replay(events)
     events.py             the 8 event types and their payload shapes
+    guard.py              the real-patient-data guard — reason codes only (T-035)
     feedback.py           feedback prompt construction (prose only, no marking)
     feedback_view.py      the feedback screen, recomputed from the log
   infra/                everything that touches the outside world
@@ -392,6 +447,8 @@ nidan/
 
 tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                         test_db_access.py (no query bypasses the repositories)
+                        test_request_body_conformance.py (the contract vs the
+                          bodies handlers actually read — AST, no DB)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
 migrations/versions/    32 Alembic migrations ← the schema's source of truth
@@ -420,7 +477,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 981 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1068 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract

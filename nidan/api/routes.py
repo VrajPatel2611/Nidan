@@ -45,6 +45,7 @@ from nidan.domain.content.cases import (
     get_case,
 )
 from nidan.domain.feedback_view import build_feedback_view
+from nidan.domain.guard import classify as classify_patient_data
 from nidan.domain.session import (
     conversation_from,
     mentions_early_diagnosis,
@@ -282,6 +283,31 @@ def chat():
         state, events = _load(db, session_id, case_id)
         if state is None:
             return jsonify({"error": "No active session."}), 400
+
+        # T-035 - the real-patient-data guard, here as well as on /v1.
+        #
+        # `PRD` P4 does not exempt anonymous visitors, and this route is the
+        # only path they have: every consultation in the prototype is a trial
+        # one, and `/v1`'s consultation endpoints are all @require_auth, so a
+        # trial cookie alone gets 401 there (HANDOFF V-10.3). Guarding only
+        # the signed-in path would leave the most public surface - the one
+        # anyone can reach without an account - the only unguarded one.
+        #
+        # Reason only in the event, never the text (`DATA_MODEL` 8.2), and the
+        # question is not consumed: no `question` event is appended, so
+        # `question_count` still reflects what the learner actually asked.
+        detected = classify_patient_data(user_message)
+        if detected is not None:
+            db.events.append(session_id, "input_blocked",
+                             {"reason": detected.reason})
+            return jsonify({
+                "error": "That looks like it might contain real patient "
+                         "information, so it has not been sent. Nidan is a "
+                         "training simulation with synthetic patients - "
+                         "please rephrase without any real details.",
+                "blocked": True,
+            }), 422
+
         conversation = conversation_from(events)
 
     case = get_case(case_id)

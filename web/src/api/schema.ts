@@ -975,10 +975,24 @@ export interface components {
              */
             allowance_resets_at?: string | null;
         };
+        /** @description **Accepts every field `ProfileUpdate` does**, because `identity.py` validates both against one `_WRITABLE` set. This schema declared only `anonymous_id` and `timezone` until T-035, so a client generated from it could not set a display name at sign-up without a second PATCH — and nothing failed, because the server accepted fields the contract had never mentioned. */
         ProfileCreate: {
             /** @description Claims a trial session taken before signup. */
             anonymous_id?: string | null;
+            display_name?: string;
+            /** @enum {string} */
+            professional_role?: "medical_student" | "intern" | "resident" | "physician" | "other";
+            year_of_training?: number;
+            country?: string;
             timezone?: string;
+            consent_research?: boolean;
+            /** @description Required when `consent_research` is true — the identifier of the document the user was actually shown. The server stamps `consent_at` itself; a caller that could choose it could backdate a consent. */
+            consent_version?: string;
+            /**
+             * @description See ProfileUpdate.
+             * @enum {boolean}
+             */
+            onboarded?: true;
         };
         ProfileUpdate: {
             display_name?: string;
@@ -988,6 +1002,8 @@ export interface components {
             country?: string;
             timezone?: string;
             consent_research?: boolean;
+            /** @description **Required when `consent_research` is true**, or the request is refused with `consent_version_required` — it identifies the document the user was actually shown. Absent from this schema until T-035, which meant a client generated from the contract had no way to send it and **could never give research consent at all**. The server stamps `consent_at`; a caller that could choose it could backdate a consent. */
+            consent_version?: string;
             /**
              * @description Ends onboarding (S-07), whether its questions were answered or skipped. The server stamps `onboarded_at` the first time and keeps it; `false` is refused — there is no un-onboarding.
              * @enum {boolean}
@@ -1104,7 +1120,6 @@ export interface components {
         /** @description The field is `text`, as API_CONTRACT §6 and `conclusion.py` have it. This schema said `diagnosis` until T-034, so a client built from the generated types was refused with `diagnosis_empty` every time. */
         DiagnosisCreate: {
             text: string;
-            confidence_post?: number;
         };
         /** @description Eight sections in a fixed order (`UX_SPEC` S-12). Headings are *Diagnostic focus · History completeness · Evidence exploration* — never bias vocabulary (CT-5). **Reconciled with API_CONTRACT §6 and `conclusion.py` in T-036.** This schema had drifted from both — `diagnosis_verdict`, a top-level `correct_diagnosis`, `narrative`, `generator: model|fallback`, and no summary, coverage or scorecards — while §6 and the handler agreed with each other. Nothing compares a response to its schema, so neither side knew until the web app was built from the types. */
         Feedback: {

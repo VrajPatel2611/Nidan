@@ -18,6 +18,29 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parent.parent
 SCRIPT = REPO / "validate_detectors.py"
 
+# What NOT to copy when these tests clone the repository into a tmpdir.
+#
+# One list, used by both tests, because it was duplicated and only one copy
+# would have been updated.
+#
+# **`node_modules` is the load-bearing entry.** T-032 added `web/`, and from
+# the moment anyone ran `npm ci` this copied 457 MB and ~100 000 files twice
+# per test run — the full suite went from about 80 seconds to over 45 minutes,
+# with the process at 0 % CPU and no output, which reads exactly like a hang.
+# Nothing failed, so nothing said why. The validation gate runs
+# `validate_detectors.py`, which imports `nidan.domain` and the pilot
+# sessions; it has never needed a single JavaScript file.
+#
+# `web/src` and the rest of the web app are small and are still copied, so
+# this excludes the build artefacts rather than the source.
+_IGNORE = (
+    "venv", ".venv", ".git", "__pycache__", "*.pyc",
+    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    "node_modules", ".next", ".turbo",          # T-032's web app
+    "report", "docs", "sessions", "*.egg-info",
+    "htmlcov", ".coverage",
+)
+
 
 def _run(cwd=REPO):
     """
@@ -38,6 +61,39 @@ def _run(cwd=REPO):
         cwd=cwd, capture_output=True, text=True, encoding="utf-8",
         errors="replace", timeout=180, env=env,
     )
+
+
+def test_the_repo_copy_excludes_the_javascript_tree():
+    """
+    A guard on `_IGNORE`, and the reason it exists is worth stating.
+
+    T-032 added `web/`. From the first `npm ci`, the two tests below copied
+    457 MB and ~100 000 files of `node_modules` into a tmpdir, twice per run.
+    The full suite went from about 80 seconds to over 45 minutes, sitting at
+    0 % CPU with no output — indistinguishable from a hang, and nothing failed,
+    so nothing said why. It was found by `lsof`-ing the stuck process and
+    seeing it copy `web/node_modules/tinyglobby/LICENSE`.
+
+    This asserts the exclusion rather than the runtime, because a timing
+    assertion on a laptop is flaky and this is the actual invariant: the
+    detector gate needs `nidan/` and the pilot sessions, never a JavaScript
+    dependency. If `node_modules` ever returns to the copy, the symptom is a
+    suite that looks broken rather than one that fails.
+    """
+    import shutil
+
+    ignore = shutil.ignore_patterns(*_IGNORE)
+    # shutil hands the ignore callable a directory and its entries, and takes
+    # back the names to skip. Ask it directly rather than copying anything.
+    assert "node_modules" in ignore(str(REPO / "web"), ["src", "node_modules"]), (
+        "the repo copy would include web/node_modules — see this test's "
+        "docstring for what that costs")
+    for unwanted in (".next", ".turbo", "venv", ".git"):
+        assert unwanted in ignore(str(REPO), [unwanted, "nidan"]), unwanted
+
+    # And the things the gate genuinely needs must NOT be excluded.
+    kept = ignore(str(REPO), ["nidan", "validate_detectors.py", "pyproject.toml"])
+    assert not kept, f"the copy would skip something the gate needs: {kept}"
 
 
 def test_the_threshold_is_the_published_figure():
@@ -67,12 +123,7 @@ def test_fails_when_a_detector_is_degraded(tmp_path):
     import shutil
 
     work = tmp_path / "repo"
-    shutil.copytree(
-        REPO, work,
-        ignore=shutil.ignore_patterns("venv", ".git", "__pycache__", "*.pyc",
-                                      ".pytest_cache", ".mypy_cache", "report",
-                                      "docs", "sessions", "*.egg-info"),
-    )
+    shutil.copytree(REPO, work, ignore=shutil.ignore_patterns(*_IGNORE))
 
     # T-016 moved the thresholds out of bias.py and into data, so the
     # degradation is applied where the number now lives. That is a better
@@ -104,12 +155,7 @@ def test_the_failure_message_says_not_to_lower_the_threshold(tmp_path):
     import shutil
 
     work = tmp_path / "repo"
-    shutil.copytree(
-        REPO, work,
-        ignore=shutil.ignore_patterns("venv", ".git", "__pycache__", "*.pyc",
-                                      ".pytest_cache", ".mypy_cache", "report",
-                                      "docs", "sessions", "*.egg-info"),
-    )
+    shutil.copytree(REPO, work, ignore=shutil.ignore_patterns(*_IGNORE))
     # Same degradation as the test above, applied where T-016 moved the
     # threshold to. This test silently stopped degrading anything when the
     # constant left bias.py — it passed on the unmutated copy, which would
