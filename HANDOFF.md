@@ -49,6 +49,36 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-10** (2026-11-22, from Yogesh) · **Three things from T-034 — one
+  contract fix I made, one decision, one backend gap.** Branch
+  `feat/t-034-consultation` (`b48b54e`).
+
+  1. **`openapi.yaml` named the diagnosis field wrongly — fixed.**
+     `DiagnosisCreate` said `required: [diagnosis]`; `API_CONTRACT` §6,
+     `conclusion.py` (`body.get("text")`) and all 14 calls in
+     `tests/db/test_v1_conclusion.py` use `text`. A client built from the
+     generated types got `diagnosis_empty` every time. I changed the schema to
+     `text`, regenerated `schema.ts` in the same commit, and
+     `test_openapi.py` / `test_api_contract.py` still pass. Nothing compares
+     request-body schemas against what the handlers read — the response side
+     got CT tests, the request side did not — so this kind of drift is
+     invisible until a client calls. Worth a test that posts the schema's
+     example body to each endpoint?
+  2. **`DiagnosisCreate.confidence_post` is declared and never read.**
+     `PRD` FR-3 has a pre-case confidence; if a post-diagnosis one is wanted,
+     `conclusion.py` should store it; if not, the field should go. I left it.
+  3. **The anonymous trial cannot get past its first screen through `/v1`.**
+     `POST /v1/trial/sessions` starts one, but every consultation endpoint —
+     `GET /sessions/{id}`, questions, examinations, investigations,
+     diagnosis — is `@require_auth`, so the trial cookie alone gets 401.
+     `UX_SPEC` S-09/S-10 say "Auth: Both". T-034 is therefore signed-in only:
+     an anonymous visitor at `/case/{id}` is sent to log in. The prototype's
+     Flask routes still serve the trial; the web app cannot until these
+     accept the `anonymous_id` cookie (through `anonymous_scope`, I assume).
+
+  Done when (1) is looked at, (2) is decided, and (3) has an owner and a
+  task — it is not in `BUILD_PLAN`.
+
 - [ ] **V-9** (2026-11-15, from Yogesh) · **Please review two small additions
   to `/v1/me` made in T-033.** Yogesh agreed to them rather than wait. Branch
   `feat/t-033-dashboard-onboarding` (`d2eeb33`); `openapi.yaml` and
@@ -835,6 +865,15 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-22** · **T-034 built on `feat/t-034-consultation` (`b48b54e`),
+  not pushed yet.** S-09 preview, S-10 consultation in every state (three
+  panes / strip + drawer / §4.1 refusal, all measured in a browser), S-11
+  diagnosis modal. The U2 criteria are tests; breaking the counter test on
+  purpose found it — and T-033's vocabulary scan — blind to text joined
+  across elements (`…Send1/40Give…`), now fixed. 177 web / 988 backend tests.
+  **Y-19 done**: the 429 drives the cap, no counter anywhere. T-033 merged
+  (PR #46). Still waiting on a published case for a live run.
 
 - **2026-11-15** · **T-033 built on `feat/t-033-dashboard-onboarding`
   (`d2eeb33`), not pushed yet.** S-07 onboarding and S-08 dashboard in all
