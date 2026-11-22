@@ -5,7 +5,6 @@
  * except for the two actions — start, and the confirmed abandon.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { startTransition, useActionState, useState } from "react";
 import { abandonCase, startCase, type ActionState } from "@/app/(app)/actions";
 import { Badge, Banner, Button, Card, ConfirmModal, StatTile } from "@/components/ui";
@@ -16,7 +15,6 @@ export function DashboardView({ d }: { d: Dashboard }) {
   const [started, start, starting] = useActionState<ActionState>(startCase, {});
   const [abandoned, abandon, abandoning] = useActionState<ActionState, FormData>(abandonCase, {});
   const [confirming, setConfirming] = useState(false);
-  const router = useRouter();
 
   return (
     <>
@@ -27,7 +25,7 @@ export function DashboardView({ d }: { d: Dashboard }) {
           <div className={s.bannerRow}>
             <span>You have a consultation in progress — {d.active.caseTitle}, started {d.active.startedAt}.</span>
             <span className={s.bannerActions}>
-              <Button size="sm" onClick={() => router.push(`/case/${encodeURIComponent(d.active!.id)}`)}>Resume</Button>
+              <Button size="sm" href={`/case/${encodeURIComponent(d.active.id)}`}>Resume</Button>
               <Button size="sm" variant="secondary" onClick={() => setConfirming(true)}>Abandon</Button>
             </span>
           </div>

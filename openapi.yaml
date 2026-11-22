@@ -820,9 +820,13 @@ components:
 
     DiagnosisCreate:
       type: object
-      required: [diagnosis]
+      description: >
+        The field is `text`, as API_CONTRACT §6 and `conclusion.py` have it.
+        This schema said `diagnosis` until T-034, so a client built from the
+        generated types was refused with `diagnosis_empty` every time.
+      required: [text]
       properties:
-        diagnosis: { type: string, maxLength: 200 }
+        text: { type: string, maxLength: 200 }
         confidence_post: { type: integer, minimum: 1, maximum: 5 }
 
     Feedback:
