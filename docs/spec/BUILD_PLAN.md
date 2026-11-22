@@ -471,7 +471,7 @@ Done     Queue + assignment + rubric form beside Playtest + publish in nidan/web
 
 ---
 
-**T-030 · JSON API** ⭐ *(sync point S-2)*
+**T-030 · JSON API** ⭐ *(sync point S-2)* — ✅ **DONE** (2026-11-22)
 ```
 Phase    3            Depends  T-016,T-017    Est  6 d      Owner  V
 Files    nidan/api/v1/

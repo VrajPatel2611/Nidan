@@ -4,8 +4,8 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 6 of 8 — 26 of
-34 tasks, 57 days of 83.** The research is published and validated; the
+**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 7 of 9 — 27 of
+35 tasks, 63 days of 85.** The research is published and validated; the
 platform has a schema, a repository layer with tenant scoping, event-sourced
 sessions, authentication, anonymous trials, a replayable assessment engine,
 the free-tier allowance, the 16 pilot sessions imported into it, the whole
@@ -13,13 +13,26 @@ admin console (case editor, Playtest, clinical review), the `/v1` JSON API,
 and a Next.js web app a learner can sign in to, take a consultation in, and
 read feedback from.
 
+**T-030 closed on 22 Nov 2026** — 19 days after its code merged, because it
+had raised five questions about its own contract and two were blocking. The
+last was API-9, GDPR erasure, settled as `ADR-0018`. Its build log §10 is
+worth reading before Phase 4: three items in it were found while writing the
+log rather than while building the task, and **item 5 is a launch feature with
+no owner** (see below).
+
 **Two tasks are left in Phase 3, and they are independent.** T-037 (history
-and progress, Yogesh, 3 d) depends on T-036, which is merged — so it is not
-waiting on anything. **T-030 is the other**, and it is the one that is easy
-to miss: it is merged but deliberately **not** marked DONE, because
-`DELETE /me` is a 501 (API-9 is open and has a legal dimension), `/me/export`
-has no worker behind its 202 (API-10 has no task), and it has no build log.
-Phase 3 is not finished when T-037 lands.
+and progress, Yogesh, 3 d) depends on T-036, which is merged. **T-038**
+(account jobs worker, Vraj, 2 d) is new — added when API-9 was settled,
+because `DELETE /me` and `/me/export` both now return a 202 with three
+outbound calls behind it and nothing performing them. Until it ships, two
+lines printed on `UX_SPEC` S-20 are promises the product cannot keep.
+
+**The gap with no task: the anonymous trial cannot use `/v1`.** Every
+consultation endpoint is `@require_auth`, while `UX_SPEC` S-09/S-10 say
+"Auth: Both" — so a trial visitor's only path is the `api/routes.py`
+prototype, and `PRD` FR-2 makes the trial a launch feature. Raised in T-030's
+build log as debt item 5. **It needs a task and an owner, and it is the one
+thing in Phase 3's vicinity that nobody is holding.**
 
 **The gate is open.** Phase 2's goal was one sentence — *clinicians can review
 cases without reading code* — and T-023 met it on 29 Oct 2026. The two
@@ -41,10 +54,10 @@ cannot start because the console only runs on `localhost` and no task in any
 of the seven phases deploys it. That is the single thing standing between ten
 finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
 
-**Next: finish Phase 3** — T-037 (Yogesh) and T-030's closeout (Vraj), 9 d
-between them and no dependency either way — then Phase 4, commercial
-readiness (6 tasks, 17 d). Clinical review still runs beside all of it: it is
-calendar time, and ten reviewed cases is the launch gate.
+**Next: finish Phase 3** — T-037 (Yogesh) and T-038 (Vraj), 5 d between them
+and no dependency either way — then Phase 4, commercial readiness (6 tasks,
+17 d). Clinical review still runs beside all of it: it is calendar time, and
+ten reviewed cases is the launch gate.
 
 ---
 
@@ -116,12 +129,19 @@ absent *opens* with "Question counter | U2", so §6 was misreading the document
 it leaned on. Nothing is lost: the cap is a refusal, not a gauge. 429
 `question_limit_reached` carries `{"limit": 40}`, which is what drives S-10's
 disabled input, and a client that wants the figure earlier counts `transcript`
-entries of `type: question` from the response it already has — so
-`QUESTION_CAP` in `sessions.py` stays the single home for the 40.
+entries of `type: question` from the response it already has.
 `test_the_cap_stays_derivable_without_a_counter_field` pins that premise,
 because if the transcript ever loses its discriminator the argument for
 re-adding the field becomes true. (API-6, settled 11 Nov 2026 ·
 `API_CONTRACT` §13)
+
+**The 40 is declared twice, and the live one is not the one you would
+guess.** `QUESTIONS_PER_SESSION` in `consultation.py` is what refuses the
+41st question; `QUESTION_CAP` in `sessions.py` is **referenced by nothing** —
+an earlier version of this rule called it "the single home for the 40", which
+was wrong when it was written. Change `consultation.py`'s, and if you are
+tidying, delete the other rather than wiring it up: the cap belongs beside
+the handler that enforces it. (T-030 build log §10, item 1)
 
 **Never use bias vocabulary in user-facing text.** Not "bias", "anchoring",
 "premature closure", or "confirmation bias". User-facing headings are
