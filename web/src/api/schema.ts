@@ -1097,18 +1097,29 @@ export interface components {
             examinations_done?: components["schemas"]["ExaminationFinding"][];
             investigations_done?: components["schemas"]["OrderResult"][];
         };
+        /** @description **Reconciled with API_CONTRACT §7 and `sessions.py` in T-037.** This said `items[].{id, diagnosis_verdict}` and a top-level `next_cursor`; the handler and §7 send `data[].{session_id, verdict, coverage_pct, ended_at}` and a `pagination` object. The T-033 dashboard was built from this schema and would have listed nothing against the real API. */
         SessionPage: {
-            items?: {
+            data?: {
                 /** Format: uuid */
-                id?: string;
+                session_id?: string;
                 case_title?: string;
+                /** @enum {string} */
+                status?: "active" | "completed" | "abandoned" | "expired";
+                /**
+                 * @description Null for a session with no result — active or abandoned.
+                 * @enum {string|null}
+                 */
+                verdict?: "correct" | "partial" | "anchored" | "other" | null;
+                coverage_pct?: number | null;
                 /** Format: date-time */
                 started_at?: string;
-                status?: string;
-                /** @enum {string} */
-                diagnosis_verdict?: "correct" | "partial" | "anchored" | "other";
+                /** Format: date-time */
+                ended_at?: string | null;
             }[];
-            next_cursor?: string | null;
+            pagination?: {
+                next_cursor?: string | null;
+                has_more?: boolean;
+            };
         };
         QuestionCreate: {
             text: string;
@@ -1204,14 +1215,35 @@ export interface components {
                 anchor_topic?: string | null;
             };
         };
+        /** @description **Reconciled with API_CONTRACT §7 and `account.py` in T-037** — this had a `trends` map and none of the streaks, the coverage series, the verdict distribution or `has_sufficient_data`. The figures are returned below three sessions too; `has_sufficient_data` is what tells a client to show S-16's empty state instead of a two-point "trend". */
         Progress: {
             sessions_completed?: number;
+            current_streak_days?: number;
+            longest_streak_days?: number;
             mean_coverage_last10?: number | null;
-            trends?: {
-                [key: string]: {
-                    last10?: number;
-                    prev10?: number | null;
-                };
+            has_sufficient_data?: boolean;
+            coverage_series?: {
+                session_index?: number;
+                coverage_pct?: number;
+                /** Format: date-time */
+                at?: string | null;
+            }[];
+            /** @description Behavioural ids only (CT-4, CT-5). A rate is the share of the last ten (or the ten before) where the pattern was flagged; fewer is better, so a falling rate is `improving`. `direction` is null with no previous ten to compare. */
+            reasoning_trends?: {
+                /** @enum {string} */
+                id?: "diagnostic_focus" | "history_completeness" | "evidence_exploration";
+                /** @enum {string} */
+                label?: "Diagnostic focus" | "History completeness" | "Evidence exploration";
+                last10_rate?: number | null;
+                prev10_rate?: number | null;
+                /** @enum {string|null} */
+                direction?: "improving" | "stable" | "declining" | null;
+            }[];
+            verdict_distribution?: {
+                correct?: number;
+                partial?: number;
+                anchored?: number;
+                other?: number;
             };
         };
     };

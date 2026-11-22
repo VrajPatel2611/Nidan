@@ -30,7 +30,12 @@ function Rows({ rows }: { rows: Row[] }) {
   );
 }
 
-export function FeedbackView({ sessionId, f }: { sessionId: string; f: Feedback }) {
+/**
+ * `readOnly` is S-15: the same layout opened from history, with no rating
+ * control and "Back to history" in place of the actions — the learner is
+ * looking back, not finishing a case.
+ */
+export function FeedbackView({ sessionId, f, readOnly = false }: { sessionId: string; f: Feedback; readOnly?: boolean }) {
   const verdict = verdictView(f.verdict);
   const verdictClass = s[f.verdict && f.verdict in { correct: 1, partial: 1, anchored: 1 } ? f.verdict : "other"];
   const hit = f.coverage?.topics_hit ?? [];
@@ -65,13 +70,13 @@ export function FeedbackView({ sessionId, f }: { sessionId: string; f: Feedback 
       <section className={s.section} aria-labelledby="tutor">
         <h2 id="tutor" className={s.sectionTitle}>Your tutor</h2>
         {(f.tutor_feedback?.lines ?? []).map((line, i) => <p key={i} className={s.tutorLine}>{line}</p>)}
-        <div className={s.rating}>
+        {!readOnly && <div className={s.rating}>
           {rated === null ? (<>
             <span id="helpful">Was this helpful?</span>
             <Button size="sm" variant="secondary" aria-describedby="helpful" onClick={() => sendRating(true)}>Yes</Button>
             <Button size="sm" variant="secondary" aria-describedby="helpful" onClick={() => sendRating(false)}>No</Button>
           </>) : <span role="status">Thanks — that helps us improve the feedback.</span>}
-        </div>
+        </div>}
         {rateFailed && rated === null && <Banner tone="error" onDismiss={() => setRateFailed(false)}>We couldn&apos;t save that. Please try again.</Banner>}
       </section>
 
@@ -122,11 +127,15 @@ export function FeedbackView({ sessionId, f }: { sessionId: string; f: Feedback 
         )}
       </section>
 
-      {started.error && <Banner tone="error">{started.error}</Banner>}
-      <form action={start} className={s.actions}>
-        <Button type="submit" loading={starting} loadingLabel="Starting…">Start another case</Button>
-        <Button variant="secondary" href="/dashboard">Back to dashboard</Button>
-      </form>
+      {readOnly ? (
+        <div className={s.actions}><Button variant="secondary" href="/history">Back to history</Button></div>
+      ) : (<>
+        {started.error && <Banner tone="error">{started.error}</Banner>}
+        <form action={start} className={s.actions}>
+          <Button type="submit" loading={starting} loadingLabel="Starting…">Start another case</Button>
+          <Button variant="secondary" href="/dashboard">Back to dashboard</Button>
+        </form>
+      </>)}
     </main>
   );
 }

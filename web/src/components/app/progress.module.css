@@ -1,0 +1,23 @@
+/* S-16 · Progress. One colour for the trend; verdict colours are S-13's. */
+.block { margin-bottom: var(--s-6); }
+.title { font: var(--t-h3); margin: 0 0 var(--s-1); }
+.sub { font: var(--t-body-sm); color: var(--muted); margin: 0 0 var(--s-4); }
+.chart { width: 100%; height: auto; display: block; }
+.grid { stroke: var(--rule); stroke-width: 1; }
+.axis { font: var(--t-caption); fill: var(--muted); }
+.mean { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; }
+.line { fill: none; stroke: var(--teal); stroke-width: 2; }
+.dot { fill: var(--teal); }
+
+/* Pattern lines: one neutral style whatever the direction (U1). */
+.patterns { margin: var(--s-3) 0 0; padding-left: var(--s-4); }
+.patterns li { margin-bottom: var(--s-2); color: var(--ink); }
+
+.bar { display: flex; height: 20px; border-radius: var(--r-full); overflow: hidden; background: var(--surface-2); margin: var(--s-3) 0; }
+.segment { display: block; min-width: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-6); list-style: none; padding: 0; margin: 0; font: var(--t-body-sm); }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: var(--r-full); margin-right: var(--s-2); }
+.correct { background: var(--green); }
+.partial { background: var(--teal); }
+.anchored { background: var(--amber); }
+.other { background: var(--muted); }
