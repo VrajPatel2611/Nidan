@@ -413,6 +413,42 @@ On a laptop there is no identity provider, so `--create-auth-user` inserts the
 stub row as well. It refuses to do that unless it can prove the table is the
 three-column stub from migration 001.
 
+### Publishing cases on a laptop, so a demo can start one
+
+```bash
+python scripts/publish_for_demo.py --all --dry-run
+python scripts/publish_for_demo.py --all
+python scripts/publish_for_demo.py --all --undo
+```
+
+**The symptom this fixes reads like a bug and is not one.** Every case in the
+bank is a `draft`, `SelectionRepository.candidates()` returns only published
+versions, and so `POST /v1/sessions` answers `no_cases_available` (503) and the
+web app cannot start a consultation. The test suite does not notice, because
+its fixtures publish a case themselves — so the first place you meet this is a
+demo.
+
+It goes **through** migration 007's publish gate, not around it: it inserts an
+approving `clinical_reviews` row with the full four-dimension rubric and then
+flips the status, so the trigger still has to agree. Nothing disables a
+trigger.
+
+**It is not a clinical review and the data says so.** The row is attributed to
+a profile called `Demo Fixture (not a clinician)` with a reserved UUID, and its
+comment says it does not count towards the launch gate. That matters because
+ten *clinician*-reviewed cases is the launch gate, and `clinical_reviews` is
+the evidence for it.
+
+**It refuses to run against anything but a local database** — `localhost`,
+`127.0.0.1`, `::1`, `db` (the compose service name) or a Unix socket.
+Fabricating an approval on the Supabase project would put a fake review
+alongside the real ones. `tests/test_publish_for_demo.py` tests the refusal
+rather than the publishing, including that a host merely *containing*
+"localhost" is still refused.
+
+`--undo` returns the versions to draft and deletes the fixture reviews,
+draft-first so there is never a published version without an approving review.
+
 ### Reading data as the application sees it
 
 The application never issues a bare query. Everything goes through

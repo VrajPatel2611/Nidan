@@ -1327,7 +1327,9 @@ learner's.
 
 ## 10.2 Deletion and erasure
 
-When a user deletes their account:
+When a user deletes their account. One transaction, as the user's own actor —
+see `ADR-0018`, which settled API-9 on 22 Nov 2026 and is why this section
+reads differently from the version T-030 was built against.
 
 ```sql
 BEGIN;
@@ -1341,20 +1343,67 @@ BEGIN;
       country           = NULL,
       institution_id    = NULL,
       consent_research  = false,
-      deleted_at        = now()
+      deleted_at        = COALESCE(deleted_at, now())
    WHERE id = :uid;
   -- research_pid is deliberately retained.
 
-  -- Free-text the user wrote is redacted; structure is kept.
+  -- Free text the user wrote is redacted; structure is kept.
+  --
+  -- `payload ? 'text'`, NOT a list of event types. Four types carry a `text`
+  -- key -- question, early_diagnosis, diagnosis, patient_reply -- and this
+  -- clause named only the first and third until ADR-0018. A predicate on the
+  -- key covers a type added later on the day it is added, rather than on the
+  -- day someone remembers this section.
   UPDATE session_events
      SET payload = jsonb_set(payload, '{text}', '"[redacted]"')
    WHERE session_id IN (SELECT id FROM sessions WHERE user_id = :uid)
-     AND type IN ('question','diagnosis');
+     AND payload ? 'text';
+
+  -- Feedback prose cites the learner's own questions by design (PRD P3,
+  -- ADR-0004), so their words live here too. Missing from this section
+  -- entirely until ADR-0018: the hardest half of the erasure was guarded by
+  -- a database trigger and the easy half was simply absent.
+  UPDATE feedback_texts
+     SET lines = ARRAY['[redacted]']::text[]
+   WHERE session_id IN (SELECT id FROM sessions WHERE user_id = :uid);
+
+  INSERT INTO audit_log (actor_id, action, entity_type, entity_id, reason, metadata)
+  VALUES (:uid, 'profile.erased', 'profile', :uid, '...', '{...counts...}');
 COMMIT;
--- auth.users deletion is issued separately via the Supabase admin API.
+-- auth.users deletion, the payment provider and the confirmation email are
+-- issued separately by the erasure worker (T-038). Until it runs the user's
+-- token stays valid, which is why every learner route reaches the profile
+-- through `ProfileRepository.get()` and that method filters `deleted_at IS
+-- NULL`.
 ```
 
-**What is retained and why:** `session_results` and the `research_pid` link survive, because published analyses must remain reproducible. **This must be stated plainly in the participant information and the deletion confirmation screen** (`UX_SPEC` S-20) — a user has a right to know what does not disappear.
+**Why the `session_events` UPDATE is possible at all.** Migration 010 made the
+table append-only with an unconditional `BEFORE UPDATE OR DELETE` trigger that
+refused even the table owner, so this statement could not run and
+`DELETE /v1/me` was a 501 for nineteen days. **Migration 033 permits exactly
+one state transition** — `payload->'text'` becoming `"[redacted]"` with
+`id`, `session_id`, `seq`, `type` and `created_at` all unchanged and no other
+key added, removed or altered — and refuses everything else, DELETE included.
+It is idempotent, so a worker retry is safe, and `"[redacted]"` is a value
+rather than an absence, so a reader can tell text was removed. `audit_log`
+keeps the unconditional trigger: the record of an erasure must not be editable
+by the thing performing one.
+
+**What is retained and why:** `session_results` and the `research_pid` link
+survive, because published analyses must remain reproducible. §11.7 is the
+query those analyses run, and it selects **no text column** — which is why
+redacting the prose costs the research nothing, and why "keep the text for the
+research" was an argument for retaining data the research never reads.
+**This must be stated plainly in the participant information and the deletion
+confirmation screen** (`UX_SPEC` S-20) — a user has a right to know what does
+not disappear, and `DELETE /v1/me` returns it in `retained` as well.
+
+**One thing this does not achieve.** Topic extraction reads the question text,
+so a redacted session's coverage cannot be recomputed from its event log.
+`session_results` holds the computed answer and nothing downstream reads the
+text, so no analysis is affected — but the pilot's data-integrity check, which
+recomputed results from stored questions, could not be repeated for such a
+session. Accepted in `ADR-0018`.
 
 ## 10.3 Retention
 

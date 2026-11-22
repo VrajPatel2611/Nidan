@@ -54,8 +54,10 @@ export interface paths {
         };
         /**
          * Delete the account
-         * @description **Still returns 501.** API_CONTRACT §4 says this executes DATA_MODEL §10.2, and §10.2's erasure UPDATEs session_events — a table migration 010 makes append-only with an unconditional BEFORE UPDATE OR DELETE trigger. Verified: even the table owner is refused. The half of the erasure that redacts what the learner typed cannot run, and a 204 having only anonymised the profile would claim an erasure that did not happen. See open question API-9.
-         *     Once it runs: requires explicit confirmation. Session results and the research pseudonym are retained so published analyses stay reproducible; the deletion screen must say so (`DATA_MODEL` §10.2).
+         * @description Executes DATA_MODEL §10.2. Irreversible, and it requires `{"confirmation": "DELETE"}` — checked here as well as by S-20's disabled button, because a destructive endpoint should not rely on a client having implemented the guard.
+         *     **202, not 204** (changed when API-9 was settled, 22 Nov 2026). The database half completes before this returns: billing cancelled, the profile anonymised, every `payload->text` redacted, feedback prose replaced. What remains are three outbound calls we do not own — deleting the credential at Supabase (ADR-0002), cancelling at the payment provider, and the confirmation email S-20 promises — so 202 means "your data is erased, the external cleanup follows", and `completes_within_hours` carries S-20's 24 h.
+         *     This returned 501 until migration 033. §10.2's erasure UPDATEs session_events, which migration 010 made append-only with an unconditional trigger that refused even the table owner; 033 replaces it with one that permits a single state transition — `payload->text` becoming `"[redacted]"`, with every other column identical — and refuses everything else, DELETE included. See ADR-0018.
+         *     Session results and the research pseudonym are **retained** so published analyses stay interpretable, and `retained` says so in the response as well as on the screen that preceded it: a user has a right to know what does not disappear.
          */
         delete: {
             parameters: {
@@ -64,17 +66,23 @@ export interface paths {
                 path?: never;
                 cookie?: never;
             };
-            requestBody?: never;
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["AccountDeletion"];
+                };
+            };
             responses: {
-                /** @description Deleted */
-                204: {
+                /** @description Erased; external cleanup follows within 24 h */
+                202: {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["ErasureAccepted"];
+                    };
                 };
+                404: components["responses"]["Error"];
                 422: components["responses"]["Error"];
-                501: components["responses"]["NotImplemented"];
             };
         };
         options?: never;
@@ -943,7 +951,7 @@ export interface components {
                  * @description Stable identifier. Once shipped a code is never renamed or repurposed — clients branch on it.
                  * @enum {string}
                  */
-                code: "unauthenticated" | "token_expired" | "service_unavailable" | "forbidden" | "pro_required" | "monthly_limit_reached" | "not_found" | "feedback_not_ready" | "session_already_active" | "session_concluded" | "session_not_concluded" | "trial_already_used" | "no_approving_review" | "validation_failed" | "question_too_long" | "diagnosis_empty" | "diagnosis_too_long" | "patient_data_detected" | "keyword_overlap" | "idempotency_key_reused" | "confirmation_required" | "invalid_timezone" | "consent_version_required" | "trial_expired" | "unknown_key" | "question_limit_reached" | "rate_limited" | "patient_unavailable" | "no_cases_available" | "internal_error" | "not_implemented";
+                code: "unauthenticated" | "token_expired" | "service_unavailable" | "forbidden" | "pro_required" | "monthly_limit_reached" | "not_found" | "feedback_not_ready" | "session_already_active" | "session_concluded" | "session_not_concluded" | "trial_already_used" | "no_approving_review" | "account_deleted" | "validation_failed" | "question_too_long" | "diagnosis_empty" | "diagnosis_too_long" | "patient_data_detected" | "keyword_overlap" | "idempotency_key_reused" | "confirmation_required" | "invalid_timezone" | "consent_version_required" | "trial_expired" | "unknown_key" | "question_limit_reached" | "rate_limited" | "patient_unavailable" | "no_cases_available" | "internal_error" | "not_implemented";
                 message: string;
                 details?: {
                     [key: string]: unknown;
@@ -1009,6 +1017,21 @@ export interface components {
              * @enum {boolean}
              */
             onboarded?: true;
+        };
+        AccountDeletion: {
+            /**
+             * @description Must be exactly `DELETE`. S-20 is a full page, not a modal, and disables its button until the word is typed; this is the same guard on the server.
+             * @enum {string}
+             */
+            confirmation: "DELETE";
+        };
+        ErasureAccepted: {
+            /** @enum {string} */
+            status: "erased";
+            /** @description What survives the erasure, in plain words. DATA_MODEL §10.2 retains `session_results` and `research_pid` so published analyses stay interpretable, and UX_SPEC S-20 calls saying so "the ethical core of this screen" — so it travels with the response too, not only on the page before it. */
+            retained: string[];
+            /** @description When the three external steps finish — credential deletion, billing, confirmation email. S-20's 24 h. */
+            completes_within_hours: number;
         };
         CatalogItem: {
             key?: string;

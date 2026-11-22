@@ -4,8 +4,8 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 6 of 8 — 26 of
-34 tasks, 57 days of 83.** The research is published and validated; the
+**Current state:** Phases 0, 1 and 2 complete, **Phase 3 is 7 of 9 — 27 of
+35 tasks, 63 days of 85.** The research is published and validated; the
 platform has a schema, a repository layer with tenant scoping, event-sourced
 sessions, authentication, anonymous trials, a replayable assessment engine,
 the free-tier allowance, the 16 pilot sessions imported into it, the whole
@@ -13,13 +13,26 @@ admin console (case editor, Playtest, clinical review), the `/v1` JSON API,
 and a Next.js web app a learner can sign in to, take a consultation in, and
 read feedback from.
 
+**T-030 closed on 22 Nov 2026** — 19 days after its code merged, because it
+had raised five questions about its own contract and two were blocking. The
+last was API-9, GDPR erasure, settled as `ADR-0018`. Its build log §10 is
+worth reading before Phase 4: three items in it were found while writing the
+log rather than while building the task, and **item 5 is a launch feature with
+no owner** (see below).
+
 **Two tasks are left in Phase 3, and they are independent.** T-037 (history
-and progress, Yogesh, 3 d) depends on T-036, which is merged — so it is not
-waiting on anything. **T-030 is the other**, and it is the one that is easy
-to miss: it is merged but deliberately **not** marked DONE, because
-`DELETE /me` is a 501 (API-9 is open and has a legal dimension), `/me/export`
-has no worker behind its 202 (API-10 has no task), and it has no build log.
-Phase 3 is not finished when T-037 lands.
+and progress, Yogesh, 3 d) depends on T-036, which is merged. **T-038**
+(account jobs worker, Vraj, 2 d) is new — added when API-9 was settled,
+because `DELETE /me` and `/me/export` both now return a 202 with three
+outbound calls behind it and nothing performing them. Until it ships, two
+lines printed on `UX_SPEC` S-20 are promises the product cannot keep.
+
+**The gap with no task: the anonymous trial cannot use `/v1`.** Every
+consultation endpoint is `@require_auth`, while `UX_SPEC` S-09/S-10 say
+"Auth: Both" — so a trial visitor's only path is the `api/routes.py`
+prototype, and `PRD` FR-2 makes the trial a launch feature. Raised in T-030's
+build log as debt item 5. **It needs a task and an owner, and it is the one
+thing in Phase 3's vicinity that nobody is holding.**
 
 **The gate is open.** Phase 2's goal was one sentence — *clinicians can review
 cases without reading code* — and T-023 met it on 29 Oct 2026. The two
@@ -41,10 +54,10 @@ cannot start because the console only runs on `localhost` and no task in any
 of the seven phases deploys it. That is the single thing standing between ten
 finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
 
-**Next: finish Phase 3** — T-037 (Yogesh) and T-030's closeout (Vraj), 9 d
-between them and no dependency either way — then Phase 4, commercial
-readiness (6 tasks, 17 d). Clinical review still runs beside all of it: it is
-calendar time, and ten reviewed cases is the launch gate.
+**Next: finish Phase 3** — T-037 (Yogesh) and T-038 (Vraj), 5 d between them
+and no dependency either way — then Phase 4, commercial readiness (6 tasks,
+17 d). Clinical review still runs beside all of it: it is calendar time, and
+ten reviewed cases is the launch gate.
 
 ---
 
@@ -57,7 +70,7 @@ read only those sections.
 |---|---|
 | Anything at all | This file, then `docs/PROJECT_MAP.md` |
 | What is every file in here? | `docs/PROJECT_MAP.md` — the full tree, annotated |
-| Why was X chosen? | `docs/spec/adr/` — 17 one-page records. **Check here before re-arguing a decision** |
+| Why was X chosen? | `docs/spec/adr/` — 18 one-page records. **Check here before re-arguing a decision** |
 | Building a feature | `docs/spec/BUILD_PLAN.md` → find the task → read only its `Spec` refs |
 | Schema / migration | `docs/spec/DATA_MODEL.md` — the relevant table section only |
 | An endpoint | `docs/spec/API_CONTRACT.md` §4–9 + `openapi.yaml` |
@@ -71,7 +84,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 3 task** | `BUILD_PLAN` §7 — T-030 … T-037. There are no Phase 3 briefs; `docs/process/phase-2-briefs/` is historical |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 32 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 33 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
@@ -116,12 +129,19 @@ absent *opens* with "Question counter | U2", so §6 was misreading the document
 it leaned on. Nothing is lost: the cap is a refusal, not a gauge. 429
 `question_limit_reached` carries `{"limit": 40}`, which is what drives S-10's
 disabled input, and a client that wants the figure earlier counts `transcript`
-entries of `type: question` from the response it already has — so
-`QUESTION_CAP` in `sessions.py` stays the single home for the 40.
+entries of `type: question` from the response it already has.
 `test_the_cap_stays_derivable_without_a_counter_field` pins that premise,
 because if the transcript ever loses its discriminator the argument for
 re-adding the field becomes true. (API-6, settled 11 Nov 2026 ·
 `API_CONTRACT` §13)
+
+**The 40 is declared twice, and the live one is not the one you would
+guess.** `QUESTIONS_PER_SESSION` in `consultation.py` is what refuses the
+41st question; `QUESTION_CAP` in `sessions.py` is **referenced by nothing** —
+an earlier version of this rule called it "the single home for the 40", which
+was wrong when it was written. Change `consultation.py`'s, and if you are
+tidying, delete the other rather than wiring it up: the cap belongs beside
+the handler that enforces it. (T-030 build log §10, item 1)
 
 **Never use bias vocabulary in user-facing text.** Not "bias", "anchoring",
 "premature closure", or "confirmation bias". User-facing headings are
@@ -354,14 +374,47 @@ envelope — which is what sync point S-1 means and what did not exist until
 T-030. The list only shrinks, and a line left behind after a slice
 implements it fails the suite rather than shadowing the real route.
 
-**`session_events` and `audit_log` refuse UPDATE and DELETE, including to
-the table owner.** Migration 002's `forbid_mutation` is unconditional, so
-a teardown or a cleanup must TRUNCATE, never DELETE — and a cascade into
-either table fails the whole transaction, which is why deleting a profile
-needs the session tables truncated first. **`DATA_MODEL` §10.2's erasure
-cannot run**: it UPDATEs `session_events`, so `DELETE /me` is a 501 and
-API-9 is the open decision. (verified against the running database ·
-`tests/db/test_v1_progress.py`)
+**`session_events` and `audit_log` refuse DELETE, and `audit_log` refuses
+UPDATE, including to the table owner.** So a teardown or a cleanup must
+TRUNCATE, never DELETE — and a cascade into either table fails the whole
+transaction, which is why deleting a profile needs the session tables
+truncated first.
+
+**`session_events` permits exactly one UPDATE, and nothing else.** Migration
+033 (API-9, `ADR-0018`) replaced the unconditional trigger with one that
+allows `payload->'text'` to become `"[redacted]"` provided `id`,
+`session_id`, `seq`, `type` and `created_at` are identical and no other key
+is added, removed or altered — and refuses everything else. That single
+transition is what makes `DATA_MODEL` §10.2's erasure possible, so
+`DELETE /me` is a real 202 rather than a 501. **Do not widen it.** The whole
+safety argument for the decision is how narrow it is, and
+`TestWhatTheTriggerStillRefuses` enumerates eight mutations it still
+refuses — including the one that matters, smuggling a second change into the
+same statement as the redaction. `audit_log` keeps `forbid_mutation()`,
+because the record of an erasure must not be editable by the thing
+performing one. (verified against the running database ·
+`tests/db/test_erasure.py`)
+
+**The erasure covers four event types and a table §10.2 forgot.** `question`,
+`early_diagnosis`, `diagnosis` **and `patient_reply`** all carry `text`; the
+repository's predicate is `payload ? 'text'` rather than a list of names, so
+a type added later is covered on the day it is added. And
+`feedback_texts.lines` is in it, because `PRD` P3 requires feedback to cite
+the learner's own questions — without that statement their words survive
+verbatim in a table the erasure never looked at. §10.2 named two of the six
+places for nineteen days.
+
+**An erased profile is invisible, and that is one filter in one method.**
+`ADR-0002` means the token stays valid until T-038's worker deletes the
+credential, so for up to 24 h an erased account can still make authenticated
+requests. `ProfileRepository.get()` filters `deleted_at IS NULL` and every
+learner route reaches the profile through it. `update()` and
+`touch_last_active()` are scoped the same way — **the first version was not**,
+and a `PATCH /me` wrote the display name back onto the erased row and then
+returned 404, so the refusal looked right while the erasure was being undone.
+`ensure()` raises `AccountErased` → 409 `account_deleted` rather than
+resurrecting the row, because `ON CONFLICT DO NOTHING` makes a resurrection
+attempt indistinguishable from a retry.
 
 **A test that copies the repository must exclude `node_modules`.**
 `tests/test_validation_gate.py` clones the repo into a tmpdir to prove the
@@ -374,6 +427,19 @@ duplicated ignore lists are now one `_IGNORE` constant, and
 `test_the_repo_copy_excludes_the_javascript_tree` asserts the exclusion — not
 a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
 build tool fills, add it there too. (T-035)
+
+**Every case is a draft, so `/v1` cannot start a consultation until one is
+published — and that reads as a bug.** `SelectionRepository.candidates()`
+returns only published versions, so `POST /v1/sessions` answers
+`no_cases_available` (503) and the web app has nothing to serve. The test
+suite never sees it: its fixtures publish a case themselves. On a laptop,
+`python scripts/publish_for_demo.py --all` fixes it — it goes **through**
+migration 007's gate by inserting an approving review, never around it, and
+`--undo` reverses it. **It refuses any non-local database**, because the rows
+it writes are fabricated approvals and `clinical_reviews` is the evidence for
+the launch gate. The reviews it writes are attributed to "Demo Fixture (not a
+clinician)" and **do not count** towards the ten reviewed cases.
+(`tests/test_publish_for_demo.py` · `COMMANDS.md`)
 
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
@@ -451,7 +517,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                           bodies handlers actually read — AST, no DB)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    32 Alembic migrations ← the schema's source of truth
+migrations/versions/    33 Alembic migrations ← the schema's source of truth
                         (017, 019, 026-032 are generated from cases.py
                          and topics.py; see the rule below)
 docs/build-log/         what was actually built, one doc per finished task
@@ -477,7 +543,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1068 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1103 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -487,13 +553,14 @@ python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
+python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
 pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 32 migrations
+alembic upgrade head               # apply all 33 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 360 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 395 schema, repository and route tests, real Postgres
 ```
 
 ---

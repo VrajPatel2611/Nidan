@@ -245,6 +245,25 @@ one transaction. `session_results` and the `research_pid` link **survive**, so
 published analyses stay reproducible — and `UX_SPEC` S-20 must say so plainly on
 the confirmation screen. A user has a right to know what does not disappear.
 
+**This could not run until 22 Nov 2026, and the reason is worth keeping.** The
+redaction UPDATEs `session_events`, which migration 010 made append-only with a
+trigger that refused even the table owner — so the paragraph above described
+something the schema forbade, while S-20 printed the promise on screen. API-9
+carried it for nineteen days; `ADR-0018` settled it by permitting exactly one
+state transition on that table (`payload->'text'` → `"[redacted]"`, every other
+column identical) and refusing all else, DELETE included. Two gaps in §10.2 came
+out with it: it redacted two of the four text-bearing event types, and never
+mentioned `feedback_texts`, where `PRD` P3 requires the learner's own questions
+to be quoted back at them.
+
+**The erasure is not finished when the endpoint returns 202.** Deleting the
+credential at Supabase, cancelling at the payment provider and sending the
+confirmation email are outbound calls, and T-038 is the worker. Until it exists
+the user's token stays valid for up to 24 h after they have been erased, which
+is why every learner route reaches the profile through one method that filters
+`deleted_at IS NULL`, and why `POST /me` answers 409 rather than resurrecting
+the row.
+
 Every admin action writes to an append-only `audit_log` with a mandatory `reason`
 for support access to a user's session.
 

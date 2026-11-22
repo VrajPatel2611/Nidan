@@ -47,6 +47,7 @@ CATALOGUE: Final[dict[str, int]] = {
     "session_not_concluded":  409,
     "trial_already_used":     409,
     "no_approving_review":    409,
+    "account_deleted":        409,
     # 422 — well-formed, semantically wrong
     "validation_failed":      422,
     "question_too_long":      422,

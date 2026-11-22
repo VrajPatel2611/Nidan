@@ -1363,7 +1363,8 @@ Off by default (`PRD` FR-11.5). This screen must be readable by someone who has 
 │  What happens                                                │
 │   ✕  Your Pro subscription is cancelled immediately          │
 │   ✕  Your name, email and profile are removed within 24 h    │
-│   ✕  The questions you typed are permanently redacted        │
+│   ✕  Everything you and the patient typed is redacted,       │
+│      and so is the feedback written about it                 │
 │   ✕  You are signed out of every device                      │
 │                                                              │
 │  What we keep, and why                                       │
@@ -1388,8 +1389,13 @@ Off by default (`PRD` FR-11.5). This screen must be readable by someone who has 
 | Active subscription | Extra line: "You will not be refunded for the remainder of this period" |
 | On success | Sign out → landing page → toast "Your account has been deleted" |
 | Confirmation email | Sent to the old address before it is removed |
+| On 202 | `DELETE /v1/me` answers **202**, not 204 — the data is erased, the external steps follow. Sign out and show the toast; do not wait for anything |
 
-**The "what we keep" section is not legal boilerplate — it is the ethical core of this screen.** `DATA_MODEL` §10.2 retains `research_pid` and results after erasure. A user has an absolute right to know that before they click, not to discover it in a privacy policy afterwards.
+**The "what we keep" section is not legal boilerplate — it is the ethical core of this screen.** `DATA_MODEL` §10.2 retains `research_pid` and results after erasure. A user has an absolute right to know that before they click, not to discover it in a privacy policy afterwards. The 202 response carries the same list in `retained`, so the screen and the API cannot drift apart.
+
+**This screen described something the database refused, for nineteen days.** "The questions you typed are permanently redacted" was printed above the confirmation box while `DELETE /v1/me` returned 501, because §10.2's redaction UPDATEs an append-only table (API-9, settled by `ADR-0018`). The copy has been widened rather than narrowed: the erasure now covers the patient's replies and the feedback prose as well, because feedback cites the learner's own questions by design (`PRD` P3) and a reply can quote the question it answered.
+
+**Two things on this screen are still promises the product cannot keep**, both waiting on T-038: the confirmation email, and "removed within 24 h" for the credential itself. Until that worker exists an erased account can still present a valid token — the API answers the ordinary 404 to all of it, but the sign-in page will not say the account is gone.
 
 ---
 
