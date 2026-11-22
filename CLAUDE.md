@@ -363,6 +363,18 @@ cannot run**: it UPDATEs `session_events`, so `DELETE /me` is a 501 and
 API-9 is the open decision. (verified against the running database ·
 `tests/db/test_v1_progress.py`)
 
+**A test that copies the repository must exclude `node_modules`.**
+`tests/test_validation_gate.py` clones the repo into a tmpdir to prove the
+detector gate fails on a degraded threshold. T-032 added `web/`, and from the
+first `npm ci` that clone carried 457 MB and ~100 000 files — twice per run.
+**The suite went from 80 seconds to over 45 minutes at 0 % CPU with no
+output**, which reads as a hang rather than a fault, and nothing failed so
+nothing said why; it was found by `lsof`-ing the stuck process. The two
+duplicated ignore lists are now one `_IGNORE` constant, and
+`test_the_repo_copy_excludes_the_javascript_tree` asserts the exclusion — not
+a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
+build tool fills, add it there too. (T-035)
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -465,7 +477,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 981 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1068 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract

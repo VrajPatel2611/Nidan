@@ -59,29 +59,44 @@ def account(live_db, authority):
     # to the owner (migration 002), and a cascade into it aborts the whole
     # transaction. See test_v1_consultation.py's note.
     with live_db.begin() as c:
-        for table in TRUNCATE_SESSION_TABLES:
-            c.execute(sa.text(f"TRUNCATE {table} CASCADE"))
+        # `TRUNCATE_SESSION_TABLES` is a complete statement, not a list of
+        # table names — "TRUNCATE llm_calls, leakage_flags, sessions". My first
+        # version looped over it, which iterates the string character by
+        # character and produced `TRUNCATE T CASCADE`.
+        c.exec_driver_sql(TRUNCATE_SESSION_TABLES)
         c.execute(sa.text("DELETE FROM profiles WHERE id = :id"), {"id": user_id})
         c.execute(sa.text("DELETE FROM auth.users WHERE id = :id"), {"id": user_id})
 
 
+# Lifted verbatim from test_v1_consultation.py. Four modules in tests/db now
+# carry their own copy of this; see the build log's "found and not fixed".
+# My own first attempt invented the columns — `role` for `platform_role`,
+# `verdict` for `decision`, and no `scores` — which is precisely the drift
+# that duplication causes.
 @pytest.fixture
-def published_version(live_db, authority):
-    """A published case, so a session can start. Mirrors test_v1_consultation."""
+def published_version(live_db):
+    """
+    A published case, via an approving review — migration 007's trigger
+    refuses a direct status flip, and a fixture should not take a shortcut the
+    product cannot.
+    """
     reviewer_id = uuid.uuid4()
     with live_db.begin() as c:
+        version_id = c.execute(sa.text(
+            "SELECT id FROM case_versions ORDER BY created_at LIMIT 1")).scalar()
         c.execute(sa.text("INSERT INTO auth.users (id) VALUES (:id)"),
                   {"id": reviewer_id})
         c.execute(sa.text(
-            "INSERT INTO profiles (id, display_name, timezone, role) "
-            "VALUES (:id, 'Reviewer', 'UTC', 'reviewer')"), {"id": reviewer_id})
-        version_id = c.execute(sa.text(
-            "SELECT id FROM case_versions ORDER BY created_at LIMIT 1")).scalar()
-        c.execute(sa.text(
-            "INSERT INTO clinical_reviews "
-            "(case_version_id, reviewer_id, verdict, submitted_at) "
-            "VALUES (:v, :r, 'approved', now())"),
-            {"v": version_id, "r": reviewer_id})
+            "INSERT INTO profiles (id, display_name, platform_role, timezone) "
+            "VALUES (:id, 'Dr Fixture', 'reviewer', 'UTC')"), {"id": reviewer_id})
+        c.execute(sa.text("""
+            INSERT INTO clinical_reviews (case_version_id, reviewer_id,
+                                          decision, scores)
+            VALUES (:vid, :rid, 'approved', CAST(:scores AS jsonb))
+        """), {"vid": version_id, "rid": reviewer_id,
+               "scores": '{"clinical_plausibility": 5, "internal_consistency": 4,'
+                         ' "trap_validity": 5, "solvability": 4,'
+                         ' "rubric_version": "v1"}'})
         c.execute(sa.text(
             "UPDATE case_versions SET status = 'published', published_at = now() "
             "WHERE id = :id"), {"id": version_id})
@@ -108,7 +123,7 @@ def session_id(client, account, published_version):
 def _events(live_db, session_id):
     with live_db.begin() as c:
         return c.execute(sa.text(
-            "SELECT event_type, payload FROM session_events "
+            "SELECT type, payload FROM session_events "
             "WHERE session_id = :s ORDER BY seq"), {"s": session_id}).mappings().all()
 
 
@@ -135,7 +150,7 @@ def test_the_question_is_not_consumed(client, account, session_id, live_db):
     client.post(f"/v1/sessions/{session_id}/questions",
                 json={"text": PASTED_RECORD}, headers=headers)
 
-    types = [e["event_type"] for e in _events(live_db, session_id)]
+    types = [e["type"] for e in _events(live_db, session_id)]
     assert "question" not in types, (
         "the blocked question was logged as a question; it would count "
         "against the 40-question cap and inflate question_count")
@@ -184,7 +199,7 @@ def test_an_input_blocked_event_is_logged_with_a_reason(
                 json={"text": PASTED_RECORD}, headers=headers)
 
     blocked = [e for e in _events(live_db, session_id)
-               if e["event_type"] == "input_blocked"]
+               if e["type"] == "input_blocked"]
     assert len(blocked) == 1, "UX_SPEC S-10: 'Event logged for admin review'"
     assert blocked[0]["payload"]["reason"] == "named_individual", (
         "a name beside an identifier is the clearest case of a real person, "

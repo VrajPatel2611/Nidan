@@ -263,7 +263,7 @@ deserves a task, not a silent key. That is the answer to V-10.2.
 
 | Check | Result |
 |---|---|
-| `pytest` | see §7.1 |
+| `pytest` | **1068 passed**, 67.7 s |
 | `ruff check .` | clean |
 | `mypy nidan/domain --strict` | clean, 16 files |
 | `lint-imports` | 2 kept, 0 broken — `domain/guard.py` reaches neither `infra/` nor `api/` |
@@ -274,34 +274,69 @@ deserves a task, not a silent key. That is the answer to V-10.2.
 **optional** field and the single deletion is `confidence_post`, which
 Yogesh's client never sent — so T-034 and T-036 are unaffected.
 
-### 7.1 A note on the environment, not the code
+### 7.1 The suite had become 40× slower, and it was our bug
 
-Test runs on this laptop were taking 3–9 minutes and one aborted with
-`TimeoutError: [Errno 60] Operation timed out` **while importing a `.so`**.
-That is not a test failure and not a code problem:
+**This started as a wrong diagnosis, so both halves are recorded.**
 
-- the project sits on the Desktop, and **Desktop & Documents iCloud sync is
-  on** (`~/Library/Mobile Documents/com~apple~CloudDocs/Desktop` exists);
-- the disk is **96 % full — 21 GiB free of 460 GiB**, which is where macOS
-  starts evicting synced file contents to the cloud;
-- so reads of the 457 MB `web/node_modules` and of the venv have to be fetched
-  back, intermittently blocking. Importing `tests/conftest.py` by hand took
-  144 s cold and 0.5 s warm; `importlib.metadata.entry_points()` took 25 s
-  cold and 0.00 s warm.
+Runs were taking 9 to 45 minutes against a normal 80 seconds, with no output
+and the process at **0 % CPU** — which reads exactly like a hang. One attempt
+died with `TimeoutError: [Errno 60] Operation timed out` *while importing a
+`.so`*. I attributed it to the machine: the project is on the Desktop, Desktop
+& Documents iCloud sync is on, and the disk is 96 % full (21 GiB of 460 GiB),
+so macOS evicts synced file contents and reads have to be fetched back.
 
-Nothing in the repository causes it and nothing in the repository can fix it.
-Recorded here because the same symptoms will otherwise be read as a broken
-test suite. See §8.
+That effect is real — importing `tests/conftest.py` by hand took 144 s cold
+and 0.5 s warm, and `importlib.metadata.entry_points()` 25 s cold and 0.00 s
+warm — **but it was not the main cause, and blaming it was wrong.**
+
+`lsof` on the stuck process showed what it was actually doing:
+
+```
+28r REG /Users/vrajpatel/Desktop/Nidan/web/node_modules/tinyglobby/LICENSE
+29w REG /…/pytest-0/test_fails_when_a_detector_is_0/repo/web/node_modules/tinyglobby/LICENSE
+```
+
+`tests/test_validation_gate.py` clones the repository into a tmpdir to prove
+the detector gate fails on a degraded threshold. **T-032 added `web/`, and
+from the first `npm ci` that clone included 457 MB and ~100 000 files of
+`node_modules` — twice per run.** Zero CPU because it is pure I/O. Nothing
+failed, so nothing said why.
+
+Fixed here: the two duplicated `ignore_patterns` lists are now one `_IGNORE`
+constant excluding `node_modules`, `.next`, `.turbo` and the cache
+directories. The gate runs `validate_detectors.py`, which needs `nidan/` and
+the pilot sessions and has never needed a JavaScript file. `web/src` is still
+copied; only build artefacts are skipped.
+
+`test_the_repo_copy_excludes_the_javascript_tree` asserts the exclusion rather
+than a runtime, because a timing assertion on a laptop is flaky and the
+exclusion is the real invariant. Watched failing with `node_modules` removed
+from `_IGNORE`.
+
+**Result: 45 minutes → 67.7 seconds.** The iCloud and disk-pressure effects
+remain real and still make cold starts slow, but they are a second-order
+problem, not the one that mattered. The lesson is the one this project keeps
+relearning: a symptom that looks environmental deserves `lsof` before it
+deserves a theory.
 
 ---
 
 ## 8. Found while verifying, and not fixed here
 
 1. **The laptop's disk is 96 % full and the repo is inside iCloud Desktop
-   sync.** Until that changes, the test suite will intermittently appear
-   broken in ways that have nothing to do with the code. Moving the project
-   off the Desktop would settle it; freeing space would reduce it. Not a code
-   change, and not mine to make on someone's machine.
+   sync.** With §7.1's real cause fixed this is no longer dominant, but it
+   still makes a cold first run slow (144 s to import `conftest.py` cold
+   against 0.5 s warm) and it is what produced the one `ETIMEDOUT`. Moving the
+   project off the Desktop would settle it; freeing space would reduce it. Not
+   a code change, and not mine to make on someone's machine.
+6. **Four modules in `tests/db` now define their own `published_version`
+   fixture** — `test_v1_consultation.py`, `test_v1_conclusion.py`,
+   `test_v1_reads.py` and this task's new file, while `tests/db/conftest.py`
+   already has a related `published_case`. I copied the real one verbatim
+   rather than refactor three other modules inside T-035, but my first attempt
+   wrote it from memory and invented the columns — `role` for `platform_role`,
+   `verdict` for `decision`, no `scores` — which is exactly the drift four
+   copies invite. It belongs in `tests/db/conftest.py`.
 2. **The anonymous trial still cannot use `/v1`** (V-10.3). Every `/v1`
    consultation endpoint is `@require_auth` while `UX_SPEC` S-09/S-10 say
    "Auth: Both", so the web app is signed-in only and the prototype is what
