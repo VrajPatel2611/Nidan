@@ -200,6 +200,39 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-26** (2026-11-23, from Vraj) · **If `POST /v1/sessions` has ever
+  given you a 503 `no_cases_available`, this is why, and there is now a script
+  for it.** Every case in the bank is a `draft`;
+  `SelectionRepository.candidates()` returns only **published** versions, so
+  the web app has nothing to serve. The test suite never sees it because its
+  fixtures publish a case themselves — which is exactly why it only shows up
+  when you run the app.
+
+  ```bash
+  python scripts/publish_for_demo.py --all --dry-run
+  python scripts/publish_for_demo.py --all          # then this
+  python scripts/publish_for_demo.py --all --undo   # reverses it
+  ```
+
+  It goes **through** migration 007's publish gate — inserts an approving
+  `clinical_reviews` row with the full rubric, then flips the status, so the
+  trigger still has to agree. Nothing disables a trigger. The review is
+  attributed to `Demo Fixture (not a clinician)` and says in its own comment
+  that it does not count towards the launch gate, because
+  `clinical_reviews` is the evidence for "ten clinician-reviewed cases" and a
+  fabricated row in there must be recognisable as one.
+
+  **It refuses any non-local `DATABASE_URL`** — localhost, 127.0.0.1, ::1, `db`
+  or a socket. Do not reach for `--i-know-this-is-not-local`; it exists so the
+  refusal can be tested.
+
+  Verified on my machine afterwards: 10 candidates, `choose_case` returns a
+  case, and `case_for_session` gives real values (patient name, age, intro) —
+  not the dict-of-Nones that T-030 slice 4 shipped.
+
+  **Done when** you can start a consultation in the web app locally. Nothing
+  for you to change in code.
+
 - [ ] **Y-25** (2026-11-22, from Vraj) · **`DELETE /v1/me` is live, it answers
   202 and not 204, and S-20's copy has changed.** API-9 is settled —
   `ADR-0018`, the eighteenth record. Pull `main` and regenerate nothing: I ran
