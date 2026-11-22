@@ -413,6 +413,43 @@ On a laptop there is no identity provider, so `--create-auth-user` inserts the
 stub row as well. It refuses to do that unless it can prove the table is the
 three-column stub from migration 001.
 
+### Bringing the whole demo up — one command
+
+```bash
+./scripts/demo_up.sh
+```
+
+Database, migrations, published cases, a warm LLM, the API, then the web app in
+the foreground. Ctrl+C stops both servers. `--api-only` skips Next.js;
+`--no-warm` skips the LLM call.
+
+It is six checks and two servers rather than two servers, because **each of
+these has broken a local run and none of them says what is wrong where you
+notice it**:
+
+| What it checks | What you see without the check |
+|---|---|
+| `.env` has `GROQ_API_KEY` | The patient answers 503 `patient_unavailable` |
+| `.env` has `DATABASE_URL`, exported | `alembic` says "No database URL" — the app reads `.env` through pydantic-settings, `migrations/env.py` reads `os.getenv` only, so the two disagree about whether the database is configured |
+| `web/.env.local` has all four values | `npm run dev` starts fine and fails on the sign-in screen |
+| `nidan-db` is `healthy`, not merely up | Postgres accepts connections during initialisation and then restarts |
+| `alembic upgrade head` | A schema one revision behind, failing somewhere that does not mention migrations |
+| A published case exists | `POST /v1/sessions` → 503 `no_cases_available`, i.e. the Start button fails |
+| One warm LLM call | The first question of the session takes ~2 minutes, not ~800 ms |
+| Nothing else holds port 8000 | …and in particular: |
+
+**The last one is the trap.** `docker-compose.yml`'s `app` service publishes
+8000 and carries `restart: unless-stopped`, so it returns by itself after a
+reboot — and **its image is baked at build time with no source mount.** Left
+running, it both takes the port and serves whatever the code looked like when
+it was last built. That is the worse failure of the two, because the demo
+works: quietly, on old code. The script stops the container and says so, then
+runs `python -m nidan` against the working tree.
+
+The API's output goes to `logs/api.log`, the warm-up's to `logs/warm.log` and
+alembic's to `logs/alembic.log` — interleaving two servers in one terminal
+makes both unreadable. All three are covered by `.gitignore`'s `*.log`.
+
 ### Publishing cases on a laptop, so a demo can start one
 
 ```bash
