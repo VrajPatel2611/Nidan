@@ -5,6 +5,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: var(--s-2);
   border: 1px solid transparent; border-radius: var(--r-sm);
   font: var(--t-body); font-weight: 600; cursor: pointer;
+  text-decoration: none;          /* Button href renders an <a>, which would underline */
   transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 .button:disabled { opacity: .55; cursor: not-allowed; }

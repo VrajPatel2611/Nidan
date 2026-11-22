@@ -394,10 +394,12 @@ paths:
           application/json:
             schema:
               type: object
-              required: [helpful]
+              description: >
+                `was_helpful`, as API_CONTRACT §6 and `conclusion.py` have it
+                (this said `helpful` until T-036). `comment` is not read.
+              required: [was_helpful]
               properties:
-                helpful: { type: boolean }
-                comment: { type: string, maxLength: 1000 }
+                was_helpful: { type: boolean }
       responses:
         '204': { description: Recorded }
 
@@ -835,36 +837,96 @@ components:
         Eight sections in a fixed order (`UX_SPEC` S-12). Headings are
         *Diagnostic focus · History completeness · Evidence exploration* —
         never bias vocabulary (CT-5).
+        **Reconciled with API_CONTRACT §6 and `conclusion.py` in T-036.** This
+        schema had drifted from both — `diagnosis_verdict`, a top-level
+        `correct_diagnosis`, `narrative`, `generator: model|fallback`, and no
+        summary, coverage or scorecards — while §6 and the handler agreed with
+        each other. Nothing compares a response to its schema, so neither side
+        knew until the web app was built from the types.
       properties:
         session_id: { type: string, format: uuid }
-        diagnosis_verdict:
+        diagnosis_submitted: { type: string }
+        verdict:
           type: string
           enum: [correct, partial, anchored, other]
-        correct_diagnosis: { type: string }
+          description: >
+            A machine value. `anchored` must never reach the screen (`PRD` P1);
+            UX_SPEC S-13 renders it "Worth reconsidering".
+        summary:
+          type: object
+          properties:
+            question_count: { type: integer }
+            examination_count: { type: integer }
+            investigation_count: { type: integer }
+            coverage_pct: { type: number }
+            duration_seconds: { type: integer, nullable: true }
+        tutor_feedback:
+          type: object
+          properties:
+            lines:
+              type: array
+              items: { type: string }
+            generator:
+              type: string
+              enum: [llm, rule_fallback]
+              description: >
+                `rule_fallback` means the model was unavailable and
+                deterministic feedback was used. It renders identically and
+                without apology.
+        coverage:
+          type: object
+          properties:
+            topics_hit:
+              type: array
+              items: { type: string }
+              description: Topic keys, e.g. `pain_character`.
+            topics_missed:
+              type: array
+              items: { type: string }
+        examination_scorecard:
+          type: object
+          properties:
+            key_done: { type: array, items: { type: string } }
+            key_missed: { type: array, items: { type: string } }
+            relevant_done: { type: array, items: { type: string } }
+            extra_done: { type: array, items: { type: string } }
+        investigation_scorecard:
+          type: object
+          properties:
+            key_done: { type: array, items: { type: string } }
+            key_missed: { type: array, items: { type: string } }
+            reasonable_done: { type: array, items: { type: string } }
+            low_value_done: { type: array, items: { type: string } }
+            extra_done: { type: array, items: { type: string } }
         reasoning:
           type: array
+          description: >
+            Always all three, flagged or not, in this order. `id` is behavioural
+            and the internal detector names never cross the API (CT-4, CT-5).
           items:
             type: object
             properties:
-              heading:
+              id:
+                type: string
+                enum: [diagnostic_focus, history_completeness, evidence_exploration]
+              label:
                 type: string
                 enum: [Diagnostic focus, History completeness, Evidence exploration]
-              observation: { type: string }
-              evidence:
-                type: array
-                items: { type: string }
+              flagged: { type: boolean }
+              status_line: { type: string, nullable: true }
+              reason:
+                type: string
                 description: >
-                  The learner's own questions, quoted verbatim. Every judgement
-                  is traceable to what they did (`ADR-0004`).
-        narrative:
-          type: array
-          items: { type: string }
-        generator:
-          type: string
-          enum: [model, fallback]
+                  Cites the learner's own actions (`PRD` P3, `ADR-0004`).
+        answer:
+          type: object
           description: >
-            `fallback` means the model was unavailable and deterministic
-            feedback was used. It renders identically and without apology.
+            Returned, and kept collapsed by the client until requested
+            (`PRD` FR-8.8). §6's `trap_explanation` does not exist (API-8);
+            `anchor_topic` is what there is.
+          properties:
+            correct_diagnosis: { type: string, nullable: true }
+            anchor_topic: { type: string, nullable: true }
 
     Progress:
       type: object

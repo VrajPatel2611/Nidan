@@ -293,16 +293,23 @@ class TestProductGuarantees:
         )
 
     def test_feedback_headings_are_the_neutral_ones(self, api):
-        heading = (api["components"]["schemas"]["Feedback"]["properties"]
-                   ["reasoning"]["items"]["properties"]["heading"]["enum"])
-        assert heading == ["Diagnostic focus", "History completeness",
-                           "Evidence exploration"]
+        # `label`, as `reasoning.py` sends it — the schema said `heading` until
+        # T-036 reconciled it with API_CONTRACT §6.
+        items = (api["components"]["schemas"]["Feedback"]["properties"]
+                 ["reasoning"]["items"]["properties"])
+        assert items["label"]["enum"] == ["Diagnostic focus", "History completeness",
+                                          "Evidence exploration"]
+        assert items["id"]["enum"] == ["diagnostic_focus", "history_completeness",
+                                       "evidence_exploration"]
 
     def test_feedback_carries_the_learners_own_evidence(self, api):
         """ADR-0004: every judgement is traceable to what the learner did."""
         reasoning = (api["components"]["schemas"]["Feedback"]["properties"]
                      ["reasoning"]["items"]["properties"])
-        assert "evidence" in reasoning
+        # `reason` is built from the detector's counters — the learner's own
+        # actions (`PRD` P3) — and is always present (§6 point 2).
+        assert "reason" in reasoning
+        assert "learner's own actions" in reasoning["reason"]["description"]
 
 
 class TestErrorCatalogue:

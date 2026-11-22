@@ -698,8 +698,7 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        helpful: boolean;
-                        comment?: string;
+                        was_helpful: boolean;
                     };
                 };
             };
@@ -1107,26 +1106,65 @@ export interface components {
             text: string;
             confidence_post?: number;
         };
-        /** @description Eight sections in a fixed order (`UX_SPEC` S-12). Headings are *Diagnostic focus · History completeness · Evidence exploration* — never bias vocabulary (CT-5). */
+        /** @description Eight sections in a fixed order (`UX_SPEC` S-12). Headings are *Diagnostic focus · History completeness · Evidence exploration* — never bias vocabulary (CT-5). **Reconciled with API_CONTRACT §6 and `conclusion.py` in T-036.** This schema had drifted from both — `diagnosis_verdict`, a top-level `correct_diagnosis`, `narrative`, `generator: model|fallback`, and no summary, coverage or scorecards — while §6 and the handler agreed with each other. Nothing compares a response to its schema, so neither side knew until the web app was built from the types. */
         Feedback: {
             /** Format: uuid */
             session_id?: string;
-            /** @enum {string} */
-            diagnosis_verdict?: "correct" | "partial" | "anchored" | "other";
-            correct_diagnosis?: string;
-            reasoning?: {
-                /** @enum {string} */
-                heading?: "Diagnostic focus" | "History completeness" | "Evidence exploration";
-                observation?: string;
-                /** @description The learner's own questions, quoted verbatim. Every judgement is traceable to what they did (`ADR-0004`). */
-                evidence?: string[];
-            }[];
-            narrative?: string[];
+            diagnosis_submitted?: string;
             /**
-             * @description `fallback` means the model was unavailable and deterministic feedback was used. It renders identically and without apology.
+             * @description A machine value. `anchored` must never reach the screen (`PRD` P1); UX_SPEC S-13 renders it "Worth reconsidering".
              * @enum {string}
              */
-            generator?: "model" | "fallback";
+            verdict?: "correct" | "partial" | "anchored" | "other";
+            summary?: {
+                question_count?: number;
+                examination_count?: number;
+                investigation_count?: number;
+                coverage_pct?: number;
+                duration_seconds?: number | null;
+            };
+            tutor_feedback?: {
+                lines?: string[];
+                /**
+                 * @description `rule_fallback` means the model was unavailable and deterministic feedback was used. It renders identically and without apology.
+                 * @enum {string}
+                 */
+                generator?: "llm" | "rule_fallback";
+            };
+            coverage?: {
+                /** @description Topic keys, e.g. `pain_character`. */
+                topics_hit?: string[];
+                topics_missed?: string[];
+            };
+            examination_scorecard?: {
+                key_done?: string[];
+                key_missed?: string[];
+                relevant_done?: string[];
+                extra_done?: string[];
+            };
+            investigation_scorecard?: {
+                key_done?: string[];
+                key_missed?: string[];
+                reasonable_done?: string[];
+                low_value_done?: string[];
+                extra_done?: string[];
+            };
+            /** @description Always all three, flagged or not, in this order. `id` is behavioural and the internal detector names never cross the API (CT-4, CT-5). */
+            reasoning?: {
+                /** @enum {string} */
+                id?: "diagnostic_focus" | "history_completeness" | "evidence_exploration";
+                /** @enum {string} */
+                label?: "Diagnostic focus" | "History completeness" | "Evidence exploration";
+                flagged?: boolean;
+                status_line?: string | null;
+                /** @description Cites the learner's own actions (`PRD` P3, `ADR-0004`). */
+                reason?: string;
+            }[];
+            /** @description Returned, and kept collapsed by the client until requested (`PRD` FR-8.8). §6's `trap_explanation` does not exist (API-8); `anchor_topic` is what there is. */
+            answer?: {
+                correct_diagnosis?: string | null;
+                anchor_topic?: string | null;
+            };
         };
         Progress: {
             sessions_completed?: number;
