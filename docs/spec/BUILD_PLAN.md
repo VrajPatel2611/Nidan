@@ -495,7 +495,7 @@ Accept   1. Per-purpose model routing (patient / feedback / extraction / judge)
          5. Failure on /questions returns 503 patient_unavailable WITHOUT consuming the question
 ```
 
-**T-032 · Next.js scaffold and auth**
+**T-032 · Next.js scaffold and auth** — ✅ **DONE** (2026-11-10)
 ```
 Phase    3            Depends  T-011          Est  4 d      Owner  Y
 Files    web/
@@ -506,7 +506,7 @@ Accept   1. Next.js + TypeScript; design tokens from UX_SPEC §3.1–3.4 as CSS 
          4. Component library per UX_SPEC §3.5
 ```
 
-**T-033 · Dashboard and onboarding**
+**T-033 · Dashboard and onboarding** — ✅ **DONE** (2026-11-15)
 ```
 Phase    3            Depends  T-032          Est  3 d      Owner  Y
 Spec     UX_SPEC S-07, S-08
@@ -515,7 +515,7 @@ Accept   1. All four dashboard states: empty, normal, limit reached, unfinished 
          3. Allowance shown on dashboard only, never during a consultation
 ```
 
-**T-034 · Consultation screen** ⭐
+**T-034 · Consultation screen** ⭐ — ✅ **DONE** (2026-11-22)
 ```
 Phase    3            Depends  T-030,T-032    Est  6 d      Owner  Y
 Spec     UX_SPEC S-09, S-10, S-11
@@ -529,7 +529,7 @@ Accept   1. Three-pane at lg, two-pane at md, blocking message below 768px
 Note     Criteria 4–6 are the U2 guarantees. A reviewer should check them explicitly.
 ```
 
-**T-035 · Real-patient-data guard**
+**T-035 · Real-patient-data guard** — ✅ **DONE** (2026-11-22)
 ```
 Phase    3            Depends  T-034          Est  1 d      Owner  V
 Spec     PRD FR-4 · UX_SPEC S-10 · PRD P4
@@ -538,7 +538,7 @@ Accept   1. Detects identifiers, DOBs, hospital numbers, named individuals with 
          3. input_blocked event logged with reason only, never the text
 ```
 
-**T-036 · Feedback screen** ⭐
+**T-036 · Feedback screen** ⭐ — ✅ **DONE** (2026-11-22)
 ```
 Phase    3            Depends  T-030,T-032    Est  3 d      Owner  Y
 Spec     UX_SPEC S-12, S-13

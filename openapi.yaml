@@ -600,12 +600,37 @@ components:
 
     ProfileCreate:
       type: object
+      description: >
+        **Accepts every field `ProfileUpdate` does**, because `identity.py`
+        validates both against one `_WRITABLE` set. This schema declared only
+        `anonymous_id` and `timezone` until T-035, so a client generated from
+        it could not set a display name at sign-up without a second PATCH —
+        and nothing failed, because the server accepted fields the contract
+        had never mentioned.
       properties:
         anonymous_id:
           type: string
           nullable: true
           description: Claims a trial session taken before signup.
+        display_name: { type: string }
+        professional_role:
+          type: string
+          enum: [medical_student, intern, resident, physician, other]
+        year_of_training: { type: integer, minimum: 1, maximum: 10 }
+        country: { type: string, minLength: 2, maxLength: 2 }
         timezone: { type: string }
+        consent_research: { type: boolean }
+        consent_version:
+          type: string
+          description: >
+            Required when `consent_research` is true — the identifier of the
+            document the user was actually shown. The server stamps
+            `consent_at` itself; a caller that could choose it could backdate
+            a consent.
+        onboarded:
+          type: boolean
+          enum: [true]
+          description: See ProfileUpdate.
 
     ProfileUpdate:
       type: object
@@ -618,6 +643,16 @@ components:
         country: { type: string, minLength: 2, maxLength: 2 }
         timezone: { type: string }
         consent_research: { type: boolean }
+        consent_version:
+          type: string
+          description: >
+            **Required when `consent_research` is true**, or the request is
+            refused with `consent_version_required` — it identifies the
+            document the user was actually shown. Absent from this schema
+            until T-035, which meant a client generated from the contract had
+            no way to send it and **could never give research consent at all**.
+            The server stamps `consent_at`; a caller that could choose it
+            could backdate a consent.
         onboarded:
           type: boolean
           enum: [true]
@@ -829,7 +864,18 @@ components:
       required: [text]
       properties:
         text: { type: string, maxLength: 200 }
-        confidence_post: { type: integer, minimum: 1, maximum: 5 }
+        # `confidence_post` was declared here and never read by
+        # `conclusion.py` — raised as HANDOFF V-10.2 and settled in T-035 by
+        # removing it. Storing it is not a one-line change: it needs a column
+        # or an event-payload field, a migration, and a decision about whether
+        # it belongs in the research export. A field a client can send and the
+        # server silently discards is worse than no field, because it looks
+        # like it works.
+        #
+        # Confidence CALIBRATION — comparing `confidence_pre` on
+        # SessionCreate with a post-diagnosis figure — is a real and
+        # well-evidenced teaching signal, and `PRD` FR-3 already captures the
+        # "pre" half. If it is wanted it deserves a task, not a silent key.
 
     Feedback:
       type: object

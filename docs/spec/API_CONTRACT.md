@@ -284,20 +284,33 @@ Returns the profile plus derived allowance — the dashboard needs both and one 
   "display_name": "Aarav",
   "professional_role": "medical_student",
   "year_of_training": 4,
+  "country": "IN",
   "timezone": "Asia/Kolkata",
   "subscription_tier": "free",
-  "subscription_ends": null,
   "consent_research": false,
-  "allowance": {
-    "cases_used_this_month": 2,
-    "cases_limit": 3,                 // null when unlimited
-    "resets_at": "2026-09-01T00:00:00Z"
-  },
-  "active_session_id": "7b1e…"        // null if none in progress
+  "onboarded_at": "2026-11-15T08:12:00Z",   // null until S-07 is finished
+  "sessions_remaining_this_month": 1,       // null when unlimited (Pro)
+  "allowance_resets_at": "2026-12-01T00:00:00Z"  // null for Pro
 }
 ```
 
-`active_session_id` drives the "resume" banner in `UX_SPEC` S-08.
+**Corrected in T-035 to match the implementation**, which never had the shape
+this section used to describe. It showed a nested `allowance` object
+(`cases_used_this_month`, `cases_limit`, `resets_at`), a `subscription_ends`
+and an `active_session_id`; `identity.py` and `openapi.yaml` have the flat
+`sessions_remaining_this_month` and `allowance_resets_at` instead, and neither
+ever had the other three. Raised by Yogesh as HANDOFF V-9 after building S-08
+against it.
+
+`active_session_id` is not returned and is not needed: **the active session is
+in `GET /sessions`**, which S-08's "resume" banner can read from the list it
+already fetches. A second source for the same fact is a second thing to keep
+true.
+
+The remaining-allowance figures are on this endpoint **and nowhere else**.
+`PRD` FR-10.2 puts them on the dashboard, before starting — never inside a
+consultation, for the same reason as API-6: a visible counter teaches the
+counter.
 
 ---
 

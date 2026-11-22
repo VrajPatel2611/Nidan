@@ -28,6 +28,7 @@ from nidan.api.auth import current_actor, require_auth
 from nidan.api.errors import error
 from nidan.api.v1.blueprint import bp
 from nidan.domain.assessment.topics import extract_topics
+from nidan.domain.guard import classify as classify_patient_data
 from nidan.domain.session import conversation_from, mentions_early_diagnosis
 from nidan.infra.clock import utc_now
 from nidan.infra.db.repositories import repo_scope
@@ -99,6 +100,42 @@ def ask_question(session_id: UUID):
         refusal = _conclusion_refusal(row)
         if refusal is not None:
             return refusal
+
+        # T-035 · the real-patient-data guard. `PRD` P4: "All patients are
+        # synthetic. The product never advises on a real case, and actively
+        # blocks attempts to enter real patient data… it is what keeps us
+        # outside medical-device regulation."
+        #
+        # Checked here rather than before the scope opens, because a block is
+        # logged against a session and we must know the session is this
+        # learner's first — a 404 for someone else's session must not become a
+        # 422 that confirms it exists (§2.7).
+        #
+        # Ahead of the cap and the rate limit on purpose: both of those are
+        # "not now", while this one is "not ever". Neither consumes the
+        # question, so the order only decides which reason the learner sees,
+        # and P4 is the one that matters.
+        detected = classify_patient_data(text)
+        if detected is not None:
+            # The event carries the REASON and nothing else. `DATA_MODEL` §8.2
+            # — "never the offending text" — and `domain/events.py` refuses the
+            # append if the payload holds `text`, `content`, `message` or
+            # `input`. Storing what we just refused would put real patient data
+            # into the table we keep for ever, under the name of protecting it.
+            db.events.append(session_id, "input_blocked",
+                             {"reason": detected.reason})
+            db.sessions.touch(session_id)
+            # No `question` event, so `question_count` is untouched and the
+            # premature-closure detector still sees what the learner actually
+            # asked (criterion 2). The response names the category, never the
+            # characters that matched.
+            return error(
+                "patient_data_detected",
+                "That looks like it might contain real patient information, "
+                "so it has not been sent. Nidan is a training simulation with "
+                "synthetic patients — please rephrase without any real "
+                "details.",
+                details={"reason": detected.reason})
 
         asked = db.events.count_of_type(session_id, "question")
         if asked >= QUESTIONS_PER_SESSION:
