@@ -428,6 +428,19 @@ duplicated ignore lists are now one `_IGNORE` constant, and
 a runtime, which would be flaky. If you add a directory that `npm`, `uv` or a
 build tool fills, add it there too. (T-035)
 
+**Every case is a draft, so `/v1` cannot start a consultation until one is
+published — and that reads as a bug.** `SelectionRepository.candidates()`
+returns only published versions, so `POST /v1/sessions` answers
+`no_cases_available` (503) and the web app has nothing to serve. The test
+suite never sees it: its fixtures publish a case themselves. On a laptop,
+`python scripts/publish_for_demo.py --all` fixes it — it goes **through**
+migration 007's gate by inserting an approving review, never around it, and
+`--undo` reverses it. **It refuses any non-local database**, because the rows
+it writes are fabricated approvals and `clinical_reviews` is the evidence for
+the launch gate. The reviews it writes are attributed to "Demo Fixture (not a
+clinician)" and **do not count** towards the ten reviewed cases.
+(`tests/test_publish_for_demo.py` · `COMMANDS.md`)
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -530,7 +543,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1068 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1103 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -540,13 +553,14 @@ python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
+python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
 pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
 alembic upgrade head               # apply all 33 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 360 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 395 schema, repository and route tests, real Postgres
 ```
 
 ---
