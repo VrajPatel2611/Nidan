@@ -1102,8 +1102,9 @@ export interface components {
             /** @description True when the learner had already ordered this. The stored result is returned and no duplicate event is created (API_CONTRACT §6, PRD FR-5.3 and FR-6.3) — ordering the same test twice is one decision, and a duplicate would inflate the count the scorecard divides by. */
             already_ordered?: boolean;
         };
+        /** @description The field is `text`, as API_CONTRACT §6 and `conclusion.py` have it. This schema said `diagnosis` until T-034, so a client built from the generated types was refused with `diagnosis_empty` every time. */
         DiagnosisCreate: {
-            diagnosis: string;
+            text: string;
             confidence_post?: number;
         };
         /** @description Eight sections in a fixed order (`UX_SPEC` S-12). Headings are *Diagnostic focus · History completeness · Evidence exploration* — never bias vocabulary (CT-5). */

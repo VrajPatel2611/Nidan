@@ -97,9 +97,16 @@ export function ConfirmModal({ open, title, children, confirmLabel, onConfirm, o
 
 export type TabItem = { id: string; label: string; panel: ReactNode };
 
-/** Keyboard-navigable: ←/→ move, Home/End jump, and only the active tab is in the Tab order. */
-export function Tabs({ tabs, initial, onChange }: { tabs: TabItem[]; initial?: string; onChange?: (id: string) => void }) {
-  const [active, setActive] = useState(initial ?? tabs[0]?.id);
+/**
+ * Keyboard-navigable: ←/→ move, Home/End jump, and only the active tab is in
+ * the Tab order. Pass `value` to control it from outside — S-10 switches to
+ * "Ordered" when a result arrives.
+ */
+export function Tabs({ tabs, initial, value, onChange }: {
+  tabs: TabItem[]; initial?: string; value?: string; onChange?: (id: string) => void;
+}) {
+  const [own, setActive] = useState(initial ?? tabs[0]?.id);
+  const active = value ?? own;
   const base = useId();
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
 

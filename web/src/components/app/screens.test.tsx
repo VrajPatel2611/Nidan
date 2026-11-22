@@ -22,7 +22,9 @@ const completed = { id: "s1", case_title: "Chest pain, 48M", started_at: "2026-1
   status: "completed", diagnosis_verdict: "anchored" };
 
 // The words PRD P1 / UX_SPEC §9 keep off every learner-facing screen.
-const BANNED = /\b(bias|anchor\w*|premature closure|confirmation bias|wrong|failed|poor|should have)\b/i;
+// No \b: textContent joins elements without spaces ("2 days agoanchored"),
+// so word boundaries would let a banned word through beside another element.
+const BANNED = /(bias|anchor|premature closure|wrong|failed|poor|should have)/i;
 
 describe("S-07 · onboarding", () => {
   it("asks the year only of roles that have one", () => {

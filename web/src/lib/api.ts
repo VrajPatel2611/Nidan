@@ -20,9 +20,10 @@ export type ApiError = components["schemas"]["Error"];
 
 export type ApiResult<T> =
   | { ok: true; status: number; data: T }
-  | { ok: false; status: number; error: ApiError["error"] };
+  | { ok: false; status: number; error: ApiError["error"]; retryAfter?: number };
 
-async function call<T>(method: string, path: string, token: string, body?: unknown): Promise<ApiResult<T>> {
+async function call<T>(method: string, path: string, token: string, body?: unknown,
+                       headers: Record<string, string> = {}): Promise<ApiResult<T>> {
   let res: Response;
   try {
     res = await fetch(`${env.apiUrl()}${path}`, {
@@ -31,6 +32,7 @@ async function call<T>(method: string, path: string, token: string, body?: unkno
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
         ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        ...headers,
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       cache: "no-store",
@@ -40,9 +42,11 @@ async function call<T>(method: string, path: string, token: string, body?: unkno
   }
   const json = await res.json().catch(() => null);
   if (res.ok) return { ok: true, status: res.status, data: json as T };
+  const retry = Number(res.headers.get("Retry-After"));
   return {
     ok: false, status: res.status,
     error: (json as ApiError | null)?.error ?? { code: "internal_error", message: `HTTP ${res.status}` },
+    ...(Number.isFinite(retry) && retry > 0 ? { retryAfter: retry } : {}),
   };
 }
 
@@ -83,4 +87,43 @@ export function startSession(token: string) {
 /** Still counts against the month's allowance (`PRD` FR-3). */
 export function abandonSession(token: string, sessionId: string) {
   return call<null>("POST", `/sessions/${encodeURIComponent(sessionId)}/abandon`, token, {});
+}
+
+// ── The consultation (T-034) ──────────────────────────────────────────
+
+export type CatalogItem = components["schemas"]["CatalogItem"];
+export type PatientReply = components["schemas"]["PatientReply"];
+export type OrderResult = components["schemas"]["OrderResult"];
+
+export function getSession(token: string, sessionId: string) {
+  return call<Session>("GET", `/sessions/${encodeURIComponent(sessionId)}`, token);
+}
+
+/**
+ * The two universal menus. Public and the same for every case (CT-3) — no
+ * token needed, and cached for the hour the API's Cache-Control allows.
+ */
+export async function getCatalog(kind: "examinations" | "investigations"): Promise<CatalogItem[] | null> {
+  try {
+    const res = await fetch(`${env.apiUrl()}/catalog/${kind}`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    return ((await res.json()) as { data: CatalogItem[] }).data;
+  } catch {
+    return null;
+  }
+}
+
+export function askQuestion(token: string, sessionId: string, text: string) {
+  return call<PatientReply>("POST", `/sessions/${encodeURIComponent(sessionId)}/questions`, token, { text });
+}
+
+export function order(token: string, sessionId: string, kind: "examinations" | "investigations", key: string) {
+  return call<OrderResult>("POST", `/sessions/${encodeURIComponent(sessionId)}/${kind}`, token, { key });
+}
+
+/** Irreversible. The Idempotency-Key makes a retried submit one conclusion, not two (§2.8). */
+export function submitDiagnosis(token: string, sessionId: string, text: string, idempotencyKey: string) {
+  return call<{ session_id?: string; feedback_ready?: boolean }>(
+    "POST", `/sessions/${encodeURIComponent(sessionId)}/diagnosis`, token, { text },
+    { "Idempotency-Key": idempotencyKey });
 }

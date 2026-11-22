@@ -1,0 +1,73 @@
+/* S-10 · Consultation. lg: 240 px · flexible · 380 px. md: header strip + drawer. < 768: blocked. */
+.app { display: grid; grid-template-columns: 240px minmax(0, 1fr) 380px; height: 100vh; background: var(--paper); }
+.small { display: none; }
+
+.patient { border-right: 1px solid var(--rule); padding: var(--s-6) var(--s-4); overflow-y: auto; background: var(--surface); }
+.patientLabel { font: var(--t-caption); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 0 0 var(--s-2); }
+.patientName { font: var(--t-h3); margin: 0; }
+.patientMeta { font: var(--t-body-sm); color: var(--muted); margin: var(--s-1) 0 var(--s-4); }
+.complaint { font: var(--t-body-sm); margin: 0 0 var(--s-4); }
+.examined { list-style: none; padding: 0; margin: 0; font: var(--t-body-sm); color: var(--ink); }
+.examined li::before { content: "· "; color: var(--muted); }
+.divider { border: 0; border-top: 1px solid var(--rule); margin: var(--s-4) 0; }
+
+.centre { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+.stripe { display: none; }
+.log { flex: 1; overflow-y: auto; padding: var(--s-6); display: flex; flex-direction: column; gap: var(--s-3); }
+.msg { max-width: 78%; padding: var(--s-3) var(--s-4); border-radius: var(--r-md); white-space: pre-wrap; font: var(--t-body); }
+.patientMsg { align-self: flex-start; background: var(--surface); }
+.doctorMsg { align-self: flex-end; background: var(--teal); color: var(--paper); }
+.pendingMsg { opacity: .65; }
+.dots { align-self: flex-start; display: inline-flex; gap: 4px; padding: var(--s-3) var(--s-4); }
+.dots span { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--muted); animation: blink 1.2s infinite; }
+.dots span:nth-child(2) { animation-delay: .2s; }
+.dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+.composer { border-top: 1px solid var(--rule); padding: var(--s-3) var(--s-6) var(--s-4); }
+.inputRow { display: flex; gap: var(--s-2); align-items: flex-end; }
+.input {
+  flex: 1; resize: none; border: 1px solid var(--rule); border-radius: var(--r-sm);
+  padding: var(--s-2) var(--s-3); font: var(--t-body); color: var(--ink); background: var(--paper); max-height: 120px;
+}
+.input:focus { outline: none; border-color: var(--focus-ring); box-shadow: 0 0 0 1px var(--focus-ring); }
+.input:disabled { background: var(--surface); color: var(--muted); }
+.note { font: var(--t-body-sm); color: var(--muted); margin: var(--s-2) 0 0; }
+.chars { font: var(--t-caption); color: var(--muted); text-align: right; margin-top: var(--s-1); }
+.diagnose { display: flex; justify-content: center; padding: 0 var(--s-6) var(--s-4); }
+
+.panel { border-left: 1px solid var(--rule); padding: var(--s-4); overflow-y: auto; height: 100vh; background: var(--paper); }
+.group { border: 0; padding: 0; margin: 0 0 var(--s-4); }
+.groupName { font: var(--t-caption); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 0; margin-bottom: var(--s-2); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.result { border: 1px solid var(--rule); border-radius: var(--r-md); padding: var(--s-3) var(--s-4); margin-bottom: var(--s-3); }
+.resultLabel { font: var(--t-body-sm); font-weight: 600; margin: 0 0 var(--s-2); padding-bottom: var(--s-2); border-bottom: 1px solid var(--rule); }
+.resultText { margin: 0; white-space: pre-wrap; font: var(--t-body-sm); }
+.lab { font: var(--t-mono); }
+.empty { font: var(--t-body-sm); color: var(--muted); }
+
+.drawerButton { display: none; }
+.drawerBackdrop { display: none; }
+
+@media (max-width: 1023px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .patient { display: none; }
+  .stripe {
+    display: flex; align-items: center; gap: var(--s-3); height: 64px; padding: 0 var(--s-6);
+    border-bottom: 1px solid var(--rule); background: var(--surface); font: var(--t-body-sm);
+  }
+  .stripe strong { font: var(--t-h3); }
+  .panel {
+    position: fixed; top: 0; right: 0; width: min(380px, 92vw); z-index: 30;
+    box-shadow: var(--shadow-2); transform: translateX(100%); transition: transform .2s ease;
+  }
+  .panelOpen { transform: none; }
+  .drawerBackdrop { display: block; position: fixed; inset: 0; z-index: 25; background: rgba(19, 39, 47, .3); }
+  .drawerButton { display: inline-flex; position: fixed; right: var(--s-6); bottom: 96px; z-index: 20; box-shadow: var(--shadow-2); }
+}
+
+/* §4.1 — the consultation is not supported below 768 px. */
+@media (max-width: 767px) {
+  .app { display: none; }
+  .small { display: flex; min-height: 100vh; align-items: center; justify-content: center; padding: var(--s-8) var(--s-6); text-align: center; background: var(--surface); }
+}
