@@ -49,6 +49,34 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-11** (2026-11-29, from Yogesh) · **`openapi.yaml`'s feedback
+  contract had drifted — fixed — and this is the third drift in three tasks,
+  so it is worth a test.** Branch `feat/t-036-feedback` (`18502cc`).
+
+  1. **`Feedback` schema** described `diagnosis_verdict`, a top-level
+     `correct_diagnosis`, `narrative`, `generator: model|fallback`, and had no
+     `summary`, `coverage` or scorecards. `API_CONTRACT` §6 and
+     `conclusion.py` agree with each other (`verdict`, `summary`,
+     `tutor_feedback{lines,generator}`, `coverage`, both scorecards,
+     `reasoning{id,label,flagged,status_line,reason}`, `answer`), and
+     migration 012 allows `llm|rule_fallback`. I rewrote the schema to match.
+  2. **Rating body** said `helpful`; `rate_feedback` reads `was_helpful` (and
+     §6 says so). Fixed. `comment` was declared and not read — dropped.
+  3. **`tests/test_openapi.py`**: `test_feedback_headings_are_the_neutral_ones`
+     and `test_feedback_carries_the_learners_own_evidence` pinned the stale
+     names (`heading`, `evidence`). Same purpose, now checking `label`/`id`
+     and `reason`. Please look these over — they are yours.
+
+  **The pattern:** T-034's `DiagnosisCreate.diagnosis` (V-10), and now these
+  two. Every one passed CI and failed only when a client was built from the
+  types, because nothing checks a body against its schema — the CT tests guard
+  what must be *absent*, not that the declared shape is what is sent. A
+  test that validates each implemented route's real response (and the request
+  bodies its handler reads) against `openapi.yaml` would have caught all three
+  on the day. Yours to decide whether to add.
+
+  Done when you have looked at 1–3 and decided on the test.
+
 - [ ] **V-10** (2026-11-22, from Yogesh) · **Three things from T-034 — one
   contract fix I made, one decision, one backend gap.** Branch
   `feat/t-034-consultation` (`b48b54e`).
@@ -865,6 +893,13 @@ psql "$DATABASE_URL" -c "SELECT id, platform_role FROM profiles;"
 ---
 
 ## Done
+
+- **2026-11-29** · **T-036 built on `feat/t-036-feedback` (`18502cc`), not
+  pushed yet.** S-13's eight sections in order, S-12 while a diagnosis is
+  submitted and while feedback is not ready. All six criteria are tests; the
+  vocabulary scan and the fallback-renders-identically check were each broken
+  on purpose. 197 web / 988 backend tests. T-034 merged (PR #47). Yogesh's
+  Phase 3 run now has T-037 left.
 
 - **2026-11-22** · **T-034 built on `feat/t-034-consultation` (`b48b54e`),
   not pushed yet.** S-09 preview, S-10 consultation in every state (three
