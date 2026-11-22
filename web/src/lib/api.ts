@@ -127,3 +127,18 @@ export function submitDiagnosis(token: string, sessionId: string, text: string, 
     "POST", `/sessions/${encodeURIComponent(sessionId)}/diagnosis`, token, { text },
     { "Idempotency-Key": idempotencyKey });
 }
+
+// ── Feedback (T-036) ──────────────────────────────────────────────────
+
+export type Feedback = components["schemas"]["Feedback"];
+
+/** 404 `feedback_not_ready` means "retry after details.retry_after_ms", not "missing". */
+export function getFeedback(token: string, sessionId: string) {
+  return call<Feedback>("GET", `/sessions/${encodeURIComponent(sessionId)}/feedback`, token);
+}
+
+/** UX-3. A rating of the tutor's prose, stored beside it. */
+export function rateFeedback(token: string, sessionId: string, wasHelpful: boolean) {
+  return call<null>("POST", `/sessions/${encodeURIComponent(sessionId)}/feedback/rating`, token,
+                    { was_helpful: wasHelpful });
+}

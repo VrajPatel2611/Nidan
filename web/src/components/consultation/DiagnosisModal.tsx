@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { diagnose } from "@/app/case/actions";
 import { Banner, Button, Modal } from "@/components/ui";
+import { AssessmentPending } from "@/components/feedback/AssessmentPending";
 import { MAX_DIAGNOSIS } from "@/lib/consultation";
 
 export function DiagnosisModal({ open, onClose, sessionId, patientFirstName }: {
@@ -39,6 +40,10 @@ export function DiagnosisModal({ open, onClose, sessionId, patientFirstName }: {
   }
 
   return (
+    <>
+    {/* S-12: the diagnosis request is where the assessment and the tutor's
+        prose are written, so it is the wait S-12 exists for. */}
+    {submitting && <AssessmentPending />}
     <Modal open={open} onClose={onClose} title="Your diagnosis" dismissible={!submitting}
            actions={<>
              <Button variant="secondary" onClick={onClose} disabled={submitting}>Cancel</Button>
@@ -58,5 +63,6 @@ export function DiagnosisModal({ open, onClose, sessionId, patientFirstName }: {
         This ends the consultation and can&apos;t be undone.
       </p>
     </Modal>
+    </>
   );
 }
