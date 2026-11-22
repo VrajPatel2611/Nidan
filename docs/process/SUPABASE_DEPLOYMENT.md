@@ -12,7 +12,7 @@ someone has to do it, not for today.
 **There is no file to upload.** Nothing in this repository is a database dump,
 and pasting SQL into Supabase's editor is the wrong way to build this schema.
 
-The schema is **21 ordered migrations** in `migrations/versions/`, applied by
+The schema is **33 ordered migrations** in `migrations/versions/`, applied by
 Alembic against Supabase's PostgreSQL over a normal connection:
 
 ```bash
@@ -35,7 +35,7 @@ reference a function migration 001 creates.
 
 | | |
 |---|---|
-| **Region** | ⚠️ **Not yet decided** — `SECURITY_SPEC` S-4. One database, one jurisdiction. A global English-speaking launch (D-7) means UK and EU users, so this carries GDPR transfer obligations. **Decide deliberately; do not accept the default.** The region cannot be changed later without recreating the project |
+| **Region** | ✅ **Settled** — Central EU (Frankfurt), `eu-central-1`. `ADR-0017`, 28 Oct 2026. Keeping the data in the EEA *removes* the GDPR Chapter V transfer obligation for EU users rather than satisfying it, and the obligation is one-directional, so no non-EU user is constrained by the choice. Costs 120–150 ms from India, which the LLM call dwarfs. **A project cannot change region** — moving means a new project and a migration, so check an existing project's region before using it |
 | **Plan** | The free tier pauses after inactivity, which is fine for staging and not for production |
 | **Postgres version** | 15 or later. The migrations use `make_interval`, partial indexes, and `GENERATED` defaults |
 
