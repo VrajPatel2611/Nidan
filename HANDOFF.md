@@ -238,6 +238,88 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-30** (2026-11-24, from Vraj) · **Stripe is DEFERRED. The end-of-November
+  demo is the only target now, and that changes what is worth your time.**
+
+  Vraj's decision, 24 Nov: **T-041 (Stripe) is not being built before the
+  demo**, so **T-042 (pricing and account screens) is off your list too** — it
+  depends on T-041 and there is nothing to price against. Nothing breaks by
+  leaving it: `nidan/infra/billing.py` is a seam whose one adapter,
+  `NoProvider`, honestly reports `no_provider_configured`, and
+  `api/v1/contract.py` keeps answering 501 on the three billing operations.
+  Do **not** start T-042. Do not build a pricing screen "just for the slide" —
+  a screen that implies a payment flow we do not have is worse than its
+  absence in front of an examiner.
+
+  **What is yours, in priority order:**
+
+  **1. T-044 · Master list and lexicon editors** — `UX_SPEC` **A-06**
+  (clinical content) and **A-07** (topic lexicon). Not A-05/A-06; see Y-28 for
+  why the plan's references were wrong. Depends only on T-020, which is
+  merged, so it is unblocked now.
+
+  This is the higher-value one and the reason is concrete: **the topic lexicon
+  is full.** Cases 6 and 7 used the last of the 40 topics migration 017
+  seeded, and 027/029/031 have since added thirteen more by hand. Every
+  remaining case therefore needs **two migrations instead of one**, and the
+  editor is what turns that into a screen. `/admin/content` exists as a shell;
+  the master lists (examinations, investigations) and `topic_lexicon` /
+  `topic_phrases` are the tables.
+
+  **Watch the invariant:** a topic added through the editor must not leave the
+  database disagreeing with `nidan/domain/assessment/topics.py`.
+  `tests/db/test_seed.py` is what says so, and it now has two more assertions
+  of the same kind (see Y-29) — read them before deciding how the editor
+  writes. **C-4 also applies**: anchor keywords must never overlap
+  contradictory clues, enforced in CI and in the case editor.
+
+  **2. T-043 · AI usage and cost dashboard** — `UX_SPEC` **A-08** (AI
+  operations). `/admin/ops` exists as a shell. `llm_calls` has the rows:
+  tokens, `cost_usd` (NOT NULL), latency, `purpose`, per model. Depends on
+  T-031 and T-020, both merged.
+
+  Two things to know before you build it:
+
+  * **`purpose` has five legal values and `playtest` is not one of them.**
+    Migration 015's CHECK allows `patient`, `feedback`, `extraction`, `judge`,
+    `grounding`. The admin Playtest route records nothing on purpose, so an
+    author's own turns against a draft are absent from the cost figures —
+    that is correct, not a gap, and the dashboard should not imply it is
+    total spend.
+  * **T-043 owes the leakage RATE**, which is §5.3's third defence. I built
+    the queue (`/admin/leakage`) and made the dashboard's unreviewed *count*
+    real — the `0.9% leakage rate` stat card that used to sit there was
+    invented, and I replaced it with queue depth rather than leave a fabricated
+    number on an admin screen. A real rate is flags per reply over a window,
+    and it is A-08's. `leakage_flags` has the rows (0 right now — it only
+    fills as consultations run).
+
+  **3. Use `current_admin()`, not `current_actor()`, on any panel that joins
+  `sessions` or `session_events`.** Repeated from Y-28 because it will cost
+  you an hour on A-08 specifically. `own_sessions` has **no `TO` clause**, so
+  it binds `nidan_admin` too, and `current_actor()` returns a plain
+  `AuthenticatedUser` even for an administrator, by design. **The symptom is an
+  empty screen, not an error.** Migration 034 adds two narrow policies keyed
+  on a leakage flag existing; if an A-08 panel needs more than the flagged
+  rows it needs its own policy in its own migration. **Do not widen mine to
+  "admins may read sessions".**
+
+  **4. If you touch `openapi.yaml` at all, that is three things in one
+  commit** — the contract, the code, and `web/src/api/schema.ts` via
+  `npm run gen:api` in `web/`. A description-only edit counts. Otherwise the
+  "Web app" CI job fails on `npm run check:api`.
+
+  **What I am doing meanwhile**, so we do not collide: a full dress rehearsal
+  of the demo path on my laptop (signup → logout → login → consultation →
+  feedback, then `/admin` → create case → review → publish), fixing whatever
+  breaks, plus a written run sheet. Backend and `nidan/web/admin/` only. If I
+  need to touch anything under `web/` I will put it in your inbox rather than
+  edit it.
+
+  **Done when:** you have picked T-044 or T-043, said which in Vraj's inbox so
+  we are not both in `nidan/web/admin/`, and read `UX_SPEC` A-06/A-07/A-08
+  rather than what `BUILD_PLAN` used to point at. Tick this and delete it.
+
 - [ ] **Y-29** (2026-11-24, from Vraj) · **Run `alembic upgrade head` after
   you pull T-040 — there is a migration 035, and skipping it makes the web
   app's patient quietly worse rather than broken.** Branch
