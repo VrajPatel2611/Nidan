@@ -479,13 +479,51 @@ someone qualified before launch** — this document is not legal advice.
 | Do we hold health data about users? | **No** — but we hold professional competence data (A1), which is sensitive in its own right if not in the regulatory sense |
 | GDPR applicable? | **Yes**, if any EU user. Assume yes |
 | India DPDP applicable? | **Yes**, if Indian users — likely the launch market given `PRD` §9.4 regional pricing |
-| Where does data live? | Wherever the Supabase region is set. **⟨DECIDE⟩ — this must be chosen deliberately before launch, not defaulted** |
+| Where does data live? | **Central EU (Frankfurt), `eu-central-1`** — settled 2026-10-28, `ADR-0017`. Keeping it in the EEA *removes* the Chapter V transfer obligation for EU users rather than satisfying it. A Supabase project cannot change region |
 | Lawful basis | Contract for service delivery; **explicit opt-in consent** for research use (`consent_research`), separately revocable |
 | Under-16 users | Out of scope — medical trainees. Terms should state a minimum age |
 
 **Required before launch:** a privacy policy, terms of service, a cookie notice,
 and a `security@` address. All four are visible to users, and all four are things
 a reviewer or an institution will look for.
+
+---
+
+## 7.9 The Supabase `service_role` key
+
+**It bypasses row-level security entirely.** Every guarantee in `ADR-0016` —
+`repo_scope`, the five actors, `SET LOCAL ROLE`, `auth.uid()` per transaction
+— is void for any process holding it. It is not "an admin key"; it is the
+switch that turns the safety net off.
+
+Until T-038 the only place this was written down was a comment in
+`web/.env.example`. It needs a section, because T-038 is the first thing in
+the project that legitimately needs the key, and "nobody has needed it yet"
+was doing more of the work than the rule was.
+
+| | |
+|---|---|
+| **Used by** | `nidan/infra/identity_admin.py`, and nothing else. Two calls: delete an `auth.users` row, and read the address a deletion confirmation goes to |
+| **Why it is needed at all** | `ADR-0002` — Supabase owns `auth.users`. `nidan_service` has no grant on it; a probe during T-038 confirmed `permission denied for table users`. There is no SQL path |
+| **Lives in** | the jobs worker's environment only |
+| **Never in** | `web/` in any form; any `NEXT_PUBLIC_*` variable, of any name, because those are compiled into the browser bundle; `HANDOFF.md`, which is on GitHub; the `app` service in `docker-compose.yml`; an `audit_log` row; a log line; an exception message |
+| **Not needed by** | `python -m nidan`, the API, the admin console, the web app |
+| **When absent** | both steps **refuse** and record `job.step_failed` with `retryable: false`. They are never recorded as done — see below |
+
+**Why the refusal is the important half.** A worker that recorded
+`erasure.credential_deleted` because there was no key to try would make
+`UX_SPEC` S-20's "removed within 24 h" permanently and silently false, and the
+only evidence would be the absence of complaints. So the absent-key path is
+tested (`tests/test_identity_admin.py::test_an_absent_key_refuses_rather_than_succeeding`)
+and typed separately from a failed call: `NotConfigured` is not retryable,
+`CredentialDeletionFailed` is.
+
+**Why the key must not reach a message.** An exception string is logged, may
+reach Sentry, and on a `job.step_failed` row is written into `audit_log` —
+which refuses UPDATE and survives the erasure. A key in one would outlive the
+account it was used to delete. Every failure path is asserted clean of it,
+parametrised rather than sampled, and the key is sent in headers so it cannot
+appear in a URL that a proxy or an access log would keep.
 
 ---
 

@@ -551,7 +551,7 @@ Accept   1. Eight sections in the specified order
          6. "Was this helpful?" control writes a rating
 ```
 
-**T-037 · History and progress**
+**T-037 · History and progress** — ✅ **DONE** (2026-11-23)
 ```
 Phase    3            Depends  T-036          Est  3 d      Owner  Y
 Spec     UX_SPEC S-14, S-15, S-16
@@ -560,7 +560,7 @@ Accept   1. Paginated history; session detail reuses the feedback layout read-on
          3. Decline shown neutrally, no alarm styling
 ```
 
-**T-038 · Account jobs worker**
+**T-038 · Account jobs worker** — ✅ **DONE** (2026-11-23)
 ```
 Phase    3            Depends  T-030          Est  2 d      Owner  V
 Spec     DATA_MODEL §10.2 · API_CONTRACT §4 · ADR-0018 · UX_SPEC S-20

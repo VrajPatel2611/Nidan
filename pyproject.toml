@@ -104,6 +104,24 @@ forbidden_modules = ["nidan.infra", "nidan.api", "nidan.app"]
 # its import surface inside nidan.infra.db is what makes repo_scope the only
 # door into the database rather than merely the front one.
 # tests/test_db_access.py checks the same thing locally and more thoroughly.
+# T-038. The jobs worker must not reach into the web layer, and the reason is
+# concrete rather than aesthetic: `import nidan.api.v1.reasoning` executes
+# `nidan/api/v1/__init__.py`, which registers every route on a Flask blueprint
+# as an import side effect. A background job formatting a number should not
+# boot the API to do it.
+#
+# This contract is what made the export's design decision stick. The export
+# needed the neutral vocabulary for a detector result and the obvious source
+# was `api/v1/reasoning.py`; with that closed off, the answer became "do not
+# read the detector columns at all", which is a stronger CT-5 property than
+# reading and filtering them would have been. See
+# `nidan/infra/db/repositories/export.py`.
+[[tool.importlinter.contracts]]
+name = "the jobs worker must not import the web layer"
+type = "forbidden"
+source_modules = ["nidan.jobs"]
+forbidden_modules = ["nidan.api", "nidan.app"]
+
 [[tool.importlinter.contracts]]
 name = "only infra.db may reach the connection pool"
 type = "forbidden"

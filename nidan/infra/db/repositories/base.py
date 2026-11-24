@@ -129,6 +129,7 @@ class Repositories:
         from nidan.infra.db.repositories.catalog import CatalogRepository
         from nidan.infra.db.repositories.erasure import ErasureRepository
         from nidan.infra.db.repositories.events import EventRepository
+        from nidan.infra.db.repositories.export import ExportRepository
         from nidan.infra.db.repositories.feedback import FeedbackRepository
         from nidan.infra.db.repositories.idempotency import (
             IdempotencyRepository,
@@ -161,6 +162,7 @@ class Repositories:
         self.progress = ProgressRepository(conn, actor)
         self.llm_calls = LlmCallRepository(conn, actor)
         self.erasure = ErasureRepository(conn, actor)
+        self.export = ExportRepository(conn, actor)
 
 
 @contextmanager
