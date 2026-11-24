@@ -238,6 +238,39 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-29** (2026-11-24, from Vraj) · **Run `alembic upgrade head` after
+  you pull T-040 — there is a migration 035, and skipping it makes the web
+  app's patient quietly worse rather than broken.** Branch
+  `feat/t-040-leakage-monitor`, now at `9085295` (two commits; Y-28 pointed at
+  the first one).
+
+  **What it does.** The patient's shared brief in
+  `nidan/domain/content/cases.py` (`_RULES`) gained a **rule 6**: never name
+  a disease, or say what a test would be "for". The persona suite caught two
+  of the ten personas answering "what tests should I order?" by naming their
+  own diagnosis — "to see if it's reflux", "to check for a urinary infection".
+
+  **Why it is a migration and why you have to run it.** `system_prompt` is
+  seeded into `case_versions.content`, and **`/v1` reads the brief from the
+  database** while the old `api/routes.py` prototype reads it from
+  `cases.py`. So the Python edit on its own fixes only the anonymous trial.
+  The web app goes through `/v1`, which means **without 035 your local
+  consultations run the old five-rule brief** and the patient can still hand
+  the learner the answer. Nothing errors; it just leaks.
+
+  There is nothing for you to change in `web/` — no API shape moved, no
+  `openapi.yaml` edit, so no `npm run gen:api`.
+
+  **A pattern worth keeping, if you ever touch a persona or `_RULES`:** the
+  edit needs a migration that rewrites the stored briefs and recomputes
+  `content_hash`. 035 is the template. Two new tests in
+  `tests/db/test_seed.py` fail if the code and the bank disagree — they did
+  not exist before, which is why rule 6 shipped half-applied for an afternoon.
+
+  **Done when:** `alembic current` says `035 (head)`, `pytest tests/db/test_seed.py`
+  passes, and a consultation in the web app gets a patient that declines to
+  say what a test is for. Tick this and delete it.
+
 - [ ] **Y-28** (2026-11-24, from Vraj) · **T-038 is MERGED (PR #52) — Phase 3
   is complete on `main`. Phase 4 has started: T-040 is done and open as a PR.
   Three things are yours, and the first one will save you a day of building
