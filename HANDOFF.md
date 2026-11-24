@@ -238,6 +238,69 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-28** (2026-11-24, from Vraj) · **T-038 is MERGED (PR #52) — Phase 3
+  is complete on `main`. Phase 4 has started: T-040 is done and open as a PR.
+  Three things are yours, and the first one will save you a day of building
+  the wrong screen.** Branch `feat/t-040-leakage-monitor` (`14f67f7`).
+
+  **1. `BUILD_PLAN`'s `UX_SPEC` references for BOTH of your Phase 4 tasks were
+  off by one.** This is the important one.
+
+  | Task | `BUILD_PLAN` said | It is actually |
+  |---|---|---|
+  | T-043 · AI usage and cost dashboard | A-07 | **A-08 · AI operations** |
+  | T-044 · Master list and lexicon editors | A-05, A-06 | **A-06 · Clinical content** and **A-07 · Topic lexicon** |
+
+  `UX_SPEC` §12 numbers them A-01 dashboard, A-02 case bank, A-03 case editor,
+  A-04 Playtest, **A-05 review queue**, A-06 clinical content, A-07 topic
+  lexicon, A-08 AI operations, A-09 users and support. A-05 is the review
+  queue you already built in T-023. Both references are corrected in
+  `BUILD_PLAN` on my branch with a note; **read A-06/A-07/A-08, not what the
+  plan used to say.** Found while briefing Phase 4, not while building.
+
+  **2. Start with T-043 or T-044, not T-042.** T-042 (pricing and account
+  screens) depends on T-041 (Stripe), which is mine and not started. T-043
+  depends on T-031 and T-020 and T-044 depends on T-020 — all merged, so both
+  are unblocked right now. Your call which; T-044 unblocks case authoring
+  (every remaining case currently needs two migrations because the topic
+  lexicon is full), T-043 unblocks cost visibility.
+
+  **3. T-040 left you two things inside your own tasks.**
+
+  * **T-043 owes a leakage RATE.** I built `/admin/leakage` — the queue, under
+    AI Ops — and made the dashboard's `unreviewed_leakage` count real. It was
+    the literal `2` in `nidan/web/admin/routes.py`, and the dashboard's
+    `0.9% leakage rate` stat card was invented too; I replaced that card with
+    queue depth. **A real rate is flags per reply over a window, and it is
+    A-08's**, i.e. yours. `leakage_flags` has the rows.
+  * **Use `current_admin()`, not `current_actor()`, on any A-08 panel that
+    joins `sessions` or `session_events`.** This cost me an hour. `own_sessions`
+    in migration 016 has **no `TO` clause**, so it binds `nidan_admin` as well
+    — and `current_actor()` returns a plain `AuthenticatedUser` even for an
+    administrator, by design. The symptom is **an empty screen, not an
+    error**: my leakage queue rendered "Nothing to review" with a flag sitting
+    in the table. Migration 034 adds two narrow policies (`TO nidan_admin`,
+    keyed on a leakage flag existing), but they only help a scope that
+    actually assumed the role. If an A-08 panel needs more than the flagged
+    rows, it needs its own policy in its own migration — **do not widen mine
+    to "admins may read sessions".**
+
+  **Also worth knowing, and not yours:** eight of the ten cases reveal at
+  least one of their own `required_topics` in their `opening_line`, and
+  `case_2` reveals four of eight (`python validate_personas.py --overlap`,
+  pure, no model calls). Coverage is not inflated — it is scored over
+  `question` events — but a learner who reads the opening line and sensibly
+  does not re-ask is scored as having missed those topics. It has **no task
+  and no owner**; fixing it moves the golden assessment record for all 16
+  pilot sessions, so it needs a clinician. Raised in T-040's build log §9.
+
+  **And the anonymous trial still cannot use `/v1`.** Still no task, still a
+  launch feature (`PRD` FR-2). It is the only launch feature nobody holds.
+
+  **Done when:** you have read `UX_SPEC` A-06/A-07/A-08 rather than the old
+  references, and told me which of T-043/T-044 you are taking so I do not
+  duplicate it.
+
 - [ ] **Y-27** (2026-11-23, from Vraj) · **T-038 is merged-pending and Phase 3
   is complete. Your V-12 is answered: yes to the response conformance test,
   and it is mine. Two things change for you, one of them in copy you have not
