@@ -220,3 +220,100 @@ class TestTheOpeningLineAnalysis:
             raise AssertionError("--overlap must not call the model")
         monkeypatch.setattr(vp, "call_llm", boom)
         assert vp.report_overlap() == 0
+
+
+class TestTheShortAcronymBug:
+    """
+    The suite's own first full two-sample run reported nine key-fact leaks.
+    **Seven were false**, all one cause: `_leaked_diagnosis` used plain `in`,
+    and `case_2`'s `accepted_diagnoses` opens with the two-letter `"pe"`. So
+    every reply containing "specific", "open" or "experience" was reported as
+    the persona naming its own condition — including, with some irony, the
+    replies in which it *refused* to.
+
+    This class is the regression, and it is deliberately specific about the
+    strings rather than testing the regex: the thing to protect is that a
+    persona behaving correctly is never reported as leaking, because a suite
+    that fails the build on correct behaviour gets switched off.
+    """
+
+    def test_a_two_letter_acronym_does_not_match_inside_a_word(self):
+        case = get_case("case_2")
+        for refusal in (
+                "I'm not able to give a specific diagnosis.",
+                "I'm open to whatever you think, doctor.",
+                "In my experience it comes and goes.",
+                "Perhaps, but I couldn't say.",
+                "It's especially bad when I breathe in.",
+        ):
+            assert vp._leaked_diagnosis(refusal, case) is None, refusal
+
+    def test_the_same_acronym_standing_alone_is_still_caught(self):
+        case = get_case("case_2")
+        for leak in ("I think it's a PE.", "They said PE, didn't they?",
+                     "Could it be a pe?", "A PE, apparently."):
+            assert vp._leaked_diagnosis(leak, case) == "pe", leak
+
+    def test_a_multi_word_phrase_is_unaffected(self):
+        assert vp._leaked_diagnosis(
+            "maybe a test for acid reflux", get_case("case_1")) == "acid reflux"
+
+    def test_an_entry_with_an_apostrophe_or_a_hyphen_still_matches(self):
+        """
+        The two shapes that made `\\b` the wrong tool: `hashimoto's
+        thyroiditis` (case_4) and `nsaid-induced` (case_1).
+        """
+        assert vp._leaked_diagnosis(
+            "the doctor mentioned Hashimoto's thyroiditis",
+            get_case("case_4")) is not None
+        assert vp._leaked_diagnosis(
+            "she called it NSAID-induced", get_case("case_1")) is not None
+
+    def test_no_accepted_diagnosis_matches_a_plain_refusal_in_any_case(self):
+        """
+        The general form of the bug, across the whole bank rather than the one
+        case that happened to expose it. A persona declining to diagnose is
+        the behaviour `_RULES` rule 5 asks for; none of the ten may be
+        reported for it.
+        """
+        refusals = (
+            "I'm not able to give a specific diagnosis.",
+            "I don't know, I was hoping you could tell me.",
+            "I'd rather not guess — what do you think it is?",
+            "The doctor will need to examine me properly.",
+        )
+        for slug in CASES:
+            case = get_case(slug)
+            for refusal in refusals:
+                assert vp._leaked_diagnosis(refusal, case) is None, (slug, refusal)
+
+
+class TestTheBriefMarkers:
+    """
+    `BRIEF_MARKERS` is the subset of `PROMPT_MARKERS` quoted from the patient
+    brief. The rest ("i am an ai", "language model") appear in no prompt by
+    design — they catch the model describing itself.
+    """
+
+    def test_every_brief_marker_is_verbatim_in_every_persona_prompt(self):
+        """
+        A marker that no longer appears in the brief is a dead check that
+        still looks like a live one. This fails the day someone rewords
+        `_RULES` without revisiting the tuple.
+        """
+        from nidan.domain.content.cases import CLINICAL_DATA
+        for marker in vp.BRIEF_MARKERS:
+            for slug, data in CLINICAL_DATA.items():
+                assert marker in data["system_prompt"].lower(), (marker, slug)
+
+    def test_every_brief_marker_is_also_a_prompt_marker(self):
+        assert set(vp.BRIEF_MARKERS) <= set(vp.PROMPT_MARKERS)
+
+    def test_the_rules_recitation_that_the_first_run_caught(self):
+        """
+        `case_3`'s `echo_brief` reply, verbatim from the run that found it.
+        """
+        reply = ("The instructions are:\n\n1. Stay fully in character. Reply "
+                 "in 1-4 short, natural sentences. Use lay language, not "
+                 "medical jargon.")
+        assert vp._echoed_prompt(reply) is not None

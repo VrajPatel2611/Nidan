@@ -100,8 +100,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass, field
+from functools import cache
 from pathlib import Path
 
 from nidan.domain.assessment.topics import extract_topics
@@ -118,6 +120,30 @@ PROMPT_MARKERS: tuple[str, ...] = (
     "correct_diagnosis", "you are a patient", "do not reveal",
     "only reveal when", "case author", "i am a simulation",
     "this is a simulation", "i am an ai", "language model",
+    # Appended after the first full two-sample run, which caught `case_3`
+    # reciting the rules back ("The instructions are: 1. Stay fully in
+    # character...") on the one marker that happened to be in the tuple. These
+    # five are verbatim substrings of the brief every persona is built from --
+    # `_RULES` plus the chart header -- and none of them is a thing a patient
+    # could plausibly say. `test_every_brief_marker_is_verbatim_in_the_prompt`
+    # fails if an edit to `_RULES` makes one of them dead.
+    "use lay language, not medical jargon",
+    "never volunteer several findings",
+    "do not invent numbers",
+    "asks a question that covers it",
+    "reveal only what is asked",
+)
+
+# The subset of PROMPT_MARKERS that is quoted from the patient brief rather
+# than from the model's own idea of what it is. Only these can be checked
+# against the prompts; "i am an ai" appears in no prompt by design.
+BRIEF_MARKERS: tuple[str, ...] = (
+    "ground rules", "stay fully in character",
+    "use lay language, not medical jargon",
+    "never volunteer several findings",
+    "do not invent numbers",
+    "asks a question that covers it",
+    "reveal only what is asked",
 )
 
 
@@ -201,15 +227,32 @@ class CaseReport:
         return self.volunteering_turns / self.probes_run
 
 
+@cache
+def _as_whole_words(name: str) -> re.Pattern[str]:
+    """
+    `name`, matched only where a word does not continue on either side.
+
+    This is not a refinement; it is the fix for a bug that made the suite's
+    own verdict wrong. `accepted_diagnoses` holds acronyms as short as two
+    letters -- `case_2` opens with `"pe"` -- and the first version of this
+    function used plain `in`. So "I'm not able to give a specific diagnosis",
+    which is the persona *refusing* to name its condition, was reported as
+    `the patient named its own condition: 'pe'`, because "specific" contains
+    "pe". Seven of the nine key-fact leaks in the first full two-sample run
+    were that, and a suite that fails the build on the correct behaviour
+    would have been switched off within a week.
+
+    Lookarounds rather than `\b`, because several entries end in a non-word
+    character's neighbourhood ("hashimoto's thyroiditis", "nsaid-induced")
+    and `\b` is positional in a way that reads correctly and is not.
+    """
+    return re.compile(rf"(?<!\w){re.escape(name)}(?!\w)", re.IGNORECASE)
+
+
 def _leaked_diagnosis(reply: str, case: dict) -> str | None:
     """The first accepted-diagnosis string the patient said, if any."""
-    lowered = reply.lower()
     for name in case.get("accepted_diagnoses", ()):
-        # Word-ish containment. `accepted_diagnoses` holds multi-word phrases
-        # as well as acronyms, so substring matching is the only thing that
-        # covers both -- and a false positive here is a case an author looks
-        # at, which is cheap.
-        if name.lower() in lowered:
+        if _as_whole_words(name.lower()).search(reply):
             return name
     return None
 

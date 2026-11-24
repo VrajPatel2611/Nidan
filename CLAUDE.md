@@ -4,15 +4,27 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0, 1, 2 and **3 complete — 29 of 35 tasks, 68 days
-of 85.** The research is published and validated; the platform has a schema, a
-repository layer with tenant scoping, event-sourced sessions, authentication,
-anonymous trials, a replayable assessment engine, the free-tier allowance, the
-16 pilot sessions imported into it, the whole admin console (case editor,
-Playtest, clinical review), the `/v1` JSON API, a Next.js web app a learner
-can sign in to, take a consultation in, and read feedback from, their own
-history and progress, and a worker that performs the outbound work behind both
-202s.
+**Current state:** Phases 0–3 complete and **Phase 4 is 1 of 6 — 30 of 35
+tasks, 71 days of 85.** The research is published and validated; the platform
+has a schema, a repository layer with tenant scoping, event-sourced sessions,
+authentication, anonymous trials, a replayable assessment engine, the
+free-tier allowance, the 16 pilot sessions imported into it, the whole admin
+console (case editor, Playtest, clinical review), the `/v1` JSON API, a
+Next.js web app a learner can sign in to, take a consultation in, and read
+feedback from, their own history and progress, a worker that performs the
+outbound work behind both 202s, and — as of T-040 — **a persona-leakage
+monitor on both question paths, an admin queue that can act on it, and the
+de-identified research export it protects.**
+
+**T-040 closed on 24 Nov 2026** and found four things its own criteria
+assumed. Two are worth knowing before any Phase 4 task: **RLS binds
+`nidan_admin`**, so an admin screen that joins `sessions` renders *empty*
+rather than erroring (migration 034 and the rule below), and **`DATA_MODEL`
+§11.7's research export did not exist** — it was a query in a document, which
+made T-040's own third criterion satisfiable on paper. Its build log §9
+records a content problem in eight of the ten cases that has **no task and no
+owner**, and §8 records what the suite found about itself on its first full
+run.
 
 **T-030 closed on 22 Nov 2026** — 19 days after its code merged, because it
 had raised five questions about its own contract and two were blocking. The
@@ -32,9 +44,15 @@ reaches an inbox until `EMAIL_ADAPTER` names a real provider**, and S-20's two
 promises are now kept only when that and `SUPABASE_SERVICE_ROLE_KEY` are set —
 but a missing one refuses visibly rather than recording the step as done.
 
-**Next is Phase 4, commercial readiness — 6 tasks, 17 d.** T-041 (Stripe) is
-the one that retires `api/v1/contract.py`'s remaining three 501s and fills in
-`infra/billing.py`'s empty seam.
+**Phase 4, commercial readiness — T-040 done, 5 tasks and 14 d left.** T-041
+(Stripe) is the one that retires `api/v1/contract.py`'s remaining three 501s
+and fills in `infra/billing.py`'s empty seam.
+
+**Yogesh is not blocked but cannot start with T-042**, which depends on T-041.
+T-043 and T-044 are both unblocked now (T-020 and T-031 are done). **And
+`BUILD_PLAN`'s screen references for both of his tasks were off by one until
+24 Nov** — T-043 is `UX_SPEC` **A-08**, not A-07, and T-044 is **A-06 and
+A-07**, not A-05 and A-06. Corrected in `BUILD_PLAN` with a note.
 
 **The gap with no task: the anonymous trial cannot use `/v1`.** Every
 consultation endpoint is `@require_auth`, while `UX_SPEC` S-09/S-10 say
@@ -66,9 +84,9 @@ phase deployed anything, which was wrong both times; it is in the plan, at the
 end of the phase now starting. See `REVIEWER_ONBOARDING.md` for what a
 reviewer needs once it is up.
 
-**Next: Phase 4, commercial readiness** (6 tasks, 17 d). Clinical review still
-runs beside all of it: it is calendar time, and ten reviewed cases is the
-launch gate.
+**Phase 4 continues with T-041** (5 tasks, 14 d). Clinical review still runs
+beside all of it: it is calendar time, and ten reviewed cases is the launch
+gate.
 
 ---
 
@@ -95,7 +113,7 @@ read only those sections.
 | A command you half-remember | `docs/process/COMMANDS.md` |
 | Setting up on Windows | `docs/process/WINDOWS_SETUP.md` |
 | **Picking up a Phase 3 task** | `BUILD_PLAN` §7 — T-030 … T-037. There are no Phase 3 briefs; `docs/process/phase-2-briefs/` is historical |
-| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 33 migrations |
+| **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 35 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
@@ -563,10 +581,50 @@ persona requires calling the model. So it is a root script with its own CI
 job, like `validate_detectors.py`. Exit 1 = a persona named its own diagnosis
 or quoted its brief; **exit 3 = a probe never reached the provider**, which
 fails on purpose because an outage must not read as a clean bill of health.
-**`PROBES` is frozen — add to the end, never edit.** A suite whose inputs move
-cannot tell you whether the persona got worse or the probes did. And a model
-change invalidates all ten personas' tuning, which is why the job also runs
-weekly: it is the one check whose result can change with no commit.
+**`PROBES` and `PROMPT_MARKERS` are frozen — add to the end, never edit.** A
+suite whose inputs move cannot tell you whether the persona got worse or the
+probes did. And a model change invalidates all ten personas' tuning, which is
+why the job also runs weekly: it is the one check whose result can change with
+no commit.
+
+**A key fact is matched on whole words, and the reason is a bug the suite had
+on its first full run.** `accepted_diagnoses` holds acronyms as short as two
+letters — `case_2`'s first entry is `"pe"` — and the first `_leaked_diagnosis`
+used plain `in`, so **seven of nine reported leaks were the word "specific"**,
+in replies where the persona was *refusing* to diagnose. A gate that fails the
+build on correct behaviour gets switched off, which is worse than no gate.
+`TestTheShortAcronymBug` is the regression, and it asserts over the whole bank
+rather than the one case that exposed it.
+
+**`_RULES` rule 6 exists because of one probe, and `what_to_order` is the
+probe that earns its place.** Rule 4 tells the patient to say the doctor would
+need to check — and asked *what* the doctor should order, two personas named
+the condition the test was for ("to see if it's reflux", "to check for a
+urinary infection"). That is `accepted_diagnoses` out of the patient's mouth
+by a route rule 5 does not cover, so rule 6 forbids naming a disease or what
+a test is "for" at all. **Editing `_RULES` changes all ten personas**, so
+re-run the suite and `test_api.py` after touching it; it does not touch the
+golden assessment record, which is recomputed from stored events.
+
+**And editing a persona needs a MIGRATION, because the brief is content.**
+`system_prompt` is seeded into `case_versions.content` like everything else.
+`api/v1/consultation.py` reads it from there; `api/routes.py` and
+`validate_personas.py` read it from `cases.py`. So an edit with no migration
+fixes the anonymous trial, leaves **every signed-in learner on the old
+brief**, and **the persona suite reports a pass** — it probes the code, not
+the bank. Rule 6 shipped in that state for an afternoon. Migration 035 is the
+pattern: read each row, rewrite the block, recompute `content_hash`, and
+refuse if the old block is not there exactly once.
+`test_the_brief_in_the_database_is_the_brief_in_the_code` is what fails now;
+the round-trip seed test only ever compared the four fields the detectors
+read.
+
+**The full persona suite at `--repeat 2` does not fit Groq's free tier.** 160
+calls is ~200 000 tokens and the allowance is 200 000 per *day* — the first
+attempt died at probe 69 with `CircuitOpen` and exited 3. CI is `--repeat 1`
+(80 calls) for that reason, and the weekly schedule is what accumulates
+samples. A gate that goes red on the token budget is a gate people learn to
+ignore.
 
 **Volunteering is MEASURED, never gated, and do not "fix" that.** The suite's
 first two runs reported eight volunteering leaks and then **none** — same
@@ -693,7 +751,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                           bodies handlers actually read — AST, no DB)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    34 Alembic migrations ← the schema's source of truth
+migrations/versions/    35 Alembic migrations ← the schema's source of truth
                         (017, 019, 026-032 are generated from cases.py
                          and topics.py; see the rule below)
 docs/build-log/         what was actually built, one doc per finished task
@@ -720,7 +778,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1159 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1261 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -740,9 +798,9 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 34 migrations
+alembic upgrade head               # apply all 35 migrations
 alembic downgrade base             # tear the schema down
-pytest tests/db -q --no-cov        # 418 schema, repository and route tests, real Postgres
+pytest tests/db -q --no-cov        # 476 schema, repository and route tests, real Postgres
 ```
 
 ---

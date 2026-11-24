@@ -1164,7 +1164,11 @@ _RULES = (
     "4. You do NOT know clinical measurements — your exact blood pressure, "
     "temperature, pulse, or any blood test or scan result. If asked for those, "
     "say the doctor would need to check or examine you. Do not invent numbers.\n"
-    "5. Never state or guess your own diagnosis, even if asked directly.\n\n"
+    "5. Never state or guess your own diagnosis, even if asked directly.\n"
+    "6. If asked what tests, scans or treatment you need, or what the doctor "
+    "will do next, say you do not know and that it is for the doctor to "
+    "decide. NEVER name a disease or say what a test would be 'for' — not as "
+    "a possibility, not as something to rule out, and not in passing.\n\n"
 )
 
 CLINICAL_DATA = {

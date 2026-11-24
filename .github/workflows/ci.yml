@@ -155,12 +155,20 @@ jobs:
         # and not a pytest test: T-002 criterion 1 is that no test in the
         # suite makes a network call.
         #
-        # `--repeat 2` because the patient model runs at temperature 0.7 and
-        # volunteering is stochastic — the suite's first two runs reported
-        # eight volunteering leaks and then none, from the same probes against
-        # the same personas. Only key facts fail the build; the volunteering
-        # rate is printed and kept in the artifact so it can be compared
-        # between runs (§5.3's third defence is disclosing it).
+        # `--repeat 1` — 80 calls — because of a hard ceiling, not a
+        # preference. `--repeat 2` is 160 calls at ~1 250 tokens each, which
+        # is almost exactly Groq's free-tier allowance of 200 000 tokens per
+        # DAY: the first full two-sample run exhausted it at probe 69 of 160
+        # and exited 3. A gate that goes red on the budget rather than on a
+        # persona is a gate people learn to ignore.
+        #
+        # What this costs is only precision about volunteering, which is not
+        # gated anyway. The build fails on key facts, and those are not
+        # stochastic in the same way. Repeated sampling comes from the weekly
+        # schedule instead, which accumulates runs over time rather than
+        # spending the day's budget in one. Run `--repeat 2` or more by hand
+        # when you want the rate (§5.3's third defence is disclosing it); the
+        # artifact keeps each run's figures so they can be compared.
         #
         # Exit codes: 1 a persona named its own diagnosis or quoted its brief,
         # 3 some probe never reached the provider. 3 is a failure on purpose —
@@ -181,7 +189,7 @@ jobs:
             echo "::error title=Persona suite cannot run::GROQ_API_KEY is           not set. TECH_SPEC 5.3's second defence is not running, so persona           leakage is unmeasured rather than absent."
             exit 1
           fi
-          python validate_personas.py --repeat 2 --json persona-report.json
+          python validate_personas.py --repeat 1 --json persona-report.json
 
       - name: What each case's opening line already gives away
         # Pure — no model calls, so it runs even without the key. Reported,

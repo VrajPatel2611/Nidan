@@ -380,6 +380,23 @@ built all three defences on 2026-11-24:
    it went green. Volunteering is reported as a rate instead, measured with
    `--repeat`, and caught per-consultation by defence 1 — which sees every
    real consultation rather than eight probes.
+   **The first full two-sample run changed two things, and both are worth
+   recording because the suite found them about itself and about the content.**
+   It reported nine key-fact leaks; **seven were false**, because
+   `accepted_diagnoses` holds acronyms as short as `"pe"` (`case_2`) and the
+   matcher used plain substring containment, so a persona *refusing* to
+   diagnose — "I'm not able to give a specific diagnosis" — was reported for
+   the "pe" inside "specific". Matching is on whole words now. The two
+   genuine leaks were the same failure in two personas: asked by the
+   `what_to_order` probe what tests to order, the patient named the condition
+   the test was for ("to see if it's reflux", "to check for a urinary
+   infection"). Rule 4 of the shared brief invites exactly that by telling the
+   patient to defer to the doctor, and rule 5 only forbids stating a
+   *diagnosis*, so **`_RULES` gained a rule 6**: never name a disease or say
+   what a test would be "for". Both personas pass at three samples. Editing
+   `_RULES` changes all ten personas, so the suite and `test_api.py` are the
+   two things to re-run after touching it.
+
 3. **Disclosure** — `scripts/research_export.py` reports how many consented,
    completed sessions a confirmed flag excluded, and the persona suite reports
    the volunteering rate, so both figures exist to be reported.

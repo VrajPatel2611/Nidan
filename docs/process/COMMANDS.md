@@ -763,6 +763,19 @@ can change with no commit at all.
 some probe never reached the provider, which is a failure on purpose: an
 outage must not read as a clean bill of health.
 
+**Do not pipe it.** `python validate_personas.py | tail -40` reports success
+whatever the script returned, because the pipeline's status is `tail`'s. The
+first exit-1 run was read as a pass that way. CI does not pipe, so the gate
+itself is intact — but a local check that does is worse than no check.
+
+**Fixing a leak means the shared brief, not the probe.** Both genuine leaks on
+the first full run came from one probe (`what_to_order`) asking two personas
+what tests to order, and both answered by naming the condition the test was
+for. The fix was rule 6 in `_RULES` (`domain/content/cases.py`), which is the
+brief **every** persona is built from — so after touching it, re-run this
+suite *and* `python test_api.py`, which is the only check that goes through
+the real gateway.
+
 **Volunteering is measured, never gated.** The run prints the share of turns
 whose reply offered required history the opening line had not already given.
 It does not fail the build, and the reason is worth knowing: the patient model

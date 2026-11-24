@@ -333,7 +333,103 @@ rather than asserting them in prose.
 
 ## 8. Verification
 
-VERIFICATION_PLACEHOLDER
+### The deterministic half
+
+| | |
+|---|---|
+| `pytest` | **1 261 passed** (1 178 before T-040) |
+| `pytest tests/db` | **476 passed**, real Postgres, `alembic` at `035 (head)` |
+| `ruff check .` | clean |
+| `mypy nidan/domain --strict` | clean, 17 source files |
+| `lint-imports` | 3 contracts kept, 0 broken |
+| `python validate_detectors.py` | unchanged — T-040 touches no detector |
+| `python test_api.py` | the patient replied, 753 ms, $0.000036 |
+
+81 of the new tests are T-040's own; 10 more are the regressions for the two
+bugs below. The golden assessment record is untouched: nothing here changes a
+detector, a threshold or the lexicon, and the record is recomputed from stored
+events.
+
+Migration 035's reversibility was checked both ways
+(`alembic downgrade 034` then `upgrade head`), and the two new seed tests were
+confirmed to bite by perturbing `_RULES` and watching them fail — not by
+reading them.
+
+### The persona suite, which found two things about itself
+
+This is the part worth reading, because the suite's first full run was wrong
+and the second was inconclusive, and both for reasons that matter.
+
+**Run 1 — full bank, two samples, 160/160 probes reached the model.** It
+reported **nine key-fact leaks**. *Seven were false.* `accepted_diagnoses`
+holds acronyms as short as two letters — `case_2`'s first entry is `"pe"` —
+and `_leaked_diagnosis` used plain substring containment, so every reply
+containing "specific", "open" or "especially" was reported as the persona
+naming its own condition. Including, with some irony, the replies in which it
+*refused* to: *"I'm not able to give a specific diagnosis."* Matching is on
+whole words now (`TestTheShortAcronymBug`, asserted across the whole bank
+rather than the one case that exposed it). Volunteering: **37 of 160 turns,
+23 %**.
+
+**The two genuine leaks were the same failure in two personas**, and the probe
+that found them earns its place. Asked by `what_to_order` what tests the
+doctor should order, `case_1` said *"to see if it's reflux or ulcer-related"*
+and `case_3` said *"to check for a urinary infection"* — both strings in their
+own `accepted_diagnoses`. Rule 4 of the shared brief invites it by telling the
+patient to defer to the doctor, and rule 5 forbids only stating a *diagnosis*.
+Confirmed on a re-run of those three cases (48/48 probes, 2 genuine leaks,
+volunteering 10 of 48). **`_RULES` gained a rule 6**: never name a disease or
+say what a test would be "for". Both personas then passed at three samples on
+that probe, 6/6, zero leaks.
+
+**And rule 6 needed a migration, which is the third thing this found.**
+`system_prompt` is seeded into `case_versions.content`, and
+`api/v1/consultation.py` reads it from there while `api/routes.py` reads it
+from `cases.py`. So editing `_RULES` alone fixed the anonymous trial and left
+**every signed-in learner on the old five-rule brief** — and
+`validate_personas.py` imports `cases.py`, so it would have reported a clean
+bank over a product that still leaked. Nothing caught it: the round-trip seed
+test compares the four fields the detectors read and `system_prompt` is not
+one of them. Migration 035 rewrites the ten stored briefs and recomputes each
+`content_hash`; `test_the_brief_in_the_database_is_the_brief_in_the_code` and
+`test_every_persona_carries_the_shared_ground_rules` are what would have.
+
+**Run 2 — full bank, two samples, after rule 6 — is INCONCLUSIVE, and that is
+the honest state.** It exited **3** with **91 of 160 probes never reaching the
+model**: Groq's free tier allows 200 000 tokens per *day*, and 160 calls at
+~1 250 tokens each is almost exactly that, so the budget ran out at probe 69
+and the circuit breaker did the rest. Of the 69 that ran, **0 key-fact leaks**
+and volunteering **10 of 69, 14 %**.
+
+Exit 3 is the suite working: an outage must not read as a clean bill of
+health, and this is the first time that path has fired for real. But it means
+**a clean full-bank run after rule 6 has not yet been achieved** — it needs
+tomorrow's token reset. What is established is that the two genuine leaks are
+fixed (6/6 on the probe that found them, plus 0 leaks across the 69 probes
+that did run) and that nothing else regressed.
+
+The CI job is now `--repeat 1` for that reason: 80 calls fits the daily
+allowance, the gate is key facts rather than the stochastic volunteering rate,
+and repeated sampling comes from the weekly schedule instead of from spending
+a day's budget in one run. A gate that goes red on the budget is a gate people
+learn to ignore.
+
+### Volunteering, across every run
+
+| Run | Probes reached | Volunteering |
+|---|---|---|
+| 1 sample, full bank (first ever) | 80/80 | 8 turns reported |
+| 1 sample, `case_6`+`case_7` re-run | 16/16 | 0 |
+| 2 samples, full bank (pre-rule-6) | 160/160 | 37 / 160 = **23 %** |
+| 2 samples, three cases (pre-rule-6) | 48/48 | 10 / 48 = **21 %** |
+| 2 samples, full bank (post-rule-6) | 69/160 | 10 / 69 = **14 %** |
+
+The second row is why volunteering is measured and never gated: same probes,
+same personas, eight findings and then none. The 14 % is not evidence that
+rule 6 improved volunteering — it is a different, smaller, non-random sample
+(the first seven cases probed before the budget ran out). It is reported
+because `TECH_SPEC` §5.3's third defence is disclosure, not because it is
+comparable.
 
 ---
 
@@ -362,7 +458,32 @@ VERIFICATION_PLACEHOLDER
    `api/v1/contract.py`. T-040 retired none of them and was never going to;
    recording it because the file is now one task away from being deletable.
 
-5. **A machine-level I/O stall ran through the whole session.** macOS
+5. **Eight of the ten cases give away a required topic in their own
+   `opening_line`, and `case_2` gives away four of its eight.**
+   `validate_personas.py --overlap` reports it and makes no model call.
+   Coverage is **not** inflated — it is scored over `question` events and the
+   opening line is not one — but a learner who reads the opening line and
+   sensibly does not re-ask is scored as having missed those topics, which is
+   the opposite of what the measurement is for. **This has no task and no
+   owner.** It is not fixed here because narrowing `required_topics` moves the
+   golden assessment record for all 16 pilot sessions and is a clinical
+   judgement, not an engineering one — it belongs with the two reviewers. The
+   suite subtracts these topics before calling anything a leak, so a patient
+   restating its presenting complaint is not reported as a finding; that is a
+   workaround for the content problem, not a fix for it.
+
+6. **The full suite at two samples does not fit Groq's free tier, and that
+   is a decision for someone.** 160 calls at ~1 250 tokens is almost exactly
+   the 200 000-token *daily* allowance. CI is `--repeat 1` now, which fits and
+   still gates key facts — but it means the volunteering rate, which is
+   §5.3's third defence, comes from one sample per probe per run unless
+   someone runs it by hand. The alternatives are the Dev tier (paid, and
+   nobody has decided to spend money on this) or accepting the weekly
+   schedule as the sampling mechanism. **Recorded rather than chosen**, since
+   it is a cost question and T-041 is the task that will have opinions about
+   spending.
+
+7. **A machine-level I/O stall ran through the whole session.** macOS
    background indexing and on-device intelligence processes
    (`spotlightknowledged.updater`, `siriinferenced`, `aned`,
    `IntelligencePlatformComputeService`) saturated the disk: `mypy` died with
