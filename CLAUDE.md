@@ -58,10 +58,13 @@ the same file. Every case is `draft`, and none can be published until a
 clinician approves it — migration 007's trigger, not a convention.
 
 **So `BUILD_PLAN` §11.1's critical path has moved rather than closed.** It is
-no longer writing cases; it is **review turnaround**, and the two clinicians
-cannot start because the console only runs on `localhost` and no task in any
-of the seven phases deploys it. That is the single thing standing between ten
-finished cases and the review they need — see `REVIEWER_ONBOARDING.md`.
+no longer writing cases; it is **review turnaround**, and the console runs on
+`localhost`. **Deployment is `T-045` criterion 1** — "deployed to Render:
+staging then production, migrations on release" — the last task of Phase 4,
+2 d, owned by both. Two earlier versions of this file said no task in any
+phase deployed anything, which was wrong both times; it is in the plan, at the
+end of the phase now starting. See `REVIEWER_ONBOARDING.md` for what a
+reviewer needs once it is up.
 
 **Next: Phase 4, commercial readiness** (6 tasks, 17 d). Clinical review still
 runs beside all of it: it is calendar time, and ten reviewed cases is the
@@ -740,9 +743,12 @@ branch with no shared history with `main`: no pull request, no CI.
 - The pilot found coverage rose 45.3 % → 79.7 % (*p* = 0.036) but had **no control
   group**, so no causal claim. Do not overstate it.
 - Two clinician reviewers are available. The T-021 → T-023 gate that blocked
-  them is **open** as of 29 Oct 2026. **What blocks them now is hosting**: the
-  console runs on `localhost` and `BUILD_PLAN` has no deployment task in any
-  phase. Ten reviewed cases is the launch gate, and nobody can start.
+  them is **open** as of 29 Oct 2026. What they need now is hosting, which is
+  `T-045` criterion 1 (Render, staging then production) — the last task of
+  Phase 4. Ten reviewed cases is `T-045` criterion 5 and the launch gate.
+  **This is settled, not an open question**: the end-of-November demo runs on
+  Vraj's own laptop by design, so do not raise hosting as a blocker or offer
+  to pull it forward.
 - **Content authoring is done, review is not.** All ten cases exist as
   drafts. None can be published until a clinician approves it — the gate is
   a database trigger, not a convention. **Clinical review is now the whole
