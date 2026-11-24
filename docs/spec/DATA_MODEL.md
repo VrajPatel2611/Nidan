@@ -842,6 +842,21 @@ CREATE INDEX ON leakage_flags (reviewed, severity, created_at DESC);
 
 Implements the persona-leakage monitor. **`confirmed = true` excludes the session from research analysis** — the query in §11.7 applies this filter, because a session where the patient volunteered information is measuring the model, not the learner.
 
+**What the two severities mean** (T-040, 2026-11-24 — the CHECK allowed both from migration 015 and nothing said which was which):
+
+| | |
+|---|---|
+| **`high`** | the learner never asked about the topic anywhere in the session. Coverage credits them for something they did not do, so the session's numbers are wrong. |
+| **`low`** | they had asked about it in an earlier turn, so coverage had credited it regardless and the patient merely repeated itself. The score is unaffected. |
+
+Severity is **triage, not a verdict.** The queue sorts on it; §11.7 does not read it at all. Only a person's `confirmed = true` removes a session, because a detector that could discard its own inconvenient data would be the LLM marking by proxy (`ADR-0005`).
+
+**`reviewed_by` is an administrator, and the write needed migration 034.** Migration 023 gives `nidan_admin` `SELECT ON ALL TABLES` plus INSERT/UPDATE on `cases` and `case_versions`; resolving a flag is an UPDATE on this table, which was in none of those lists. 034 grants **UPDATE only, never INSERT** — a hand-written flag would be a way to drop a session from the dataset without a detector having objected to it, which is the one thing the queue exists to make visible.
+
+**Reading the queue also needed two policies**, because `own_sessions` in §10.1 has no `TO` clause and therefore binds `nidan_admin` as well. Without them the join through `sessions` returned nothing for an administrator, and `session_events` — where the flagged reply lives — returned nothing either, so the screen rendered as "no leaks" rather than as a permission error. Both policies are keyed on the flag rather than on the role's seniority: an administrator may read a session *because it carries a flag*, and may read exactly the event the flag points at, matched on `session_id` **and** `seq`. Not the learner's questions, not their diagnosis.
+
+**Nothing is copied onto the flag.** `leaked_topics` holds topic names; the patient's words are read live from `session_events` at `event_seq`. A copy here would survive migration 033's erasure, which redacts `payload->'text'` — a learner's consultation preserved in a table the erasure never looks at, which is the mistake `feedback_texts.lines` already cost us once (§10.2).
+
 ## 7.3 `idempotency_keys`
 
 ```sql
@@ -1531,6 +1546,10 @@ ORDER BY p.research_pid, s.sequence_index;
 ```
 
 **Three protections in one query:** consent is required, leakage-confirmed sessions are excluded, and `research_pid` is selected rather than any identifier. **No email column appears** — that is deliberate and should be preserved in any variation.
+
+**Implemented in `repositories/research.py` and `scripts/research_export.py`** (T-040, 2026-11-24). Until then this was a query in a document and nothing ran it, which made T-040's third criterion — "confirmed leaks excluded from the research export" — satisfiable on paper by an export that did not exist. The repository holds the SQL above as one constant rather than assembling it per call, lists its columns one by one so a future migration cannot widen the export by adding one, and refuses any actor but `ServiceActor`: a *partial* export is the dangerous one, because it looks like the dataset and is one learner's slice of it.
+
+The script also reports how many consented, completed sessions a confirmed flag removed. `TECH_SPEC` §5.3's third defence against persona leakage is **disclosure** — "leakage rate reported as a limitation in any publication" — and that is the figure disclosure needs. `duration_seconds` is deliberately absent from the column list: the 16 backfilled pilot sessions carry synthetic timestamps (§9.3), and exporting nothing that invites a think-time calculation is simpler than exporting it with a warning attached.
 
 ## 11.8 LLM cost per completed session
 

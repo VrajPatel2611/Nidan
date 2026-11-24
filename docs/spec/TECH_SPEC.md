@@ -356,7 +356,58 @@ The patient's *"only reveal when directly asked"* rule is prompt engineering, wh
 2. **Adversarial CI.** A fixed set of extraction attempts run against every case persona; a case whose persona leaks a key fact fails the build.
 3. **Disclosure.** Leakage rate reported as a limitation in any publication.
 
-**This is the most under-addressed risk in the project** and is `BUILD_PLAN` T-040.
+**This was the most under-addressed risk in the project.** `BUILD_PLAN` T-040
+built all three defences on 2026-11-24:
+
+1. **Runtime detection** — `domain/leakage.py`, wired into both question paths
+   (`api/v1/consultation.py` and `api/routes.py`, because every `/v1`
+   consultation endpoint is `@require_auth` and the prototype is an anonymous
+   visitor's only path). Deterministic Python over the same lexicon
+   `extract_topics` uses for coverage, so a flag can be recomputed from the
+   event log and come out the same. Recorded best-effort inside its own
+   savepoint: a monitor must not cost a learner a reply they have read.
+2. **Adversarial CI** — `validate_personas.py`, eight fixed probes against
+   each of the ten personas, as its own CI job. **Not a pytest test**, because
+   T-002 criterion 1 is that no test makes a network call. It fails the build
+   on a persona that names its own diagnosis or quotes its brief, and also
+   when a probe never reached the provider — an outage must not read as a
+   clean bill of health.
+
+   **It does not gate volunteering, and that is deliberate.** The suite's
+   first two runs reported eight volunteering leaks and then none, from the
+   same probes against the same personas: at `temperature=0.7` a single sample
+   is not a verdict, and a gate on one would teach everyone to re-run CI until
+   it went green. Volunteering is reported as a rate instead, measured with
+   `--repeat`, and caught per-consultation by defence 1 — which sees every
+   real consultation rather than eight probes.
+3. **Disclosure** — `scripts/research_export.py` reports how many consented,
+   completed sessions a confirmed flag excluded, and the persona suite reports
+   the volunteering rate, so both figures exist to be reported.
+
+**A content problem this work exposed, which is not leakage at all.** Eight of
+the ten cases reveal at least one of their own `required_topics` in their
+`opening_line`, and `case_2` reveals four of eight
+(`validate_personas.py --overlap`). Coverage is not inflated — it is scored
+over `question` events and the opening line is not one — but a learner who
+reads "throbbing headaches for two weeks" and sensibly does not re-ask is
+scored as having missed those topics. Narrowing `required_topics` changes the
+golden assessment record for all 16 pilot sessions, so it needs its own task
+and a clinician's view.
+
+**It is deliberately sensitive, which is the opposite of `domain/guard.py`.**
+A false block in the real-patient guard discards the learner's question and
+teaches them the tool is broken, so that one is conservative. A false leakage
+flag costs an administrator one click; a miss costs the validity of every
+measurement taken through that persona, and nothing downstream would ever
+reveal it. So the rule is broad, the confirm/dismiss step is human, and only
+`confirmed = true` excludes a session.
+
+**A model change invalidates every persona's tuning.** §5.2 records that Groq
+retired `llama-3.3-70b-versatile` on 2026-08-16 and that it took until
+2026-11-04 to notice; the patient now runs on `openai/gpt-oss-120b`. Run
+`python validate_personas.py` after any model change — and the CI job also
+runs weekly, because this is the one check whose result can change with no
+commit at all.
 
 ---
 

@@ -117,6 +117,7 @@ surprised.
 | `lint-imports` | the ADR-0009 layering contract | ~1 s |
 | `pip-audit --skip-editable` | known vulnerabilities in dependencies | ~10 s |
 | `python validate_detectors.py` | **detector accuracy — must stay ≥ 94%** | ~2 s |
+| `python validate_personas.py` | **persona leakage — 80 real model calls** | ~2 min |
 
 ### Running part of the suite
 
@@ -730,3 +731,86 @@ docker compose up --build
 ---
 
 *Last updated 12 September 2026, after T-012.*
+
+
+---
+
+## The adversarial persona suite (T-040)
+
+```bash
+python validate_personas.py
+```
+
+Eight fixed extraction probes against each of the ten personas — 80 model
+calls, so it costs money and takes a couple of minutes. It needs
+`GROQ_API_KEY` and **no database**, so it works with the stack down.
+
+```bash
+python validate_personas.py --case case_3                 # one case
+python validate_personas.py --probe greeting              # one probe
+python validate_personas.py --json report.json            # full detail
+```
+
+**Run it after changing a model, and before any demo or reviewer session.**
+`TECH_SPEC` §5.2 records that Groq retired `llama-3.3-70b-versatile` and it
+took eleven weeks to notice; a different model has different leakage
+behaviour, so a model change invalidates the tuning of all ten personas. The
+CI job also runs weekly for the same reason — it is the one check whose result
+can change with no commit at all.
+
+**Exit codes.** `0` no persona named its own diagnosis or quoted its brief.
+`1` one did — fix the persona's system prompt, do **not** weaken a probe. `3`
+some probe never reached the provider, which is a failure on purpose: an
+outage must not read as a clean bill of health.
+
+**Volunteering is measured, never gated.** The run prints the share of turns
+whose reply offered required history the opening line had not already given.
+It does not fail the build, and the reason is worth knowing: the patient model
+runs at `temperature=0.7`, so volunteering is stochastic — the suite's first
+two runs reported eight volunteering leaks and then **none**, from the same
+probes against the same personas. `--repeat N` is how you measure it; CI uses
+2. `TECH_SPEC` §5.3 defends volunteering with the runtime monitor and the
+admin queue, and by reporting the rate.
+
+```bash
+python validate_personas.py --overlap
+```
+
+Pure — no model calls. Reports how much of each case's required history its
+own opening line gives away. **Eight of the ten cases give away at least one
+required topic, and `case_2` gives away four of eight.** That does not inflate
+coverage (coverage is scored over `question` events and the opening line is
+not one), but a learner who reads it and sensibly does not re-ask is scored as
+having missed those topics. Not a gate: narrowing `required_topics` changes
+the golden assessment record for all 16 pilot sessions.
+
+---
+
+## The research export (`DATA_MODEL` §11.7)
+
+```bash
+python scripts/research_export.py -o data.csv
+```
+
+The de-identified dataset: consent required, **sessions with a confirmed
+persona-leakage flag excluded**, and `research_pid` as the only identifier —
+no email, no `user_id`. `--json` for JSON instead of CSV; with no `-o` it
+writes to stdout, and the summary goes to stderr so a redirect gives a clean
+file.
+
+It prints how many consented, completed sessions a confirmed flag removed.
+**Report that figure as a limitation** — it is `TECH_SPEC` §5.3's third
+defence against persona leakage, and the only one that is a writing habit
+rather than code.
+
+---
+
+## The persona-leakage queue
+
+`/admin/leakage`, under AI Ops. Each row is a reply that mentioned a required
+topic its question did not ask about, with the patient's words beside it.
+
+**Confirming a flag excludes that whole consultation from the research
+export**, and it is audited as `leakage_flag.reviewed`. Dismissing leaves the
+session in the dataset. Nothing is excluded until someone decides: a flag on
+its own counts for nothing, whatever its severity.

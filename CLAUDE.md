@@ -529,6 +529,77 @@ the launch gate. The reviews it writes are attributed to "Demo Fixture (not a
 clinician)" and **do not count** towards the ten reviewed cases.
 (`tests/test_publish_for_demo.py` · `COMMANDS.md`)
 
+**A leakage flag never excludes anything by itself — only `confirmed = true`
+does, and only a person writes it.** `severity` is triage: the queue sorts on
+it and `DATA_MODEL` §11.7's export does not read it at all. `high` means the
+learner never asked about the topic anywhere in the session, so coverage
+credits them for something they did not do; `low` means they asked earlier and
+the patient repeated itself, which cannot change the score. A detector that
+could discard its own inconvenient sessions would be the LLM marking by proxy.
+(`ADR-0005` · `tests/db/test_research_export.py`)
+
+**`domain/leakage.py` is deliberately SENSITIVE, and `domain/guard.py` is
+deliberately conservative. Do not make them consistent.** A false block in the
+guard discards the learner's question and teaches them the tool is broken. A
+false leakage flag costs an administrator one click, while a miss costs the
+validity of every measurement taken through that persona and nothing
+downstream would ever reveal it. The asymmetry is the design.
+
+**RLS binds `nidan_admin`, so an admin screen that joins `sessions` renders
+EMPTY rather than erroring.** `own_sessions` has no `TO` clause —
+`DATA_MODEL` §10.1 says so and migration 025 exists for the same thing on
+`profiles`. The leakage queue hit it and looked like "no leaks". Migration
+034's two policies are keyed on the flag, not on seniority: an admin may read
+a session **because it carries a flag**, and exactly the event the flag points
+at, matched on `session_id` AND `seq` — not the learner's questions. **Do not
+widen them to "admins may read sessions"**; A-09 should ask for that itself.
+And use `current_admin()`, not `current_actor()`, on any route that needs
+them: `current_actor()` returns a plain `AuthenticatedUser` even for an
+administrator, on purpose. (`tests/db/test_admin_leakage_queue.py`)
+
+**`validate_personas.py` cannot be a pytest test, and exit 3 is a failure.**
+T-002 criterion 1 is that no test makes a network call; extracting from a
+persona requires calling the model. So it is a root script with its own CI
+job, like `validate_detectors.py`. Exit 1 = a persona named its own diagnosis
+or quoted its brief; **exit 3 = a probe never reached the provider**, which
+fails on purpose because an outage must not read as a clean bill of health.
+**`PROBES` is frozen — add to the end, never edit.** A suite whose inputs move
+cannot tell you whether the persona got worse or the probes did. And a model
+change invalidates all ten personas' tuning, which is why the job also runs
+weekly: it is the one check whose result can change with no commit.
+
+**Volunteering is MEASURED, never gated, and do not "fix" that.** The suite's
+first two runs reported eight volunteering leaks and then **none** — same
+probes, same personas. The patient model runs at `temperature=0.7`, so a
+single sample is not a verdict and a gate on one teaches everyone to re-run CI
+until it goes green. `--repeat N` measures it; `TECH_SPEC` §5.3 catches it per
+consultation with the runtime monitor and the admin queue (defence 1) and
+discloses the rate (defence 3). Gating here would be the weakest of the three
+defences pretending to be the strongest.
+
+**Eight of ten cases give away a required topic in their own `opening_line`,
+and `case_2` gives away four of eight.** `validate_personas.py --overlap`
+reports it. Coverage is NOT inflated — it is scored over `question` events and
+the opening line is not one — but a learner who reads the opening line and
+sensibly does not re-ask is scored as having missed those topics. **It has no
+task**, because narrowing `required_topics` changes the golden assessment
+record for all 16 pilot sessions and needs a clinician's view. The suite
+subtracts these topics before calling anything a leak, so a patient restating
+its presenting complaint is not a finding.
+
+**`accepted_diagnoses` is a key fact; `partial_diagnoses` and the anchor are
+not.** "heartburn" and "indigestion" are in `partial_diagnoses` and
+`contradictory_clues` *requires* the patient to say them when asked. "I think
+it's my heart" is `anchor_topic` doing its job — `PRD` P1's design is that the
+patient voices a plausible wrong worry. A suite that punished either would
+fail every well-written case and push authors to delete the trap.
+
+**A leakage flag stores topic names and never the patient's words.** The queue
+reads the reply live from `session_events` at `event_seq`. A copy on the flag
+would survive migration 033's erasure — a learner's consultation preserved in
+a table the erasure never looks at, which is exactly what `feedback_texts.lines`
+already cost us once.
+
 **Detector accuracy must stay ≥ 94 %.** `validate_detectors.py` runs in CI and
 fails the build below that. Do not "fix" a detector without re-running it.
 
@@ -549,6 +620,7 @@ nidan/
     session.py            session state — create, update, and replay(events)
     events.py             the 8 event types and their payload shapes
     guard.py              the real-patient-data guard — reason codes only (T-035)
+    leakage.py            persona leakage — sensitive on purpose (T-040)
     feedback.py           feedback prompt construction (prose only, no marking)
     feedback_view.py      the feedback screen, recomputed from the log
   infra/                everything that touches the outside world
@@ -621,7 +693,7 @@ tests/                  test_smoke.py (routes) · test_layering.py (ADR-0009)
                           bodies handlers actually read — AST, no DB)
   db/                   schema tests — constraints, triggers, RLS (real Postgres)
                         test_repository_scope.py · test_anonymous_scope.py
-migrations/versions/    33 Alembic migrations ← the schema's source of truth
+migrations/versions/    34 Alembic migrations ← the schema's source of truth
                         (017, 019, 026-032 are generated from cases.py
                          and topics.py; see the rule below)
 docs/build-log/         what was actually built, one doc per finished task
@@ -630,7 +702,8 @@ docs/design/            superseded design docs (historical)
 docs/detector_validation.md   generated by validate_detectors.py
 sessions/               16 real pilot sessions (JSON)
 report/                 the research paper (LaTeX + PDF) and presentation
-*.py at root            research tooling — validate_detectors, analyze_sessions, test_api
+*.py at root            research tooling — validate_detectors, validate_personas,
+                        analyze_sessions, test_api
 ```
 
 The layering rule is not a convention, it is tested: `tests/test_layering.py`
@@ -652,6 +725,8 @@ ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
 python validate_detectors.py       # detector validation — must report >= 94%
+python validate_personas.py        # persona leakage — 80 real model calls (T-040)
+python scripts/research_export.py -o data.csv   # DATA_MODEL §11.7
 python analyze_sessions.py sessions # paired statistics over session JSON
 python test_api.py                 # check the LLM key works
 python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
@@ -665,7 +740,7 @@ pip install -e ".[docs]"           # once, for the .docx generator
 python scripts/build_docx.py       # regenerate every .docx from its Markdown
 
 # database (T-010) — needs the stack up: docker compose up -d db
-alembic upgrade head               # apply all 33 migrations
+alembic upgrade head               # apply all 34 migrations
 alembic downgrade base             # tear the schema down
 pytest tests/db -q --no-cov        # 418 schema, repository and route tests, real Postgres
 ```

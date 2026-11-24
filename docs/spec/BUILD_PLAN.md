@@ -592,7 +592,7 @@ consequences: **this is the one promise in S-20 the product cannot yet keep.**
 
 ---
 
-**T-040 · Leakage monitor** ⭐
+**T-040 · Leakage monitor** ⭐ — ✅ **DONE** (2026-11-24)
 ```
 Phase    4            Depends  T-030          Est  3 d      Owner  V
 Spec     TECH_SPEC §5.3 · DATA_MODEL §7.2
@@ -603,6 +603,62 @@ Accept   1. Post-reply check flags topics revealed but not asked
             a case whose persona leaks a key fact fails the build
 Note     Largest threat to measurement validity and currently invisible.
 ```
+
+**Four things the task found that its criteria assumed.**
+
+1. **Criterion 3 had nothing to exclude from.** `DATA_MODEL` §11.7 was a
+   query in a document; no code ran it. Confirming a flag would have had no
+   observable effect, so the criterion read as met and was not.
+   `repositories/research.py` and `scripts/research_export.py` implement it
+   verbatim, and the script reports how many sessions a confirmed flag
+   removed — which is what §5.3's third defence, *disclosure*, needs.
+2. **Criterion 4 contradicts T-002 criterion 1** — "no test makes a network
+   call". Extracting from a persona requires calling the model, so the suite
+   is `validate_personas.py` at the root, with its own CI job, following
+   `validate_detectors.py` and `test_api.py`. It exits 1 on a leak and **3
+   when a probe never reached the provider**, because an outage must not read
+   as a clean bill of health.
+
+   **"Leaks a key fact" had to be defined, and the suite's own first two runs
+   defined it.** Run one reported eight volunteering leaks across four cases;
+   run two, same probes and same personas, reported none. At
+   `temperature=0.7` volunteering is stochastic, and half of run one's
+   findings were a patient correctly restating its `opening_line`. So a key
+   fact is the condition's name or the brief itself — both fatal, both stable
+   — and volunteering is reported as a **rate** (`--repeat`), caught by
+   defence 1's runtime queue, and disclosed under defence 3.
+3. **`nidan_admin` could list the queue and not act on it.** Migration 023
+   grants it `SELECT ON ALL TABLES` and INSERT/UPDATE on `cases` and
+   `case_versions`; resolving a flag is an UPDATE on `leakage_flags`.
+   Migration 034 adds it — UPDATE only, never INSERT, because a hand-written
+   flag would drop a session from the dataset without a detector having
+   objected.
+4. **RLS binds `nidan_admin` too, and the symptom was an empty screen.**
+   `own_sessions` has no `TO` clause (`DATA_MODEL` §10.1 flags this; migration
+   025 exists for the same thing on `profiles`), so the queue's join through
+   `sessions` returned nothing for an administrator and `session_events` —
+   where the flagged reply lives — returned nothing either. Migration 034's
+   two policies are keyed on the flag, not on seniority: an administrator may
+   read a session *because it carries a flag*, and exactly the one event the
+   flag points at, matched on `session_id` **and** `seq`.
+
+**A content problem found on the way, with no task yet.** Eight of the ten
+cases reveal at least one of their own `required_topics` in their
+`opening_line`; `case_2` reveals **four of eight**
+(`validate_personas.py --overlap`). Coverage is not inflated — it is scored
+over `question` events — but a learner who reads the opening line and sensibly
+does not re-ask is scored as having missed those topics. Fixing it means
+narrowing `required_topics`, which **changes the golden assessment record for
+all 16 pilot sessions**, so it needs its own task and a clinician's view. It is
+reported by CI and gated by nothing.
+
+**The severity split was undefined and is now settled.** §7.2 allows `low` and
+`high` without saying what either means. **`high`** — the learner never asked
+about the topic anywhere in the session, so coverage credits them for
+something they did not do and the session's numbers are wrong. **`low`** —
+they had asked earlier and the patient repeated itself, which cannot change
+the score. Severity is triage, and the export does not read it at all: only
+`confirmed = true` excludes a session.
 
 **T-041 · Stripe subscriptions**
 ```
@@ -629,7 +685,7 @@ Accept   1. Pricing with monthly/annual toggle; copy describes what Pro adds
 **T-043 · AI usage and cost dashboard**
 ```
 Phase    4            Depends  T-031,T-020    Est  2 d      Owner  Y
-Spec     TECH_SPEC §10.1 · UX_SPEC A-07
+Spec     TECH_SPEC §10.1 · UX_SPEC A-08   (NOT A-07 — see the note below)
 Accept   1. Spend today/month vs budget; cost per completed session
          2. Tokens, latency p50/p95, error and fallback rates by model
          3. Budget alert at 80%; automatic degradation to cheapest model at 100%
@@ -638,12 +694,20 @@ Accept   1. Spend today/month vs budget; cost per completed session
 **T-044 · Master list and lexicon editors**
 ```
 Phase    4            Depends  T-020          Est  3 d      Owner  Y
-Spec     UX_SPEC A-05, A-06 · PRD FR-12.7
+Spec     UX_SPEC A-06, A-07 · PRD FR-12.7  (NOT A-05, A-06 — see below)
 Accept   1. Examination and investigation CRUD; delete not offered, is_active only
          2. Adding an investigation warns that no existing case returns an abnormal result
          3. Lexicon editor with live match tester
          4. Dead-phrase report (no match in 90 days)
 ```
+
+> **The screen references above were off by one until 2026-11-24.** `UX_SPEC`
+> §12 numbers them A-01 dashboard, A-02 case bank, A-03 case editor, A-04
+> Playtest, **A-05 review queue**, **A-06 clinical content**, **A-07 topic
+> lexicon**, **A-08 AI operations**, A-09 users and support. T-043 cited A-07
+> (the lexicon) for the cost dashboard and T-044 cited A-05 (the review
+> queue) for the master-list editor, so both would have been built against
+> the wrong specification. Found while briefing Phase 4.
 
 **T-045 · Launch readiness**
 ```

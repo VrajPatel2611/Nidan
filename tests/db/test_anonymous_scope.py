@@ -106,6 +106,20 @@ def test_the_trial_scope_reaches_nothing_but_its_own_consultation(app_db):
     insert-only and the row holds tokens, cost and latency — nothing personal,
     so nothing the absent RLS on this path could expose, and no read: the
     visitor cannot see their own row, let alone anyone else's.
+
+    `leakage` joined it in T-040, and for the reason `PRD` P4 gives for the
+    real-patient guard: the prototype is the only path a visitor has, every
+    `/v1` consultation endpoint is `@require_auth`, and a persona that
+    volunteers an answer invalidates a trial session's numbers exactly as it
+    would a learner's. `TECH_SPEC` §5.3 exempts nobody.
+
+    It widens the scope by **one INSERT** and nothing else. The subclass
+    carries the same `_OWNERSHIP` predicate as events, feedback and results,
+    so a session id that is not this visitor's writes no row; the read methods
+    it inherits carry no visitor filter because the console is their only
+    caller, and `review()` refuses anything but an `AdminUser`, which a
+    visitor is not. `tests/db/test_leakage.py::TestTheTrialPath` is where
+    those three claims are checked rather than asserted in prose.
     """
     with anonymous_scope("visitor-a") as db:
         assert not hasattr(db, "profiles")
@@ -116,7 +130,7 @@ def test_the_trial_scope_reaches_nothing_but_its_own_consultation(app_db):
         # a decision someone made, not something that arrived with a refactor.
         assert sorted(k for k in vars(db) if not k.startswith("_")) == [
             "actor", "cases", "conn", "engines", "events", "feedback",
-            "llm_calls", "results", "sessions"]
+            "leakage", "llm_calls", "results", "sessions"]
 
 
 def test_a_visitor_cannot_open_the_general_repositories(app_db):

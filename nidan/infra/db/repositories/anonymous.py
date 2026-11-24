@@ -40,6 +40,7 @@ from nidan.infra.db.actor import AnonymousVisitor
 from nidan.infra.db.repositories.base import Repository, _transaction
 from nidan.infra.db.repositories.events import EventRepository
 from nidan.infra.db.repositories.feedback import FeedbackRepository
+from nidan.infra.db.repositories.leakage import LeakageRepository
 from nidan.infra.db.repositories.results import (
     EngineVersionRepository,
     ResultRepository,
@@ -170,6 +171,33 @@ class AnonymousResultRepository(ResultRepository):
         return {"anonymous_id": _visitor_id(self._actor)}
 
 
+class AnonymousLeakageRepository(LeakageRepository):
+    """
+    Trial leakage flags — write only, and that is the whole of it (T-040).
+
+    `PRD` P4's reasoning applies here exactly as it does to the real-patient
+    guard: the trial is the only path an anonymous visitor has, and a persona
+    that leaks to a visitor invalidates that session's numbers just as surely.
+    `TECH_SPEC` §5.3 does not exempt them either.
+
+    This subclass widens the trial scope by one INSERT and by nothing else.
+    The read and review methods it inherits are unreachable from here --
+    `queue()`, `get()` and `unreviewed_count()` carry no visitor filter
+    because the console is the only caller, and `review()` refuses a
+    non-`AdminUser`, which an `AnonymousVisitor` is not. The insert gets the
+    same `_OWNERSHIP` predicate as the three repositories above, so a session
+    id that is not this visitor's writes no row.
+
+    `tests/db/test_anonymous_scope.py` asserts that the reads stay out of
+    reach rather than trusting the paragraph above.
+    """
+
+    _OWNERSHIP = "AND s.anonymous_id = :anonymous_id"
+
+    def _ownership_params(self) -> dict[str, object]:
+        return {"anonymous_id": _visitor_id(self._actor)}
+
+
 class AnonymousRepositories:
     """Exactly what a trial visitor may touch: their sessions, and published cases."""
 
@@ -183,6 +211,7 @@ class AnonymousRepositories:
         self.events = AnonymousEventRepository(conn, actor)
         self.feedback = AnonymousFeedbackRepository(conn, actor)
         self.results = AnonymousResultRepository(conn, actor)
+        self.leakage = AnonymousLeakageRepository(conn, actor)
         # Read-only, and not scoped to a visitor: an engine version
         # is shared configuration, not anyone's data.
         self.engines = EngineVersionRepository(conn, actor)

@@ -11,7 +11,9 @@ author needs in order to understand it:
 - *which* contradictory clues were explored — the engine reports the count `k`,
   and the per-clue breakdown is checked against it (`clue_mismatch`) so the
   panel can never quietly disagree with the detector;
-- possible persona leakage — a heuristic, labelled as one.
+- possible persona leakage — `domain/leakage.py`'s own answer, annotated
+  with the keyword that matched, so the panel and the recorded
+  `leakage_flags` row can never disagree (T-040).
 
 Nothing here writes anything, anywhere.
 """
@@ -25,6 +27,7 @@ from nidan.domain.assessment.bias import clue_keywords
 from nidan.domain.assessment.engine import AssessmentResult, EngineVersion, assess
 from nidan.domain.assessment.topics import TOPIC_KEYWORDS, extract_topics
 from nidan.domain.events import Event
+from nidan.domain.leakage import detect as detect_leak
 
 # The keys `assess()` reads from a case. A draft missing one would raise a
 # KeyError deep inside a detector; the panel names the gap instead.
@@ -66,6 +69,10 @@ def topic_reasons(text: str) -> list[tuple[str, str]]:
 def _turns(events: Sequence[Event], required: set[str]) -> list[dict[str, Any]]:
     """One entry per question: matched topics with reasons, and any leakage."""
     turns: list[dict[str, Any]] = []
+    # Topics the learner's EARLIER questions covered, grown turn by turn. The
+    # severity split needs it: a topic they already asked about is a repeat,
+    # not a revelation.
+    asked_before: set[str] = set()
     for i, event in enumerate(events):
         if event.type != "question":
             continue
@@ -77,20 +84,32 @@ def _turns(events: Sequence[Event], required: set[str]) -> list[dict[str, Any]]:
         reply = next(
             (e.payload["text"] for e in events[i + 1:i + 2]
              if e.type == "patient_reply"), None)
-        asked = {m["topic"] for m in matched}
-        leaks = []
+        # T-040: the rule is `domain/leakage.py`'s, not this module's. It used
+        # to be duplicated here as a heuristic, and a panel that disagrees with
+        # the recorded flag is worse than no panel -- an author would dismiss a
+        # queue item the instrumentation never showed them. The keyword is
+        # added on top, because the domain detector returns topics and an
+        # author needs to see what matched.
+        leak = None
         if reply is not None:
-            leaks = [
-                {"topic": t, "keyword": kw}
-                for t, kw in topic_reasons(reply)
-                if t in required and t not in asked
-            ]
+            leak = detect_leak(
+                reply=reply, question=question, required_topics=required,
+                asked_before=asked_before,
+            )
+        keywords = dict(topic_reasons(reply)) if reply is not None else {}
+        leaks = [
+            {"topic": t, "keyword": keywords.get(t, ""),
+             "severity": leak.severity}
+            for t in (leak.topics if leak is not None else ())
+        ]
         turns.append({
             "number": len(turns) + 1,
             "question": question,
             "matched": matched,
             "leaks": leaks,
+            "leak_severity": leak.severity if leak is not None else None,
         })
+        asked_before |= {m["topic"] for m in matched}
     return turns
 
 

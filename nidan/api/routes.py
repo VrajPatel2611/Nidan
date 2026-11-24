@@ -46,6 +46,8 @@ from nidan.domain.content.cases import (
 )
 from nidan.domain.feedback_view import build_feedback_view
 from nidan.domain.guard import classify as classify_patient_data
+from nidan.domain.leakage import detect as detect_leak
+from nidan.domain.leakage import topics_asked
 from nidan.domain.session import (
     conversation_from,
     mentions_early_diagnosis,
@@ -350,7 +352,7 @@ def chat():
             "text": user_message,
             "char_count": len(user_message),
         })
-        db.events.append(session_id, "patient_reply", {
+        patient = db.events.append(session_id, "patient_reply", {
             "text": patient_reply,
             # What the system understood, at the time — DATA_MODEL §8.2. T-016
             # compares a recomputation against this to detect drift, so it is
@@ -359,6 +361,26 @@ def chat():
         })
         if state["early_diagnosis"] is None and mentions_early_diagnosis(user_message):
             db.events.append(session_id, "early_diagnosis", {"text": user_message})
+
+        # T-040 - persona leakage, here as well as on /v1, and for the same
+        # reason the real-patient guard above is: `TECH_SPEC` 5.3 does not
+        # exempt anonymous visitors, and this route is the only path they
+        # have. A persona that volunteers an answer invalidates a trial
+        # session's numbers exactly as it would a signed-in learner's, and
+        # the adversarial suite cannot see a leak that only ever happens in
+        # conversation.
+        #
+        # `events` is the log as it was BEFORE this turn, read in the first
+        # scope above, which is what `asked_before` must be.
+        leak = detect_leak(
+            reply=patient_reply,
+            question=user_message,
+            required_topics=case.get("required_topics", ()),
+            asked_before=topics_asked(events),
+        )
+        if leak is not None:
+            db.leakage.record(session_id, event_seq=patient.seq,
+                              topics=leak.topics, severity=leak.severity)
 
         db.sessions.touch(session_id)
         db.llm_calls.record_call(llm.call, session_id=session_id)

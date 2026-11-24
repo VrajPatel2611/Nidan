@@ -297,3 +297,109 @@ def test_concluding_completes_the_session(client, live_db):
     assert row["status"] == "completed"
     assert row["ended_at"] is not None
     assert row["diagnosis_submitted_at"] is not None
+
+
+# ── T-040 · persona leakage on the trial path ────────────────────────
+
+class TestLeakageIsRecordedForAnAnonymousVisitor:
+    """
+    `PRD` P4's reasoning, applied to leakage. The prototype is the only path
+    an anonymous visitor has — every `/v1` consultation endpoint is
+    `@require_auth` — so guarding only the signed-in path would leave the most
+    public surface the only unmeasured one. `TECH_SPEC` §5.3 does not exempt
+    visitors either: a persona that volunteers an answer invalidates a trial
+    session's numbers exactly as it would a learner's.
+
+    The trial scope runs as a bypassing role, so the `anonymous_id` predicate
+    on the INSERT is the only thing between one visitor and another's
+    consultation. `tests/db/test_leakage.py` asserts that predicate directly;
+    this asserts the handler reaches it at all.
+    """
+
+    def _topic_and_keyword(self):
+        from nidan.domain.assessment.topics import TOPIC_KEYWORDS
+        from nidan.domain.content.cases import get_case
+
+        for topic in get_case("case_1")["required_topics"]:
+            for keyword in TOPIC_KEYWORDS.get(topic, []):
+                return topic, keyword
+        raise AssertionError("case_1 has no required topic with a keyword")
+
+    def _flags(self, live_db):
+        with live_db.connect() as c:
+            return c.execute(sa.text(
+                "SELECT session_id, event_seq, leaked_topics, severity "
+                "FROM leakage_flags ORDER BY created_at")).mappings().all()
+
+    def test_a_volunteering_reply_writes_a_flag(self, client, live_db,
+                                                fake_llm):
+        topic, keyword = self._topic_and_keyword()
+        _start(client)
+
+        # "Hello." matches no topic, so the reply volunteered what it said.
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        r = client.post("/chat", json={"message": "Hello."})
+        assert r.status_code == 200
+
+        flags = self._flags(live_db)
+        assert len(flags) == 1
+        assert topic in flags[0]["leaked_topics"]
+        assert flags[0]["severity"] == "high"
+
+    def test_the_flag_points_at_the_reply_event(self, client, live_db,
+                                                fake_llm):
+        """
+        The queue shows the patient's words by reading `session_events` at
+        that seq, so a flag pointing at the question would show the learner's
+        own text to an administrator instead.
+        """
+        _, keyword = self._topic_and_keyword()
+        _start(client)
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        client.post("/chat", json={"message": "Hello."})
+
+        flag = self._flags(live_db)[0]
+        with live_db.connect() as c:
+            event = c.execute(sa.text(
+                "SELECT type FROM session_events "
+                "WHERE session_id = :sid AND seq = :seq"),
+                {"sid": flag["session_id"], "seq": flag["event_seq"]}
+            ).mappings().first()
+        assert event is not None
+        assert event["type"] == "patient_reply"
+
+    def test_a_reply_that_answers_the_question_writes_nothing(
+            self, client, live_db, fake_llm):
+        _, keyword = self._topic_and_keyword()
+        _start(client)
+        fake_llm.replies = [f"Yes, some {keyword}."]
+        client.post("/chat", json={"message": f"Tell me about the {keyword}."})
+        assert self._flags(live_db) == []
+
+    def test_the_visitors_response_says_nothing_about_the_flag(
+            self, client, live_db, fake_llm):
+        """
+        CT-2 applies to the prototype too. The trial is the funnel's top, and
+        a visitor shown a leak notice learns that the patient volunteered
+        something — a coverage hint by another name.
+        """
+        _, keyword = self._topic_and_keyword()
+        _start(client)
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        r = client.post("/chat", json={"message": "Hello."})
+        assert self._flags(live_db), "this reply should have leaked"
+
+        body = r.get_json()
+        assert set(body) == {"response", "question_count"}
+        assert "leak" not in str(body).lower()
+
+    def test_the_question_is_still_counted_exactly_once(self, client, live_db,
+                                                        fake_llm):
+        _, keyword = self._topic_and_keyword()
+        _start(client)
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        r = client.post("/chat", json={"message": "Hello."})
+        assert r.get_json()["question_count"] == 1
+        types = [e["type"] for e in _events(live_db)]
+        assert types.count("question") == 1
+        assert types.count("patient_reply") == 1
