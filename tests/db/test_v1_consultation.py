@@ -558,3 +558,158 @@ def test_ct9_another_learner_cannot_write_to_your_consultation(
     with live_db.begin() as c:
         c.execute(sa.text("DELETE FROM profiles WHERE id = :id"), {"id": other})
         c.execute(sa.text("DELETE FROM auth.users WHERE id = :id"), {"id": other})
+
+
+# ── T-040 · persona leakage on the signed-in path ────────────────────
+
+class TestLeakageIsRecordedDuringAConsultation:
+    """
+    The runtime half of `TECH_SPEC` §5.3. The detector itself is tested in
+    `tests/test_leakage.py`; what matters here is that the check runs on the
+    real handler, writes a row, and cannot cost the learner their reply.
+
+    **Every input is derived from whichever case the fixture published**, not
+    written against `case_1`. `published_version` takes the first seeded
+    version by `created_at`, and the ten seeded cases tie on it — so the case
+    this class gets differs from test to test. Three of these tests passed and
+    two failed on exactly that, which is a better argument than any comment:
+    a leakage test hard-coded to one case's topics is testing the lexicon.
+    """
+
+    def _topic_and_keyword(self, live_db, session_id):
+        """
+        One required topic of this session's case, and a phrase that matches
+        it. The first with a usable keyword, so the choice is deterministic.
+        """
+        from nidan.domain.assessment.topics import TOPIC_KEYWORDS
+
+        with live_db.begin() as c:
+            required = c.execute(sa.text("""
+                SELECT cv.content->'required_topics'
+                  FROM sessions s
+                  JOIN case_versions cv ON cv.id = s.case_version_id
+                 WHERE s.id = :id
+            """), {"id": session_id}).scalar()
+        assert required, "the seeded case must have required topics"
+        for topic in required:
+            for keyword in TOPIC_KEYWORDS.get(topic, []):
+                return topic, keyword
+        raise AssertionError(f"no keyword for any of {required}")
+
+    def _flags(self, live_db, session_id):
+        with live_db.begin() as c:
+            return c.execute(sa.text(
+                "SELECT event_seq, leaked_topics, severity FROM leakage_flags "
+                "WHERE session_id = :id ORDER BY created_at"),
+                {"id": session_id}).mappings().all()
+
+    def test_a_volunteering_reply_writes_a_flag_against_the_reply_event(
+            self, client, account, session_id, live_db, fake_llm):
+        _, headers = account
+        topic, keyword = self._topic_and_keyword(live_db, session_id)
+
+        # "Hello." matches no topic at all, so anything in the reply was
+        # volunteered rather than answered.
+        fake_llm.replies = [f"Well, there is the {keyword}, since you ask."]
+        r = client.post(f"/v1/sessions/{session_id}/questions",
+                        json={"text": "Hello."}, headers=headers)
+        assert r.status_code == 201
+
+        flags = self._flags(live_db, session_id)
+        assert len(flags) == 1
+        assert topic in flags[0]["leaked_topics"]
+        assert flags[0]["severity"] == "high"
+        # Pointed at the patient_reply event, which is `seq` in the response.
+        assert flags[0]["event_seq"] == r.get_json()["seq"]
+
+    def test_a_reply_that_answers_the_question_writes_nothing(
+            self, client, account, session_id, live_db, fake_llm):
+        """
+        The question and the reply carry the same keyword, so the topic was
+        asked for. §7.2's rule is per-turn: revealed, and not asked for here.
+        """
+        _, headers = account
+        _, keyword = self._topic_and_keyword(live_db, session_id)
+
+        fake_llm.replies = [f"Yes, there is some {keyword}."]
+        r = client.post(f"/v1/sessions/{session_id}/questions",
+                        json={"text": f"Tell me about the {keyword}."},
+                        headers=headers)
+        assert r.status_code == 201
+        assert self._flags(live_db, session_id) == []
+
+    def test_the_second_time_a_topic_is_volunteered_it_is_low(
+            self, client, account, session_id, live_db, fake_llm):
+        """
+        Severity is the consequence, not the count. Once the learner has asked
+        about a topic, coverage has credited it and a repeat cannot change the
+        session's numbers.
+
+        The reply is the bare keyword both times, so the only topics in play
+        are the ones the first question already asked about — which is what
+        makes `low` the correct answer rather than an accident of wording.
+        """
+        _, headers = account
+        _, keyword = self._topic_and_keyword(live_db, session_id)
+
+        fake_llm.replies = ["No, nothing like that.", keyword]
+        first = client.post(
+            f"/v1/sessions/{session_id}/questions",
+            json={"text": f"Tell me about the {keyword}."}, headers=headers)
+        assert first.status_code == 201
+        assert self._flags(live_db, session_id) == []
+
+        second = client.post(f"/v1/sessions/{session_id}/questions",
+                             json={"text": "Hello."}, headers=headers)
+        assert second.status_code == 201
+
+        flags = self._flags(live_db, session_id)
+        assert len(flags) == 1
+        assert flags[0]["severity"] == "low"
+
+    def test_the_response_says_nothing_about_the_flag(
+            self, client, account, session_id, live_db, fake_llm):
+        """
+        CT-2. A learner who could see a leak flag would learn that the patient
+        had just told them something they had not asked for — which is a
+        coverage hint by another name, and `PRD` U2 is the reason there are no
+        hints.
+        """
+        _, headers = account
+        _, keyword = self._topic_and_keyword(live_db, session_id)
+
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        r = client.post(f"/v1/sessions/{session_id}/questions",
+                        json={"text": "Hello."}, headers=headers)
+        assert self._flags(live_db, session_id), "this reply should have leaked"
+
+        body = r.get_json()
+        flat = str(body).lower()
+        assert "leak" not in flat
+        assert "severity" not in flat
+        assert set(body) == {"seq", "question", "reply"}
+
+    def test_a_leak_does_not_change_what_the_transaction_writes(
+            self, client, account, session_id, live_db, fake_llm):
+        """
+        The flag is written in the same transaction as the question and the
+        reply, and must not change what that transaction does. One question
+        asked, one question counted, whether or not it leaked.
+        """
+        _, headers = account
+        _, keyword = self._topic_and_keyword(live_db, session_id)
+
+        fake_llm.replies = [f"Well, there is the {keyword}."]
+        r = client.post(f"/v1/sessions/{session_id}/questions",
+                        json={"text": "Hello."}, headers=headers)
+        assert r.status_code == 201
+
+        with live_db.begin() as c:
+            counts = c.execute(sa.text(
+                "SELECT type, count(*) AS n FROM session_events "
+                "WHERE session_id = :id GROUP BY type"),
+                {"id": session_id}).mappings().all()
+        by_type = {row["type"]: row["n"] for row in counts}
+        assert by_type["question"] == 1
+        assert by_type["patient_reply"] == 1
+        assert len(self._flags(live_db, session_id)) == 1

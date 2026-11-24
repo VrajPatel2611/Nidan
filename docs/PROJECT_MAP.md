@@ -58,6 +58,8 @@ A-bias-aware-vp-simulator/
 │   │   ├── selection.py          which case · monthly allowance
 │   │   ├── session.py            session state + replay(events) ★
 │   │   ├── feedback.py           feedback prompt building (no marking)
+│   │   ├── leakage.py ★          persona leakage — SENSITIVE on purpose,
+│   │   │                         the opposite of guard.py (T-040)
 │   │   └── types.py              shared type aliases
 │   ├── infra/              everything touching the outside world
 │   │   ├── llm/ ★                everything that talks to a model
@@ -88,6 +90,19 @@ A-bias-aware-vp-simulator/
 │   │   │       ├── catalog.py        the universal menus; nothing per-case
 │   │   │       ├── idempotency.py    the §2.8 key store; hashes the body
 │   │   │       ├── llm.py            llm_calls — what each call cost (T-031)
+│   │   │       ├── progress.py       trends computed on read (T-037)
+│   │   │       ├── erasure.py        §10.2 — six places, not two
+│   │   │       ├── export.py         a learner's own data. Reads NO
+│   │   │       │                     detector column and omits
+│   │   │       │                     research_pid — CT-5 by omission
+│   │   │       ├── leakage.py ★      leakage_flags — written during a
+│   │   │       │                     consultation, resolved from the
+│   │   │       │                     console. The UPDATE needed 034
+│   │   │       ├── leakage_columns.py  one column list, so the
+│   │   │       │                     queue's reads cannot drift
+│   │   │       ├── research.py ★     §11.7 verbatim. ServiceActor only:
+│   │   │       │                     a PARTIAL export looks like the
+│   │   │       │                     dataset and is one learner's slice
 │   │   │       └── anonymous.py ⚠    the one path with RLS OFF
 │   │   ├── telemetry/            JSON logs, redaction, Sentry
 │   │   ├── storage.py            the research JSON export
@@ -123,7 +138,9 @@ A-bias-aware-vp-simulator/
 │   │   ├── test_constraints.py     CHECK constraints and indexes
 │   │   ├── test_triggers.py        append-only, publication gate
 │   │   ├── test_rls.py             the policies are written correctly
-│   │   ├── test_seed.py            migrations 017-019 seeded the content
+│   │   ├── test_seed.py            the seeded content matches cases.py —
+│   │   │                           including system_prompt, which 035
+│   │   │                           is why
 │   │   ├── test_repository_scope.py ★ the policies deny the APPLICATION
 │   │   └── test_anonymous_scope.py ★ the path where RLS cannot help
 │   ├── domain/test_replay.py ★   derived state is reproducible
@@ -142,8 +159,14 @@ A-bias-aware-vp-simulator/
 ├── sessions/               16 real pilot sessions (JSON)
 ├── scripts/build_status.py regenerates the status tracker
 ├── scripts/backfill_pilot.py the pilot import (run-once, idempotent)
+├── scripts/research_export.py DATA_MODEL §11.7 — consent required, confirmed
+│                           leaks excluded, research_pid the only identifier
 │
 ├── validate_detectors.py ★ the 94% gate — research tooling, not the product
+├── validate_personas.py ★  the leakage gate (T-040). Eight fixed probes x ten
+│                           personas. NOT a pytest test: T-002 criterion 1 is
+│                           that no test makes a network call. --overlap is
+│                           pure and reports a content problem instead
 ├── analyze_sessions.py     McNemar + Wilcoxon over session JSON
 ├── test_api.py             check the Groq key works
 │
@@ -247,7 +270,7 @@ python scripts/build_status.py
 |---|---|
 | **COMMANDS.md** ★ | **Every terminal command, grouped by what you want to do.** §7 is the troubleshooting section — every error we have actually hit, with its fix |
 | **WINDOWS_SETUP.md** | **Yogesh's onboarding — install, configure, and the PR workflow now that `main` is protected** |
-| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 32 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
+| **SUPABASE_DEPLOYMENT.md** | How the schema reaches a real Supabase project. There is no file to upload — it is 35 Alembic migrations, and the three connection strings Supabase offers are not interchangeable |
 | **LOCAL_ADMIN_ACCESS.md** | Signing in to `/admin` on a laptop. Every refusal is an identical 404 by design, so the steps are ordered and the diagnosis is a table at the end |
 | **REVIEWER_ONBOARDING.md** | Taking a clinician from "has agreed" to "has reviewed a case" — account, role, assignment, and the check that it worked |
 | **REVIEWER_GUIDE.md** ★ | **What the clinician receives.** The only document here written for someone outside the team, and the only one that explains that the trap in each case is deliberate |

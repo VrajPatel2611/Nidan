@@ -234,7 +234,8 @@
       {% elif active_nav == 'ops' %}
         <div class="sidebar-section-title">AI Operations</div>
         <nav class="sidebar-nav">
-          <a href="/admin/ops" class="active">LLM Metrics & Leakage</a>
+          <a href="/admin/ops" class="{% if active_section == 'ops' %}active{% endif %}">LLM Metrics</a>
+          <a href="/admin/leakage" class="{% if active_section == 'leakage' %}active{% endif %}">Persona leakage</a>
         </nav>
       {% elif active_nav == 'users' %}
         <div class="sidebar-section-title">User Management</div>

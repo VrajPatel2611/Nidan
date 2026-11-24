@@ -211,6 +211,48 @@ class TestSeededCases:
             assert [list(c) for c in stored["contradictory_clues"]] == \
                    [list(c) for c in source["contradictory_clues"]]
 
+    def test_the_brief_in_the_database_is_the_brief_in_the_code(self, db):
+        """
+        The gap that let T-040's rule 6 ship half-applied for an afternoon.
+
+        `system_prompt` is seeded into `content` like everything else, and
+        `api/v1/consultation.py` reads it from there — but `api/routes.py`
+        reads it from `cases.py`, and so does `validate_personas.py`. So an
+        edit to `_RULES` with no migration fixes the anonymous trial, leaves
+        every signed-in learner on the old brief, and **the persona suite
+        reports a pass**, because it probes the code and not the bank.
+
+        The round-trip test above compares the four fields the detectors read.
+        It did not compare this one, and nothing else did either. Migration
+        035 is what this failed on.
+        """
+        rows = db.execute(sa.text(
+            "SELECT title, content FROM case_versions")).all()
+        stored = {}
+        for title, content in rows:
+            stored[title] = (
+                json.loads(content) if isinstance(content, str) else content)
+
+        for case_id in CASES:
+            source = get_case(case_id)
+            assert stored[source["title"]]["system_prompt"] == \
+                source["system_prompt"], (
+                    f"{case_id}: the seeded brief and cases.py disagree. "
+                    "Editing _RULES or a persona needs a migration — see "
+                    "migrations/versions/035_persona_rule_6.py.")
+
+    def test_every_persona_carries_the_shared_ground_rules(self, db):
+        """
+        The shared block, not just equality with the source — so a persona
+        seeded without it is caught even if `cases.py` were also wrong.
+        """
+        from nidan.domain.content.cases import _RULES
+        rows = db.execute(sa.text(
+            "SELECT title, content FROM case_versions")).all()
+        for title, content in rows:
+            content = json.loads(content) if isinstance(content, str) else content
+            assert content["system_prompt"].startswith(_RULES), title
+
     def test_content_hash_is_a_sha256_of_the_canonical_content(self, db):
         import hashlib
         rows = db.execute(sa.text(

@@ -12,7 +12,7 @@ someone has to do it, not for today.
 **There is no file to upload.** Nothing in this repository is a database dump,
 and pasting SQL into Supabase's editor is the wrong way to build this schema.
 
-The schema is **33 ordered migrations** in `migrations/versions/`, applied by
+The schema is **35 ordered migrations** in `migrations/versions/`, applied by
 Alembic against Supabase's PostgreSQL over a normal connection:
 
 ```bash

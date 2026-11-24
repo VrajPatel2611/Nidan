@@ -1,0 +1,102 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Persona leakage — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Persona leakage queue</h1>
+  <a href="{{ '/admin/leakage' if include_reviewed else '/admin/leakage?all=1' }}"
+     style="color: #38bdf8; text-decoration: none; font-size: 14px;">
+    {{ 'Unreviewed only' if include_reviewed else 'Include reviewed' }}
+  </a>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 8px;">
+    Each row is a patient reply that mentioned a required topic the question did
+    not ask about. <strong>High</strong> means the trainee never asked about it
+    anywhere in that consultation, so their history-completeness score credits
+    them for something they did not do. <strong>Low</strong> means they had
+    asked earlier and the patient repeated itself, which does not change the
+    score.
+  </p>
+  <p style="color: #94a3b8; font-size: 13px; margin: 0;">
+    Confirming a flag <strong>excludes that whole consultation from the
+    research export</strong> and cannot be undone here. Dismissing it leaves
+    the consultation in the dataset. Nothing is excluded until you decide:
+    a flag on its own counts for nothing.
+  </p>
+</div>
+
+<div style="display: flex; gap: 16px; margin-bottom: 20px;">
+  <div class="stat-card">
+    <div class="stat-value">{{ counts.high }}</div>
+    <div class="stat-label">high, unreviewed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ counts.low }}</div>
+    <div class="stat-label">low, unreviewed</div>
+  </div>
+</div>
+
+{% if not flags %}
+<div class="card">
+  <p style="color: #94a3b8; font-size: 14px; margin: 0;">
+    Nothing to review.
+    {% if not include_reviewed %}Reviewed flags are hidden — use “Include
+    reviewed” above to see them.{% endif %}
+  </p>
+</div>
+{% endif %}
+
+{% for flag in flags %}
+<div class="card" id="flag-{{ flag.id }}" style="margin-bottom: 16px;">
+  <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;">
+    <div class="card-title" style="margin: 0;">
+      {{ flag.case_slug }} · v{{ flag.case_version }}
+      <span style="color: {{ '#f87171' if flag.severity == 'high' else '#fbbf24' }}; font-size: 13px; font-weight: 600; margin-left: 8px;">
+        {{ flag.severity }}
+      </span>
+    </div>
+    <span style="color: #64748b; font-size: 13px;">
+      seq {{ flag.event_seq }} · {{ flag.created_at.strftime('%d %b %Y %H:%M') }}
+    </span>
+  </div>
+
+  <p style="color: #94a3b8; font-size: 13px; margin: 0 0 6px;">Revealed but not asked</p>
+  <p style="color: #f8fafc; font-size: 14px; margin: 0 0 14px;">
+    {% for topic in flag.leaked_topics %}<code style="background: #1e293b; padding: 2px 6px; border-radius: 4px; margin-right: 6px;">{{ topic }}</code>{% endfor %}
+  </p>
+
+  <p style="color: #94a3b8; font-size: 13px; margin: 0 0 6px;">What the patient said</p>
+  <blockquote style="color: #cbd5e1; font-size: 14px; margin: 0 0 16px; padding: 10px 14px; border-left: 3px solid #334155; background: #0f172a;">
+    {{ flag.reply if flag.reply is not none else 'This reply is no longer available — the account was erased.' }}
+  </blockquote>
+
+  {% if flag.reviewed %}
+    <p style="color: #64748b; font-size: 13px; margin: 0;">
+      {{ 'Confirmed — excluded from research' if flag.confirmed else 'Dismissed — still in the dataset' }}
+      on {{ flag.reviewed_at.strftime('%d %b %Y') }}.
+    </p>
+  {% else %}
+    <div style="display: flex; gap: 10px;">
+      <button hx-post="/admin/leakage/{{ flag.id }}"
+              hx-vals='{"verdict": "confirm"}'
+              hx-target="#flag-{{ flag.id }}"
+              hx-swap="outerHTML"
+              hx-confirm="Confirm this leak? The whole consultation will be excluded from the research export."
+              style="background: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer;">
+        Confirm leak
+      </button>
+      <button hx-post="/admin/leakage/{{ flag.id }}"
+              hx-vals='{"verdict": "dismiss"}'
+              hx-target="#flag-{{ flag.id }}"
+              hx-swap="outerHTML"
+              style="background: #1e293b; color: #cbd5e1; border: 1px solid #334155; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer;">
+        Not a leak
+      </button>
+    </div>
+  {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

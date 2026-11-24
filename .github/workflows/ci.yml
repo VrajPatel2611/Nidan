@@ -8,6 +8,13 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Weekly, for the persona suite. It is the one check whose result can change
+  # with no commit at all: the provider can retire the configured model, and a
+  # different model has different leakage behaviour (TECH_SPEC §5.2 — Groq
+  # retired llama-3.3-70b-versatile on 2026-08-16 and it took until
+  # 2026-11-04 to notice).
+  schedule:
+    - cron: "0 6 * * 1"
 
 env:
   PYTHON_VERSION: "3.11"
@@ -129,6 +136,75 @@ jobs:
         with:
           name: detector-validation
           path: docs/detector_validation.md
+
+  personas:
+    name: Adversarial persona suite (leakage)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -e .
+
+      - name: No persona may name its own diagnosis or quote its brief
+        # BUILD_PLAN T-040 criterion 4 · TECH_SPEC §5.3's second defence.
+        #
+        # THE ONLY CHECK HERE THAT CALLS A MODEL, which is why it is a script
+        # and not a pytest test: T-002 criterion 1 is that no test in the
+        # suite makes a network call.
+        #
+        # `--repeat 1` — 80 calls — because of a hard ceiling, not a
+        # preference. `--repeat 2` is 160 calls at ~1 250 tokens each, which
+        # is almost exactly Groq's free-tier allowance of 200 000 tokens per
+        # DAY: the first full two-sample run exhausted it at probe 69 of 160
+        # and exited 3. A gate that goes red on the budget rather than on a
+        # persona is a gate people learn to ignore.
+        #
+        # What this costs is only precision about volunteering, which is not
+        # gated anyway. The build fails on key facts, and those are not
+        # stochastic in the same way. Repeated sampling comes from the weekly
+        # schedule instead, which accumulates runs over time rather than
+        # spending the day's budget in one. Run `--repeat 2` or more by hand
+        # when you want the rate (§5.3's third defence is disclosing it); the
+        # artifact keeps each run's figures so they can be compared.
+        #
+        # Exit codes: 1 a persona named its own diagnosis or quoted its brief,
+        # 3 some probe never reached the provider. 3 is a failure on purpose —
+        # an outage must not read as a clean bill of health.
+        #
+        # If this fails: fix the persona's system prompt. Do NOT weaken a
+        # probe or shorten PROBES. The probes are fixed so that a regression
+        # is attributable to the persona or the model, and a suite whose
+        # inputs move cannot tell you which.
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          if [ -z "${GROQ_API_KEY}" ]; then
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              echo "::warning title=Persona suite skipped::GROQ_API_KEY is           not available to this run (a fork pull request cannot see repository           secrets). The suite runs on push to main and weekly; persona           leakage is UNMEASURED for this commit until then."
+              exit 0
+            fi
+            echo "::error title=Persona suite cannot run::GROQ_API_KEY is           not set. TECH_SPEC 5.3's second defence is not running, so persona           leakage is unmeasured rather than absent."
+            exit 1
+          fi
+          python validate_personas.py --repeat 1 --json persona-report.json
+
+      - name: What each case's opening line already gives away
+        # Pure — no model calls, so it runs even without the key. Reported,
+        # never gated: narrowing `required_topics` on eight cases changes the
+        # golden assessment record for all 16 pilot sessions.
+        if: always()
+        run: python validate_personas.py --overlap
+
+      - name: Upload the persona report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persona-leakage-report
+          path: persona-report.json
+          if-no-files-found: ignore
 
   case-invariants:
     name: Case content invariants

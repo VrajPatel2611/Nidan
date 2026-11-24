@@ -130,7 +130,7 @@ facing web app is T-032 and has nothing to do with this.
 
 So this is two steps, in order:
 
-1. `SUPABASE_DEPLOYMENT.md` — the 33 migrations against the Supabase project
+1. `SUPABASE_DEPLOYMENT.md` — the 35 migrations against the Supabase project
 2. The container somewhere with a URL, `DATABASE_URL` pointing at Supabase
 
 ---

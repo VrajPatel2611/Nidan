@@ -29,6 +29,8 @@ from nidan.api.errors import error
 from nidan.api.v1.blueprint import bp
 from nidan.domain.assessment.topics import extract_topics
 from nidan.domain.guard import classify as classify_patient_data
+from nidan.domain.leakage import detect as detect_leak
+from nidan.domain.leakage import topics_asked
 from nidan.domain.session import conversation_from, mentions_early_diagnosis
 from nidan.infra.clock import utc_now
 from nidan.infra.db.repositories import repo_scope
@@ -200,6 +202,25 @@ def ask_question(session_id: UUID):
         if not early_already_noted and mentions_early_diagnosis(text):
             db.events.append(session_id, "early_diagnosis", {"text": text})
         db.sessions.touch(session_id)
+        # T-040 · persona leakage. `TECH_SPEC` §5.3: if the patient answers a
+        # question the learner never asked, coverage measures the model and
+        # not the learner. Checked after the reply is stored and pointed at
+        # its `seq`, so the queue can show an administrator the exact words
+        # without copying them anywhere (`DATA_MODEL` §7.2).
+        #
+        # Nothing here can refuse the reply: `record()` holds its own
+        # savepoint and returns False rather than raising. A flag is a
+        # suggestion to a human, and `confirmed = true` -- never the detector
+        # alone -- is what excludes a session from research.
+        leak = detect_leak(
+            reply=reply,
+            question=text,
+            required_topics=(content or {}).get("required_topics", ()),
+            asked_before=topics_asked(events),
+        )
+        if leak is not None:
+            db.leakage.record(session_id, event_seq=patient.seq,
+                              topics=leak.topics, severity=leak.severity)
         # T-031 criterion 3. Written here and not in the gateway, which may
         # not reach the database — see that module's docstring. This scope is
         # already open for the events above, so the row costs no extra

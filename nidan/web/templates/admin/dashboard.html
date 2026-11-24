@@ -21,9 +21,12 @@
     <div class="stat-value">$1.84</div>
     <div class="stat-label">LLM cost</div>
   </div>
+  {# The 0.9% that stood here was invented. A leakage RATE needs flags per
+     reply over a window, which T-043's metrics page computes; until then
+     the queue depth is the honest figure and this card shows that. #}
   <div class="stat-card">
-    <div class="stat-value">0.9%</div>
-    <div class="stat-label">leakage rate</div>
+    <div class="stat-value">{{ unreviewed_leakage }}</div>
+    <div class="stat-label">leakage flags to review</div>
   </div>
 </div>
 
@@ -36,10 +39,15 @@
         <span>· 3 cases awaiting clinical review</span>
         <a href="/admin/reviews" style="color: #38bdf8; text-decoration: none;">Review queue →</a>
       </li>
+      {# T-040: a real count. Absent rather than "0 unreviewed" when the
+         queue is empty — a nothing-to-do line in a "Needs Attention" panel
+         trains an administrator to skim past the ones that matter. #}
+      {% if unreviewed_leakage %}
       <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
-        <span>· 2 leakage flags unreviewed</span>
-        <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
+        <span>· {{ unreviewed_leakage }} leakage flag{{ '' if unreviewed_leakage == 1 else 's' }} unreviewed{% if unreviewed_leakage_high %} ({{ unreviewed_leakage_high }} high){% endif %}</span>
+        <a href="/admin/leakage" style="color: #38bdf8; text-decoration: none;">Leakage queue →</a>
       </li>
+      {% endif %}
       <li style="padding: 10px 0; display: flex; justify-content: space-between;">
         <span>· Feedback fallback rate 6.2% (alert &gt; 5%)</span>
         <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>

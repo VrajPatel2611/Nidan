@@ -134,9 +134,11 @@ class Repositories:
         from nidan.infra.db.repositories.idempotency import (
             IdempotencyRepository,
         )
+        from nidan.infra.db.repositories.leakage import LeakageRepository
         from nidan.infra.db.repositories.llm import LlmCallRepository
         from nidan.infra.db.repositories.profiles import ProfileRepository
         from nidan.infra.db.repositories.progress import ProgressRepository
+        from nidan.infra.db.repositories.research import ResearchRepository
         from nidan.infra.db.repositories.results import (
             EngineVersionRepository,
             ResultRepository,
@@ -163,6 +165,8 @@ class Repositories:
         self.llm_calls = LlmCallRepository(conn, actor)
         self.erasure = ErasureRepository(conn, actor)
         self.export = ExportRepository(conn, actor)
+        self.leakage = LeakageRepository(conn, actor)
+        self.research = ResearchRepository(conn, actor)
 
 
 @contextmanager
