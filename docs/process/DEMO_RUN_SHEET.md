@@ -26,6 +26,15 @@ one database and one Supabase project.
 
 Run each from `/Users/vrajpatel/Desktop/Nidan`.
 
+**0. Docker Desktop itself.** `docker compose` fails with "failed to connect
+to the docker API" when the desktop app is not running, and that is a
+different error from the database being down. It was not running at the start
+of the 25 Nov rehearsal.
+
+```bash
+open -a Docker
+```
+
 **1. Database.**
 
 ```bash
@@ -52,6 +61,10 @@ export DATABASE_URL="postgresql://nidan:nidan_local_dev_only@localhost:5433/nida
 alembic upgrade head
 ```
 
+There are **36** migrations now — 036 arrived with T-044 on 25 Nov and grants
+`nidan_admin` the writes the content editor needs. If `/admin/content` throws
+a permission error, this step was skipped.
+
 **4. Publish the cases.** Every case is a draft, and `POST /v1/sessions` answers
 `no_cases_available` until one is published.
 
@@ -59,10 +72,34 @@ alembic upgrade head
 python scripts/publish_for_demo.py --all
 ```
 
-**5. The API.**
+**4b. Stage the clinician's queue.** The step above publishes all ten, which
+leaves Act 3 with nothing to review. This returns three to draft and assigns
+them to Dr Anita Verma — seven stay published for the learner.
 
 ```bash
-python -m nidan
+python scripts/seed_demo_accounts.py --stage-review-queue
+```
+
+**5. The API.** The allowance override goes **here, on the command line**, not
+in `.env` — see *The allowance* below. Putting it in `.env` turns three tests
+in `tests/db/test_allowance.py` red, because they assert the limit is 3.
+
+```bash
+FREE_TIER_SESSIONS_PER_MONTH=10 LLM_MONTHLY_BUDGET_USD=5 python -m nidan
+```
+
+`LLM_MONTHLY_BUDGET_USD` gives the AI Ops page a budget bar to draw. At $5
+against about half a cent of real spend there is no chance of hitting the
+100 % degradation line during the demo.
+
+**If you need to restart it, kill it by PID.** `pkill -f "python -m nidan"`
+**silently matches nothing** on this Mac — the executable is capital-`Python`,
+so the pattern never hits, the old process keeps port 8000, and the new one
+dies unable to bind. That cost twenty minutes today: the console was serving
+pre-merge code while every file on disk was current.
+
+```bash
+lsof -nP -iTCP:8000 -sTCP:LISTEN
 ```
 
 **6. The web app — `next start`, never `next dev`.** A dev server on this
@@ -93,40 +130,47 @@ credentials. A browser cannot send an `Authorization` header, so the token goes
 in a cookie. **It lasts about an hour**, so do this shortly before, not the
 night before.
 
-Get a token for `demo.admin@example.com` — the password is in
-`logs/demo-accounts.txt`, and `LOCAL_ADMIN_ACCESS.md` §4 has the full command
-that keeps it off the screen and out of shell history:
-
 ```bash
-printf 'email: '; read -r EMAIL; printf 'password: '; read -rs PW; echo; PAYLOAD=$(EMAIL="$EMAIL" PW="$PW" python3 -c 'import os,json;print(json.dumps({"email":os.environ["EMAIL"],"password":os.environ["PW"]}))'); curl -s "$(grep NEXT_PUBLIC_SUPABASE_URL web/.env.local | cut -d= -f2-)/auth/v1/token?grant_type=password" -H "apikey: $(grep NEXT_PUBLIC_SUPABASE_ANON_KEY web/.env.local | cut -d= -f2-)" -H "Content-Type: application/json" -d "$PAYLOAD" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'
+python scripts/admin_token.py
 ```
 
-Then in the browser, open `http://localhost:8000/admin`, open DevTools →
-Console, and paste `document.cookie = "sb-access-token=<token>; path=/"`,
-then reload.
+It copies a `document.cookie = "..."` line to your clipboard. Open
+`http://localhost:8000/admin`, open DevTools (⌥⌘I) → Console, paste, Return,
+reload.
 
-(`python scripts/seed_demo_accounts.py --show` lists the accounts and their
-uids, but issues no token.)
+For Act 3, the same thing for the clinician:
 
-**If `/admin` shows a blank `{"error":{"code":"not_found"}}`, the token has
-expired.** Every refusal is an identical 404 by design (`UX_SPEC` §12.1), so it
-tells you nothing — work through `LOCAL_ADMIN_ACCESS.md`'s table in order.
+```bash
+python scripts/admin_token.py --reviewer
+```
 
----
+**If `/admin` shows a blank `{"error":{"code":"not_found"}}`, run it again —
+the token has expired.** Every refusal is an identical 404 by design
+(`UX_SPEC` §12.1), so the page cannot tell you which of four things went
+wrong; expiry is the likeliest. If a fresh token does not fix it, work
+through `LOCAL_ADMIN_ACCESS.md`'s table in order.
 
 ## Act 1 · the learner (`localhost:3000`)
 
 1. **Landing page** → *Sign in*.
 2. Sign in as **`demo.learner@example.com`**. This account is deliberately
    *not* onboarded, so you get the first-run flow.
-3. **Onboarding** — pick "Medical student", year 4.
+3. **Onboarding** — pick "Medical student", then **Next**.
+
+   Two things to expect, both seen on 25 Nov. **Signing in takes 5-10
+   seconds** — the button sits on "Logging in…" while the request goes to
+   Supabase in Frankfurt and back; it is not stuck. And **step 2 (the year)
+   can submit itself** the moment you click Next, so the year screen flashes
+   past. Nothing is lost: the demo accounts are seeded with year 4 already.
+   Do not click Next twice trying to make it appear.
 4. **Dashboard** — shows the free-tier allowance. Say the line here: *the
    allowance is shown before you start and never during a consultation.*
 5. **Start a consultation** → case preview → begin.
-6. **Ask two or three questions.** Suggested, for the DKA case:
-   - "Have you been unusually thirsty or passing more urine than normal?"
-   - "Have you lost any weight recently?"
-   - "Have you been unwell with anything in the last few weeks?"
+6. **Ask the questions.** The case you get is random among the seven
+   published, so read the patient's name and opening line, then use that
+   patient's set from **The questions to ask** below. They are verified to
+   score 100 % coverage, and the wording is load-bearing — matching is by
+   keyword, not meaning.
 7. **Point at what is missing.** No question counter, no coverage meter, no
    topic hints. *A visible metric teaches the metric, not the skill* (`PRD` P2).
 8. **Order an examination and a test** — these do not consume questions.
@@ -149,6 +193,35 @@ itself the day `DATABASE_URL` points at Supabase (`T-045` criterion 1).
 
 If asked, that is the honest answer, and it is a good one. Use
 `demo.student@example.com` as the spare if the first account gets into a state.
+
+---
+
+### The allowance, and why it says more than 3
+
+`FREE_TIER_SESSIONS_PER_MONTH=10` is passed **on the command line that starts
+the API**, for the demo only. The product figure is 3 (`PRD` FR-10.1) and
+nothing else changed — the setting is configured, not schema, which is exactly
+the point `T-017` made.
+
+**Do not put it in `.env`.** It was tried there first and
+`tests/db/test_allowance.py` went red in three places: those tests read the
+real setting and assert the limit is 3. An environment variable on the launch
+line reaches the running app and nothing else.
+
+The reason is that **every started session counts against the allowance,
+whatever its status** — an abandoned one included, which the Abandon dialog
+says out loud. At a limit of 3, one stale session plus a good run plus a bad
+run is already over, and a single 503 and retry would lock the account out
+mid-demo. If asked, "3 on the real free tier" is the honest answer. Delete
+the line from `.env` afterwards.
+
+### What is already in the account
+
+`demo.learner` has **four completed consultations** as of 25 Nov, put there
+deliberately so Progress has something to draw: three at 100 % and one at
+25 %. Without three completed cases the Progress tab is an empty state that
+says "1 of 3 completed", which is a poor screen to land on in front of an
+audience. The dip in that chart is the bad run, and it is worth pointing at.
 
 ---
 
@@ -179,20 +252,311 @@ If asked, that is the honest answer, and it is a good one. Use
    review. That is **migration 007's database trigger**, not a convention — it
    cannot be bypassed from the application at all.
 
-### Four screens to skip
+### The rest of the console
 
-**Content**, **AI Ops**, **Users** and **System** are shells. They are
-`UX_SPEC` A-06, A-07, A-08 — Phase 4, Yogesh's next two tasks (T-043, T-044).
-If asked, that is the answer; do not click them for effect.
+**Content** and **AI Ops** are real screens now — Yogesh merged T-044 and
+T-043 on 25 Nov, the same day this sheet first called them shells. Both are
+worth showing:
+
+- **AI Ops** (`/admin/ai`; `/admin/ops` redirects there) — spend by window,
+  cost per completed session, p95 patient latency, error and fallback rates,
+  a per-model table and the monthly budget. Every figure is read from
+  `llm_calls` and `leakage_flags`. A figure with no denominator shows **—**,
+  never 0, which is the same rule that emptied two cards on A-01.
+- **Content** (`/admin/content`) — add, edit and retire examinations and
+  investigations, plus the lexicon editor with a live match tester. Note it
+  **exports a migration rather than saving the lexicon**, because scoring
+  reads `topics.py`; the master lists *do* write the database, because `/v1`
+  reads those tables live.
+
+Two screens are still unbuilt, and each now says so rather than looking
+broken:
+
+| screen | spec | task |
+|---|---|---|
+| Users | A-09 users and support | **none — specified, unowned** |
+| System | not in `UX_SPEC` §12 at all | **none** |
+
+Worth a sentence if sir asks what is left: A-09 is written up and nobody is
+building it, and the System tab was never specified.
 
 ---
 
-## Act 3 · the reviewer (optional)
+## Act 3 · the clinician (`localhost:8000/admin/reviews`)
 
-Sign in as `demo.reviewer@example.com` and repeat the cookie step. The reviewer
-sees **only** `/admin/reviews`; every other admin URL is the same blank 404 an
-anonymous visitor gets. Worth showing — it is a one-line demonstration of
-`current_reviewer()` and the five-actor model.
+This is the act that shows the launch gate working, and it is worth the
+cookie swap. Sign in as **`demo.reviewer@example.com`** — the console will say
+**Dr Anita Verma** — and repeat the cookie step with her token.
+
+**Three cases are already assigned to her**, deliberately left as drafts:
+
+- The Chest Pain Trap — *GERD, specifically NSAID-induced · trap: cardiac*
+- The Faint That Was Not a Faint — *severe calcific aortic stenosis · trap: vasovagal faint*
+- The Bleeding That Was Already Explained — *colorectal carcinoma · trap: haemorrhoids*
+
+1. **The queue.** "Assigned to me (3)". Each row carries the real diagnosis
+   and the real trap, so the clinician knows what they are being asked about
+   before they open anything.
+2. **Notice what is missing.** The sidebar has Dashboard and Case bank, but
+   `/admin` and `/admin/cases` return the **same blank 404 an anonymous
+   visitor gets**. A reviewer reads drafts and writes reviews, and nothing
+   else. That is `current_reviewer()` and the five-actor model in one click —
+   worth showing, because it is a security property you can demonstrate
+   rather than assert.
+3. **Open one in Playtest.** The clinician plays the case as a learner would,
+   on the left, with the rubric on the right.
+4. **Scroll to "Case facts · what you are scoring".** The ground truth: the
+   correct diagnosis and every accepted and partial synonym, the trap and its
+   keywords, all six contradictory clues, the required topics, every
+   examination finding and investigation result with the **key** ones marked,
+   and the persona brief behind a disclosure.
+
+   Say the line here: *the rubric asks whether the case is internally
+   consistent and whether it is solvable from the information given, and
+   neither question can be answered from the student view — so the reviewer
+   is shown the case, and the learner never is.* Point at the chest-pain
+   case's serial troponins and normal ECG sitting beside an OGD showing LA
+   Grade B oesophagitis. That is what "internally consistent" means, and a
+   clinician can check it in ten seconds from this panel.
+5. **Score it.** Four dimensions, 1–5. **Approve stays disabled until all
+   four are scored** — and Request changes and Reject both require a comment.
+6. **Approve.** The row leaves "Assigned to me" and appears under Completed
+   with the scores and the comment, attributed and timestamped.
+7. **Switch back to the admin cookie and publish it.** The Publish button is
+   on the same page but **only an admin sees it** — approving and publishing
+   are different acts by different people. It is disabled until an approving
+   review exists.
+8. **The gate itself.** Migration 007's `require_clinical_approval` trigger
+   refuses any flip to `published` without an approving `clinical_reviews`
+   row. It is a database trigger, not application code, so it cannot be
+   bypassed from the app at all — `publish_for_demo.py` goes *through* it by
+   inserting a review, never around it.
+
+### Afterwards, and say this if asked
+
+**Nothing Dr Anita Verma approves counts towards the launch gate.** She is a
+demo account with a plausible name so the console looks like itself on a
+projector, and that is precisely why it has to be said out loud: a
+`clinical_reviews` row signed by a plausible clinician is indistinguishable a
+month later from one a real clinician wrote. The seven already-published
+cases are signed "Demo Fixture (not a clinician)" for the same reason.
+
+One command removes every review any demo account recorded, returning
+published versions to draft first so migration 007 is never violated:
+
+```bash
+python scripts/seed_demo_accounts.py --reset-reviews
+```
+
+Then put the bank back the way the learner act needs it:
+
+```bash
+python scripts/publish_for_demo.py --all
+```
+
+---
+
+## The questions to ask · verified
+
+Case selection is random among the seven published cases, so **you find out which
+one you have from the patient's name and opening line**. Each set below is eight
+questions that scores **100 % coverage** with the correct diagnosis and **no
+flags** — checked through `assess()` on 25 November 2026, against the published
+version in the database.
+
+Ask them roughly in order. You do not need all eight for the demo — four or five
+is plenty of airtime — but if you want the feedback screen to come out clean,
+ask all eight.
+
+### Aisha Khan, 21 — vomiting and thirst → **Diabetic ketoacidosis**
+
+1. How long has this been going on, and is it getting worse?
+2. Have you been unusually thirsty, and are you passing a lot more urine than normal?
+3. Have you lost any weight recently?
+4. Any tummy pain — and if so, what does it feel like?
+5. Any other symptoms — breathlessness, drowsiness, blurred vision?
+6. Have you been unwell with any infection or illness in the last few weeks?
+7. Are you taking any medication, prescribed or otherwise?
+8. Does anyone in your family have diabetes or a thyroid problem?
+
+### Priya Sharma, 28 — daily headaches for 2 weeks → **Hypertension**
+
+1. How long have the headaches been going on, and is there a pattern to when they come?
+2. Where exactly is the pain, and what does it feel like?
+3. Does the pain spread anywhere — your neck, or behind your eyes?
+4. Any visual symptoms — blurring or flashing lights?
+5. Does anything make it better or worse — stress, caffeine, alcohol, sleep, screen time?
+6. Are you on any medication at all, including the contraceptive pill?
+7. Has your blood pressure ever been checked?
+8. Does anyone in your family have high blood pressure or strokes?
+
+### Meera Patel, 35 — tiredness → **Hypothyroidism**
+
+1. How long have you been feeling this tired, and is your energy worse at a particular time of day?
+2. Has your weight changed at all recently?
+3. Do you feel the cold more than other people?
+4. Any changes to your skin, hair or nails?
+5. How are your bowels — any constipation?
+6. Are your periods regular, and have they changed?
+7. How is your mood — is this low mood, or is it physical tiredness?
+8. Does anyone in your family have a thyroid problem or an autoimmune condition?
+
+### Kavya Menon, 29 — breathless for 2 days → **Pulmonary embolism**
+
+1. When did the breathlessness start, and did it come on suddenly or gradually?
+2. Any chest pain — what does it feel like, sharp or dull — and is it worse when you breathe in?
+3. Any cough, fever, or anything you are bringing up?
+4. Does anything make it better or worse — resting, sitting up?
+5. Any pain, swelling or tenderness in either calf?
+6. Have you travelled recently, or been immobile or in bed for a while?
+7. Are you on the contraceptive pill, or any other medication?
+8. Has anyone in your family had a clot in the leg or the lung?
+
+### Gopal Mehta, 74 — confusion → **UTI causing delirium**
+
+The history comes from a relative, so the questions are in the third person.
+
+1. When did the confusion start, and did it come on over hours or over weeks?
+2. Is it the same all the time, or worse at certain times of day?
+3. Has he had any fever, shivering or sweats?
+4. Any burning when passing urine, or going more often than usual?
+5. Any weakness down one side, slurred speech, or facial drooping?
+6. What medication is he on, and has anything changed recently?
+7. How much has he been drinking — any chance he is dehydrated?
+8. Was his memory and thinking normal before this started?
+
+### Tanvir Ahmed, 26 — low back pain for 10 months → **Axial spondyloarthritis**
+
+1. How long has the back pain been going on, and how did it start?
+2. Is there stiffness in the morning, and how long does it take to loosen up?
+3. Does exercise make it better or worse? What about rest?
+4. Have you tried ibuprofen or an anti-inflammatory — does it help?
+5. Does it wake you in the second half of the night?
+6. Any pain or swelling in other joints, or any eye or bowel symptoms?
+7. Any skin rashes, or patches of psoriasis?
+8. Does anyone in your family have arthritis, psoriasis or a bowel condition?
+
+### Arjun Shah, 10 — cough and wheeze → **Asthma**
+
+A paediatric case, so again the parent is answering.
+
+1. How long has the cough and wheeze been going on?
+2. Is it worse at any particular time — at night, or early morning?
+3. Does running about or exercise bring it on?
+4. What about cold air, or a cat or dust?
+5. Has he had a fever, or seemed unwell in himself?
+6. Has this happened before, or is this the first time?
+7. Is it stopping him doing sport or missing school?
+8. Does anyone in the family have asthma, eczema or hay fever?
+
+### Wording matters more than you would like
+
+Topic matching is **keyword** matching (`topic_matching_mode: "keyword"`, and
+`similarity_threshold` is null — semantic matching is not switched on). So the
+exact words carry the credit, and two of these sets were reworded after they
+measured short:
+
+- "how long are you stiff for when you wake" matched **nothing**. `stiffness`
+  is the keyword, so it had to become "is there **stiffness** in the morning".
+- "what have you tried" / `ibuprofen` / `anti-inflammatory` is a required topic
+  of its own in the back-pain case (`nsaid_response`). Asking "does anything
+  help?" does not earn it.
+
+If you improvise on the day, expect coverage to come out at 75–88 % rather than
+100 %. **That is not a problem** — it is the product working, and a realistic
+screen is a better demo than a perfect one. But do not improvise and then claim
+100 %.
+
+### The deliberately bad run, if you want to show the detectors
+
+This is the stronger demo of the actual IP. On Aisha Khan (DKA), ask these
+**four** questions — not two — then submit **"Gastroenteritis"**:
+
+1. Do you think this is food poisoning? Did you eat something bad?
+2. Has anyone else at home had the same stomach bug or vomiting illness?
+3. Was it a takeaway, or something that had been left out? Any dodgy food?
+4. How many times have you vomited, and is there any diarrhoea with the stomach bug?
+
+| | |
+|---|---|
+| questions | 4 of a minimum 8 |
+| coverage | 25 % — six of eight required topics never asked |
+| diagnosis | `anchored` — it matched the case's own trap, not just "wrong" |
+| flags | anchoring **0.85** · premature closure **0.75** · confirmation bias **0.90** |
+
+### Why four and not two
+
+**Two questions is the version to avoid, and it was run live to find this
+out.** `anchoring_min_questions` is 4, so on a two-question consultation the
+anchoring detector *abstains* — correctly, because two questions are not
+evidence of a pattern. But the feedback screen then renders that abstention
+as a green tick:
+
+> ✓ **Diagnostic focus** — 2 of your 2 questions followed a single line of
+> enquiry, and 0 explored other possibilities.
+
+A tick beside a sentence saying every question followed one line of enquiry
+is the one thing on that screen a sharp examiner could pick at, and the
+honest answer — "the detector needs four questions before it will call a
+pattern" — is a worse moment than simply asking four. At four, all three
+panels flag and the screen reads the way the product intends.
+
+Both numbers are deterministic Python. Say that out loud, because it is the
+whole argument: the model voiced the patient and wrote the prose, and **the
+model did not decide either of those scores** (`ADR-0005`). And the feedback
+screen will name the learner's own two questions back to them without ever
+using the words "bias", "anchoring" or "premature closure" (`PRD` P1).
+
+Run the good consultation first and the bad one second — the contrast is the
+point, and a 25 % screen on its own just looks broken.
+
+## What a full dry run found — 25 Nov, second pass
+
+Everything below was driven in a browser as all three personas, after
+T-043/T-044 merged. **Nothing is broken.** These are the things worth knowing
+because they look wrong for a second.
+
+**Back, after you submit a diagnosis, shows the consultation again.** Next's
+client router serves the cached page, with a stale transcript and a live
+input box, on a session that is finished. Typing into it and pressing Return
+**bounces you straight to the feedback screen** — no error, nothing written,
+no console error, and the event log still shows exactly 8 questions. So it is
+safe; it just looks for a moment as though you can carry on. Press Forward,
+or go to the dashboard.
+
+**Refresh mid-consultation is a feature, not a risk.** A reload restores the
+whole transcript, the examined list and the ticks, with a "Resumed from
+today" banner. That is `ADR-0003` — the event log is the source of truth —
+and it is worth doing on purpose in front of an examiner rather than
+avoiding.
+
+**Double-pressing Return does not double-ask.** Three Returns in a row on one
+question produced one question event and one reply.
+
+**Clicking a finished examination again re-shows its result** and switches to
+the Ordered tab. It does not re-run or duplicate it.
+
+**The persona-leakage card on AI Ops reads about 38 %, in amber.** It is
+alerting above 2 %. That is honest and expected: `domain/leakage.py` is
+deliberately over-sensitive, **nothing is excluded until a human confirms a
+flag**, and none of these are confirmed. If it comes up: *a miss costs the
+validity of every measurement taken through that persona; a false flag costs
+an administrator one click — the asymmetry is the design.* Several of the
+current flags are plainly false, which is the point.
+
+**The real-patient-data guard works and is worth triggering on purpose.** Type
+something like a name plus a hospital number. You get a modal, the question is
+**not sent and not stored** — the event records `{"reason":
+"named_individual"}` and nothing else, and the text appears nowhere in the
+database. Discarding the typed question is the specified behaviour here
+(`UX_SPEC` S-10, `PRD` FR-4), not a bug; preserving the text is the rule for a
+*failed LLM call*, which is a different row of the same table.
+
+**The reviewer boundary holds on the new screens.** As Dr Anita Verma, every
+admin route — including T-043's `/admin/ai` and all of T-044's content and
+lexicon routes, GET **and** POST — returns the same blank 404. Only
+`/admin/reviews` answers. Write probes against the content editor created
+nothing.
 
 ---
 
@@ -206,6 +570,13 @@ anonymous visitor gets. Worth showing — it is a one-line demonstration of
 | `alembic` says "No database URL" | `export DATABASE_URL=...` — it does not read `.env` |
 | Patient replies 503 `patient_unavailable` | Groq model retired or the circuit breaker is open. `python test_api.py` |
 | First click on a page takes 20 s | you are on `next dev`. Use `npx next start` |
+| `docker compose` says "failed to connect to the docker API" | Docker Desktop is not running. `open -a Docker` |
+| Sign-in sits on "Logging in…" | normal, 5-10 s to Supabase and back. Not stuck |
+| Progress says "Not enough data yet" | that account has fewer than 3 *completed* cases |
+| `monthly_limit_reached` on starting a case | the allowance. Relaunch the API with `FREE_TIER_SESSIONS_PER_MONTH=10` |
+| Console shows old behaviour after a code change | `pkill` didn't match. Find the PID with `lsof -nP -iTCP:8000 -sTCP:LISTEN` and `kill` it |
+| `/admin/content` throws a permission error | `alembic upgrade head` — migration 036 was not applied |
+| Back button shows a finished consultation again | cached page; typing bounces you to feedback. Harmless |
 
 ---
 

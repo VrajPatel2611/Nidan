@@ -470,12 +470,23 @@ claiming a cancellation it could not have made. `DATA_MODEL` §10.2's
 transaction has already cancelled the subscription in the one place a
 subscription exists.
 
-**Scheduling it.** Nothing in the project schedules anything. On a laptop, run
-it by hand, or add a cron line:
+**Scheduling it.** Nothing in the project schedules anything, and nothing is
+installed on either laptop — there is no crontab and no launchd agent, so
+both commands below are run by hand until `T-045` deploys. On a laptop, run
+them by hand, or add the two cron lines:
 
 ```bash
-*/15 * * * * cd /path/to/Nidan && venv/bin/python -m nidan.jobs run >> logs/jobs.log 2>&1
+*/15 * * * * cd /path/to/Nidan && venv/bin/python -m nidan.jobs run     >> logs/jobs.log 2>&1
+17   3 * * * cd /path/to/Nidan && venv/bin/python -m nidan.jobs lexicon >> logs/jobs.log 2>&1
 ```
+
+**Two lines, not one, and two cadences.** `run` has outbound work waiting on
+it — `UX_SPEC` S-20 promises an erasure finishes within 24 h — so it wants a
+short interval. `lexicon` fills a report nobody reads hourly and rescans every
+question on the log each time, so nightly is right and more often is waste.
+Keeping them separate is also why `lexicon` always exits 0: a stuck erasure
+must not hide a lexicon run, and a lexicon failure must not make an export
+report failure. See `jobs/lexicon.py`.
 
 Not a thread inside the API: the app runs on two gunicorn workers, so an
 in-process scheduler would be two schedulers racing for the same jobs — and
@@ -489,6 +500,40 @@ done: it is done when its per-step completion rows exist, and
 `AuditRepository.pending()` is the difference between the two sets. A crash
 between a remote call and its completion row costs one retry rather than a
 lost request.
+
+### The lexicon match counts
+
+```bash
+python -m nidan.jobs lexicon
+```
+
+Fills `topic_phrases.match_count` and `last_matched_at` — the "nightly job"
+migration 005 promised in 2026 and nothing built until T-044. Without it every
+phrase reads as having never matched anything, so A-07's dead-phrase report
+calls the whole lexicon dead.
+
+**It recomputes from scratch every run**, matching every learner question still
+on the log with the engine's own rule, so it is idempotent and needs no
+bookkeeping — and a question redacted under `ADR-0018` stops counting on the
+next run, which an incremental counter would never forget. **Only counts leave
+the process**: the text is held in memory long enough to match and is never
+logged, stored or returned, the same rule `domain/guard.py` follows.
+
+It runs as a `ServiceActor` because it reads across every learner's sessions,
+and migration 036 grants `nidan_service` UPDATE on **those two columns only**.
+It writes a NULL-actor `lexicon.matches_counted` row to `audit_log`, which the
+console reads back. It always exits 0 — see *Scheduling it* above.
+
+On this laptop, 2026-11-25:
+
+```
+159 question(s) read · 213 of 677 phrase(s) matched at least once
+```
+
+**464 unmatched phrases is not a content problem**, and the report should not
+be read as one until there is more traffic: 159 questions across 16 pilot and
+6 demo sessions cannot exercise 677 phrases. The figure becomes a signal about
+the lexicon once real learners have used it, not before.
 
 ### Bringing the whole demo up — one command
 

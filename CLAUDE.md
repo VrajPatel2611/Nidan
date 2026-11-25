@@ -616,17 +616,19 @@ wrong answer. The test that `own_profile` still bites therefore queries
 `profiles` directly rather than through `get()`.
 (`tests/db/test_repository_scope.py`)
 
-**Every figure on the admin dashboard is read from the database, and two that
-an audience expects are deliberately absent.** "142 sessions today", "118
+**Every figure on the admin dashboard is read from the database, and the two
+an audience expects are absent — one still deliberately.** "142 sessions today", "118
 completed", "$1.84", "3 cases awaiting review", "6.2 % feedback fallback" and
 "10 published · 2 drafts" were literals in `dashboard.html`, wrong by an order
 of magnitude against the data underneath. **Sessions today and completed could
 not be replaced**: `sessions` has RLS on, and an admin scope sees only its own
 sessions plus the ones migration 034's flag-keyed policy points at, so a count
 would be correct SQL and a false statement about usage — admin visibility of
-learners' sessions is A-09's to ask for. **The feedback fallback rate could
-not either**: the rule-based fallback writes no `llm_calls` row, so that rate
-has no denominator. Do not put a literal back in that grid.
+learners' sessions is A-09's to ask for. Do not put a literal back in that
+grid. **The feedback fallback rate was the second one and no longer is**:
+T-043 made the rule-based fallback write a `status='fallback'` row, so the
+rate now has a denominator and `/admin/ai` computes it. A-01 still omits the
+card — the justification beside it is stale, not the figure.
 
 **The "+ New case" scaffold must stay valid, because it is the first thing an
 author ever sees.** It seeded `aggravating_factors` in `required_topics`,
@@ -861,7 +863,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1268 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1273 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -875,6 +877,7 @@ python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
 python scripts/seed_demo_accounts.py       # the four demo accounts, Supabase AND the local stub
+python scripts/admin_token.py              # a token for /admin, copied to the clipboard
 ./scripts/demo_up.sh               # db + migrations + cases + warm LLM + API + web app
 python -m nidan.jobs status        # the account jobs queue — what is outstanding
 python -m nidan.jobs run           # ...and do it (T-038; idempotent)

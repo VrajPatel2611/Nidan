@@ -3,12 +3,36 @@
 {% block title %}System Settings — Nidan Admin{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
+<div style="margin-bottom: 24px;">
   <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">System Settings</h1>
 </div>
 
+{# Unlike the other three, this screen is not in UX_SPEC §12 at all — the
+   section numbers A-01 … A-09 and none of them is feature flags. It is a
+   navigation item that was never specified, which is worth saying plainly
+   rather than implying a plan that does not exist. #}
+{% with task  = none,
+        spec  = "not in UX_SPEC §12 — A-01 … A-09 do not include it",
+        items = none %}
+  {% include "admin/_planned.html" %}
+{% endwith %}
+
 <div class="card">
-  <div class="card-title">Feature Flags & System Audit Log</div>
-  <p style="color: #94a3b8; font-size: 14px;">Toggle system feature flags and inspect full audit trail logs.</p>
+  <div class="card-title">What exists instead, today</div>
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 10px;">
+    <strong>The audit trail is real and is already on the Dashboard.</strong>
+    <code>audit_log</code> refuses both UPDATE and DELETE — to the table owner
+    included — so it is append-only in the database rather than by convention.
+    It is also the jobs queue: a request is done when its per-step completion
+    rows exist, which is why a crash between a remote call and its completion
+    row costs one retry rather than a lost request.
+  </p>
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0;">
+    <strong>There are no feature flags.</strong> What would live here is
+    configuration — the free-tier allowance, model selection, prices — and all
+    of it is environment and <code>pyproject</code> today. The allowance in
+    particular is configured and not schema on purpose: it is a pricing
+    decision, and pricing changes faster than schemas.
+  </p>
 </div>
 {% endblock %}
