@@ -682,7 +682,7 @@ Accept   1. Pricing with monthly/annual toggle; copy describes what Pro adds
          4. Deletion requires typing DELETE; states exactly what is retained
 ```
 
-**T-043 · AI usage and cost dashboard**
+**T-043 · AI usage and cost dashboard** — ✅ **DONE** (2026-11-25)
 ```
 Phase    4            Depends  T-031,T-020    Est  2 d      Owner  Y
 Spec     TECH_SPEC §10.1 · UX_SPEC A-08   (NOT A-07 — see the note below)
@@ -691,7 +691,7 @@ Accept   1. Spend today/month vs budget; cost per completed session
          3. Budget alert at 80%; automatic degradation to cheapest model at 100%
 ```
 
-**T-044 · Master list and lexicon editors**
+**T-044 · Master list and lexicon editors** — ✅ **DONE** (2026-11-25)
 ```
 Phase    4            Depends  T-020          Est  3 d      Owner  Y
 Spec     UX_SPEC A-06, A-07 · PRD FR-12.7  (NOT A-05, A-06 — see below)

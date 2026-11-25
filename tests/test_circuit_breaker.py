@@ -344,4 +344,7 @@ class TestThroughTheGateway:
 
         assert result.generator == "rule_fallback"
         assert result.lines
-        assert result.call is None, "nothing was called, so nothing to account"
+        # Nothing was called, so nothing is billed, but the fallback is still
+        # counted (T-043): a row at $0 with no tokens, status 'fallback'.
+        assert result.call.status == "fallback"
+        assert result.call.cost_usd == 0 and result.call.prompt_tokens == 0

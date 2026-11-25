@@ -4,8 +4,8 @@ A bias-aware virtual patient simulator. Medical trainees interview an LLM-driven
 patient, order examinations and tests, submit a diagnosis, and receive feedback on
 **how they reasoned** — not just whether they were right.
 
-**Current state:** Phases 0–3 complete and **Phase 4 is 1 of 6 — 30 of 35
-tasks, 71 days of 85.** The research is published and validated; the platform
+**Current state:** Phases 0–3 complete and **Phase 4 is 3 of 6 — 32 of 35
+tasks, 76 days of 85.** The research is published and validated; the platform
 has a schema, a repository layer with tenant scoping, event-sourced sessions,
 authentication, anonymous trials, a replayable assessment engine, the
 free-tier allowance, the 16 pilot sessions imported into it, the whole admin
@@ -48,11 +48,14 @@ but a missing one refuses visibly rather than recording the step as done.
 (Stripe) is the one that retires `api/v1/contract.py`'s remaining three 501s
 and fills in `infra/billing.py`'s empty seam.
 
-**Yogesh is not blocked but cannot start with T-042**, which depends on T-041.
-T-043 and T-044 are both unblocked now (T-020 and T-031 are done). **And
-`BUILD_PLAN`'s screen references for both of his tasks were off by one until
-24 Nov** — T-043 is `UX_SPEC` **A-08**, not A-07, and T-044 is **A-06 and
-A-07**, not A-05 and A-06. Corrected in `BUILD_PLAN` with a note.
+**T-043 and T-044 were built on 25 Nov 2026** (Yogesh): the AI Ops page
+(`/admin/ai`, A-08) with a monthly budget that degrades the gateway, and the
+clinical-content and topic-lexicon editors (A-06, A-07). Two things changed
+underneath them that are worth knowing: **failed and fallback model calls now
+write `llm_calls` rows** (rule below), and **the lexicon editor exports a
+migration instead of saving**, because the engine scores from `topics.py`.
+**Stripe is deferred past the end-of-November demo** (Vraj, 24 Nov), so T-041
+and T-042 are not being built before it.
 
 **The gap with no task: the anonymous trial cannot use `/v1`.** Every
 consultation endpoint is `@require_auth`, while `UX_SPEC` S-09/S-10 say
@@ -322,6 +325,17 @@ turns against a draft. The admin Playtest route logs and records nothing;
 rather than letting a CheckViolation abort a transaction opened for work that
 mattered more.
 
+**A failed or fallback call writes an `llm_calls` row, at $0 (T-043).**
+The gateway attaches a `status='failed'` `LLMCall` to the exception it
+raises (`gateway.failed_call(e)`), and rule-based feedback returns a
+`status='fallback'` one, so the AI Ops page's error and fallback rates have
+denominators. Before T-043 neither wrote anything and both rates read 0 %.
+Neither row is an event, so the rule below still holds. **The monthly budget
+is injected, not imported**: `create_app` registers `infra/budget.py`'s check
+with `gateway.set_budget_guard`, because `infra.llm` may not reach the
+database. At 100 % of `LLM_MONTHLY_BUDGET_USD` every purpose drops to
+`pricing.cheapest_model()`; a failing check fails open.
+
 **A failed LLM call must not consume the question.** The question event is
 appended only AFTER the reply returns, which is the opposite of orthodox
 event sourcing and deliberate twice over: `UX_SPEC` S-10 needs the typed
@@ -356,10 +370,22 @@ and `--down-revision` and refuse to overwrite without `--force`.
 migration 017 seeded. 027, 029 and 031 added thirteen more, plus five
 investigations that did not exist (colonoscopy, FIT, HLA-B27 and two imaging
 keys). **Every remaining case
-needs new topics, so each is two migrations, not one** — and T-044, the
-lexicon editor that would make this a screen instead, is Phase 4.
-A topic added to `topics.py` without a migration leaves the database
-disagreeing with the code, and `tests/db/test_seed.py` is what says so.
+needs new topics, so each is two migrations, not one** — and since T-044 the
+second one is generated: `/admin/content/lexicon` lets an author propose
+topics and phrases, test questions against the result, and export the
+migration **plus** the `TOPIC_KEYWORDS` entries to commit together. It never
+writes the lexicon itself, because the engine reads `topics.py` and a saved
+phrase would change nothing but the copy. A topic added to `topics.py`
+without a migration leaves the database disagreeing with the code, and
+`tests/db/test_seed.py` is what says so. Run `build_golden.py` before
+committing an export: a lexicon change re-scores every replayed session.
+
+**The master lists are different: the A-06 editor writes the database
+directly**, because `/v1` reads `examinations`/`investigations` at request
+time. So a live database can now hold items `cases.py` does not, and that is
+expected: `cases.py` is the seed for a fresh database. Keys are never
+renamed and rows never deleted (migration 036 grants no DELETE), only
+retired with `is_active = false`.
 
 **An error code lives in three places and is compared in all three.**
 `nidan/api/errors.py` holds `CATALOGUE` as data, `API_CONTRACT` §10 holds

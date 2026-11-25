@@ -15,8 +15,9 @@ already received.
 
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
-from typing import Final
+from typing import Any, Final
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -106,6 +107,93 @@ class LlmCallRepository(Repository):
             "calls_today": row["calls_today"],
             "cost_today": Decimal(row["cost_today"]),
             "not_ok": row["not_ok"],
+        }
+
+    # ── the AI Ops page (T-043, `UX_SPEC` A-08) ─────────────────────────
+    #
+    # Everything below reads `llm_calls` and nothing else, which is what lets
+    # it run under `current_admin()` with no new policy: the table has no RLS.
+    # `sessions` does, and an admin scope sees almost none of it, so "cost
+    # per completed session" is computed from the feedback rows rather than
+    # from `sessions.status`. Every completed `/v1` session writes exactly one
+    # feedback row (`ok`, `retried` or, since T-043, `fallback`).
+
+    # A latency is only a latency of an answer. `failed` rows carry the time
+    # spent failing, and `fallback` rows built without a call carry 0. Either
+    # would drag a percentile towards a number no learner waited for.
+    _ANSWERED = "status IN ('ok', 'retried')"
+
+    def month_spend(self) -> Decimal:
+        """This UTC calendar month's spend: the budget's numerator."""
+        return Decimal(self._conn.execute(sa.text("""
+            SELECT COALESCE(sum(cost_usd), 0) FROM llm_calls
+             WHERE created_at >= date_trunc('month', now() AT TIME ZONE 'UTC')
+                                 AT TIME ZONE 'UTC'
+        """)).scalar_one())
+
+    def usage(self, since: datetime) -> list[dict[str, Any]]:
+        """One row per purpose and model since `since`, most expensive first."""
+        rows = self._conn.execute(sa.text(f"""
+            SELECT purpose, model,
+                   count(*)                                    AS calls,
+                   COALESCE(sum(prompt_tokens), 0)             AS prompt_tokens,
+                   COALESCE(sum(output_tokens), 0)             AS output_tokens,
+                   COALESCE(sum(cost_usd), 0)                  AS cost,
+                   percentile_cont(0.5) WITHIN GROUP (ORDER BY latency_ms)
+                     FILTER (WHERE {self._ANSWERED})           AS p50_ms,
+                   percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)
+                     FILTER (WHERE {self._ANSWERED})           AS p95_ms,
+                   count(*) FILTER (WHERE status = 'retried')  AS retried,
+                   count(*) FILTER (WHERE status = 'failed')   AS failed,
+                   count(*) FILTER (WHERE status = 'fallback') AS fallback
+              FROM llm_calls
+             WHERE created_at >= :since
+          GROUP BY purpose, model
+          ORDER BY cost DESC, calls DESC
+        """), {"since": since}).mappings().all()
+        return [{**r, "cost": Decimal(r["cost"])} for r in rows]
+
+    def overview(self, since: datetime) -> dict[str, Any]:
+        """
+        The four headline figures since `since` (`UX_SPEC` A-08).
+
+        `cost_per_completed` sums **every** call of each session whose
+        feedback row falls in the window, patient turns included, because
+        the unit economic is what a whole consultation cost. A session whose
+        patient turns started before the window still counts in full. It is
+        None when nothing completed, rather than $0, which would read as free.
+        """
+        row = self._conn.execute(sa.text(f"""
+            WITH w AS (SELECT * FROM llm_calls WHERE created_at >= :since),
+                 done AS (SELECT DISTINCT session_id FROM w
+                           WHERE purpose = 'feedback' AND session_id IS NOT NULL)
+            SELECT
+              (SELECT COALESCE(sum(cost_usd), 0) FROM w)                 AS cost,
+              (SELECT count(*) FROM w)                                   AS calls,
+              (SELECT count(*) FROM w WHERE status = 'failed')           AS failed,
+              (SELECT count(*) FROM w WHERE purpose = 'feedback')        AS feedback,
+              (SELECT count(*) FROM w WHERE purpose = 'feedback'
+                                        AND status = 'fallback')         AS fallback,
+              (SELECT count(*) FROM w WHERE purpose = 'patient'
+                                        AND {self._ANSWERED})            AS replies,
+              (SELECT percentile_cont(0.95) WITHIN GROUP (ORDER BY latency_ms)
+                 FROM w WHERE purpose = 'patient' AND {self._ANSWERED})  AS patient_p95_ms,
+              (SELECT count(*) FROM done)                                AS completed,
+              (SELECT COALESCE(sum(c.cost_usd), 0) FROM llm_calls c
+                 JOIN done d ON d.session_id = c.session_id)             AS completed_cost
+        """), {"since": since}).mappings().one()
+        completed = row["completed"]
+        return {
+            "cost": Decimal(row["cost"]),
+            "calls": row["calls"],
+            "failed": row["failed"],
+            "feedback": row["feedback"],
+            "fallback": row["fallback"],
+            "replies": row["replies"],
+            "patient_p95_ms": row["patient_p95_ms"],
+            "completed": completed,
+            "cost_per_completed": (Decimal(row["completed_cost"]) / completed
+                                   if completed else None),
         }
 
     def record_call(self, call, *, session_id: UUID | None = None) -> None:

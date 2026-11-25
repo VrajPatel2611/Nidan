@@ -1,0 +1,30 @@
+{# The tester's answer. Uses lexicon_tools.matches, the engine's own rule. #}
+{% if test %}
+<dl style="display: grid; grid-template-columns: 160px 1fr; gap: 8px 12px; font-size: 14px; margin: 12px 0 0;">
+  <dt class="muted">Matches in {{ test.topic }}</dt>
+  <dd style="margin: 0;">
+    {% if test.hits %}{% for p in test.hits %}<code style="margin-right: 6px;">{{ p }}</code>{% endfor %}{% else %}none{% endif %}
+  </dd>
+  <dt class="muted">Result</dt>
+  <dd style="margin: 0; font-weight: 700; color: {{ '#4ade80' if test.covered else '#fbbf24' }};">
+    {{ 'COVERED' if test.covered else 'NOT COVERED' }}
+    {% if test.changed %}
+      <span class="muted" style="font-weight: 400;">
+        (today: {{ 'covered' if test.covered_now else 'not covered' }}; your proposal changes what this question matches)
+      </span>
+    {% endif %}
+  </dd>
+  <dt class="muted">Other topics</dt>
+  <dd style="margin: 0;">
+    {% for t, ps in test.others.items() %}<div><code>{{ t }}</code> <span class="muted">via “{{ ps|join('”, “') }}”</span></div>{% else %}none{% endfor %}
+  </dd>
+</dl>
+{% if not test.covered %}
+<p class="muted" style="font-size: 13px; margin: 10px 0 0;">
+  → No phrase in this topic appears in the question. If it should count, add the words that carry
+  the meaning as a phrase above, then test again.
+</p>
+{% endif %}
+{% else %}
+<p class="muted" style="font-size: 13px; margin: 12px 0 0;">Type a question a learner might ask to see which topics it covers.</p>
+{% endif %}

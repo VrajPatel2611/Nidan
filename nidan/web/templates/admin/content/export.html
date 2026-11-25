@@ -1,0 +1,39 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Export lexicon change — Nidan Admin{% endblock %}
+
+{% macro carry() -%}
+  {% for name, value in proposal.encode() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+{%- endmacro %}
+
+{% block content %}
+<h1 style="font-size: 24px; font-weight: 700; margin: 0 0 16px;">Export lexicon change</h1>
+
+<div class="notice notice-amber" role="note">
+  <strong>Scoring has not changed yet.</strong> Both files below go in <strong>one commit</strong>:
+  <code>tests/db/test_seed.py</code> fails if the migration lands without the <code>topics.py</code> change, or the other way round.
+  Before committing, run <code>python scripts/build_golden.py</code> and read which pilot learners' coverage moved.
+  A lexicon change re-scores every replayed consultation.
+</div>
+
+<div class="card">
+  <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
+    <span>1 · <code>migrations/versions/{{ filename }}</code> <span class="muted" style="font-weight: 400;">revises {{ head }}</span></span>
+    <form method="post" action="/admin/content/lexicon/export.py">
+      {{ carry() }}
+      <button class="btn-admin" type="submit">Download</button>
+    </form>
+  </div>
+  <pre style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 14px; font-size: 12px; max-height: 360px; overflow: auto; margin: 0;"><code>{{ source }}</code></pre>
+</div>
+
+<div class="card">
+  <div class="card-title">2 · <code>nidan/domain/assessment/topics.py</code>, in <code>TOPIC_KEYWORDS</code></div>
+  <pre style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 14px; font-size: 12px; max-height: 360px; overflow: auto; margin: 0;"><code>{{ patch }}</code></pre>
+</div>
+
+<form method="post" action="/admin/content/lexicon">
+  {{ carry() }}<input type="hidden" name="action" value="select">
+  <button class="btn-quiet" type="submit">← Back to the proposal</button>
+</form>
+{% endblock %}

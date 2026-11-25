@@ -373,13 +373,18 @@ def test_generating_the_feedback_records_its_own_call(
     assert counts.get("patient") == 3, "one row per question asked"
 
 
-def test_a_rule_based_fallback_records_no_call(
+def test_a_rule_based_fallback_records_a_free_fallback_row(
         client, account, started, fake_llm, live_db, monkeypatch):
     """
-    No model was reached, so there is nothing to bill. The fallback is the one
-    path where `FeedbackResult.call` is None, and the handler must read that
-    as "nothing to record" rather than writing a zero-cost row that would make
-    an outage look like free feedback.
+    No model answered, so nothing is billed, but the fallback is recorded
+    (T-043). It used to write nothing, and that left `TECH_SPEC` §10.1's
+    feedback fallback rate with no denominator: the AI Ops page could not
+    show the one rate it alerts on above 5 %.
+
+    The worry this test used to guard against, an outage looking like free
+    feedback, is handled by the status rather than by absence. The row is
+    `status='fallback'` at $0, the page reports fallbacks as a rate in their
+    own right, and spend is unchanged.
 
     Concluded inline rather than through the `concluded` fixture, because the
     prose is generated when the diagnosis is submitted and stored in
@@ -408,8 +413,12 @@ def test_a_rule_based_fallback_records_no_call(
         counts = dict(c.execute(sa.text(
             "SELECT purpose, count(*) FROM llm_calls WHERE session_id = :sid "
             "GROUP BY purpose"), {"sid": sid}).all())
+        feedback = c.execute(sa.text(
+            "SELECT status, cost_usd FROM llm_calls WHERE session_id = :sid "
+            "AND purpose = 'feedback'"), {"sid": sid}).one()
 
-    assert "feedback" not in counts
+    assert counts.get("feedback") == 1
+    assert feedback.status == "fallback" and float(feedback.cost_usd) == 0.0
     assert counts.get("patient") == 3, (
         "the three patient turns did happen and must still be accounted")
 

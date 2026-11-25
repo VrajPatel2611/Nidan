@@ -66,10 +66,12 @@ def create_app(config: dict | None = None) -> Flask:
     app.register_blueprint(web_bp)
     from nidan.web.admin import bp as admin_bp
     from nidan.web.admin.cases import cases_bp
+    from nidan.web.admin.content import content_bp
     from nidan.web.admin.playtest import playtest_bp
     from nidan.web.admin.reviews import reviews_bp
     app.register_blueprint(admin_bp)
     app.register_blueprint(cases_bp)
+    app.register_blueprint(content_bp)
     app.register_blueprint(playtest_bp)
     app.register_blueprint(reviews_bp)
     # The JSON API (T-014). Mounted at /v1 to match openapi.yaml's
@@ -77,6 +79,13 @@ def create_app(config: dict | None = None) -> Flask:
     # root until T-030 replaces them.
     app.register_blueprint(v1_bp, url_prefix="/v1")
     register_v1_errors(app)
+
+    # T-043. The gateway may not read the database, so the "is this month's
+    # budget spent?" check is handed to it here. Imported inside the factory
+    # like the blueprints above, so importing `nidan.app` stays cheap.
+    from nidan.infra import budget
+    from nidan.infra.llm import gateway
+    gateway.set_budget_guard(budget.exhausted)
     return app
 
 

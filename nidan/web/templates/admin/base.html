@@ -190,6 +190,29 @@
       text-decoration: none;
       display: inline-block;
     }
+    .btn-quiet {
+      background: #1e293b; color: #cbd5e1; border: 1px solid #334155;
+      border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+      text-decoration: none; display: inline-block;
+    }
+    .btn-quiet:hover { border-color: #475569; }
+    .admin-input, .admin-select, .admin-textarea {
+      background: #0f172a; color: #f8fafc; border: 1px solid #334155;
+      border-radius: 6px; padding: 8px 10px; font-size: 14px; font-family: inherit;
+    }
+    .admin-input:focus, .admin-select:focus, .admin-textarea:focus {
+      outline: 2px solid #0284c7; outline-offset: 1px;
+    }
+    .notice { border-radius: 6px; padding: 12px 14px; font-size: 14px; margin-bottom: 16px; }
+    .notice-amber { background: #451a03; border: 1px solid #92400e; color: #fde68a; }
+    .notice-red   { background: #450a0a; border: 1px solid #991b1b; color: #fecaca; }
+    .notice-blue  { background: #082f49; border: 1px solid #075985; color: #bae6fd; }
+    .notice-green { background: #052e16; border: 1px solid #166534; color: #bbf7d0; }
+    .muted { color: #94a3b8; }
+    .tag { font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+    .tag-new { background: #064e3b; color: #6ee7b7; }
+    .tag-gone { background: #450a0a; color: #fca5a5; }
+    .tag-dead { background: #422006; color: #fcd34d; }
     .btn-admin:hover {
       background-color: #0369a1;
     }
@@ -205,7 +228,7 @@
     <nav class="admin-topnav">
       <a href="/admin" class="{% if active_nav == 'cases' %}active{% endif %}">Cases</a>
       <a href="/admin/content" class="{% if active_nav == 'content' %}active{% endif %}">Content</a>
-      <a href="/admin/ops" class="{% if active_nav == 'ops' %}active{% endif %}">AI Ops</a>
+      <a href="/admin/ai" class="{% if active_nav == 'ops' %}active{% endif %}">AI Ops</a>
       <a href="/admin/users" class="{% if active_nav == 'users' %}active{% endif %}">Users</a>
       <a href="/admin/system" class="{% if active_nav == 'system' %}active{% endif %}">System</a>
     </nav>
@@ -229,12 +252,14 @@
       {% elif active_nav == 'content' %}
         <div class="sidebar-section-title">Clinical Content</div>
         <nav class="sidebar-nav">
-          <a href="/admin/content" class="active">Examinations & Tests</a>
+          <a href="/admin/content/examinations" class="{% if active_section == 'examinations' %}active{% endif %}">Examinations</a>
+          <a href="/admin/content/investigations" class="{% if active_section == 'investigations' %}active{% endif %}">Investigations</a>
+          <a href="/admin/content/lexicon" class="{% if active_section == 'lexicon' %}active{% endif %}">Topic lexicon</a>
         </nav>
       {% elif active_nav == 'ops' %}
         <div class="sidebar-section-title">AI Operations</div>
         <nav class="sidebar-nav">
-          <a href="/admin/ops" class="{% if active_section == 'ops' %}active{% endif %}">LLM Metrics</a>
+          <a href="/admin/ai" class="{% if active_section == 'ops' %}active{% endif %}">LLM metrics</a>
           <a href="/admin/leakage" class="{% if active_section == 'leakage' %}active{% endif %}">Persona leakage</a>
         </nav>
       {% elif active_nav == 'users' %}
