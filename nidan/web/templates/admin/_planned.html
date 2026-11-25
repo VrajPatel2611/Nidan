@@ -1,0 +1,45 @@
+{# A screen that is in the navigation but not built yet.
+
+   It exists because the four shells — Content, AI Ops, Users, System — each
+   rendered a title and a one-line description and nothing else, which reads
+   as a broken page rather than an unbuilt one. On a projector that is the
+   difference between "not done yet" and "done badly", and the console cannot
+   explain itself.
+
+   Takes `task` (e.g. "T-043", or none), `spec` (the UX_SPEC screen), `owner`,
+   `estimate`, and `items` — a list of what the screen will show. Say what is
+   true: where there is no task, the note says so rather than inventing one.
+#}
+<div class="card" style="border-left: 3px solid #475569;">
+  <div class="card-title" style="display: flex; align-items: center; gap: 10px;">
+    <span style="font-size: 11px; letter-spacing: .08em; text-transform: uppercase;
+                 color: #0f172a; background: #94a3b8; border-radius: 4px;
+                 padding: 2px 7px;">Not built yet</span>
+    <span>{{ spec }}</span>
+  </div>
+
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 14px;">
+    {% if task %}
+      Scheduled as <strong>{{ task }}</strong>{% if estimate %}, {{ estimate }}{% endif %}{% if owner %}, owned by {{ owner }}{% endif %}.
+    {% else %}
+      <strong>This screen has no task.</strong> It is specified, but nothing in
+      <code>BUILD_PLAN</code> builds it — so it needs an owner before it is
+      counted as planned work.
+    {% endif %}
+  </p>
+
+  {% if items %}
+    <p style="color: #94a3b8; font-size: 13px; margin: 0 0 6px;">What it will show:</p>
+    <ul style="margin: 0 0 14px; padding-left: 20px; color: #cbd5e1; font-size: 13px;">
+      {% for item in items %}<li style="margin-bottom: 3px;">{{ item }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+
+  <p style="color: #64748b; font-size: 12px; margin: 0;">
+    Nothing on this page is wired to the database. The figures that <em>are</em>
+    real live on the <a href="/admin" style="color: #38bdf8; text-decoration: none;">Dashboard</a>,
+    the <a href="/admin/cases" style="color: #38bdf8; text-decoration: none;">Case bank</a>,
+    the <a href="/admin/reviews" style="color: #38bdf8; text-decoration: none;">Review queue</a>
+    and the <a href="/admin/leakage" style="color: #38bdf8; text-decoration: none;">Leakage queue</a>.
+  </p>
+</div>

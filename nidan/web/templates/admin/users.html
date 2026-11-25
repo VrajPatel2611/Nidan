@@ -3,12 +3,38 @@
 {% block title %}Users & Support — Nidan Admin{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Users & Support</h1>
+<div style="margin-bottom: 24px;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Users &amp; Support</h1>
 </div>
 
+{# A-09 is specified in UX_SPEC §12.10 and NO task in BUILD_PLAN builds it.
+   That is not an oversight in this template — it is the state of the plan,
+   and `task` is deliberately left unset so the note says so. #}
+{% with task  = none,
+        spec  = "UX_SPEC A-09 users and support",
+        items = [
+          "Learner profiles, and the platform roles granted to them",
+          "Support access requests",
+          "Whatever visibility of a learner's sessions an administrator is agreed to need",
+        ] %}
+  {% include "admin/_planned.html" %}
+{% endwith %}
+
 <div class="card">
-  <div class="card-title">Learners & Trainees Management</div>
-  <p style="color: #94a3b8; font-size: 14px;">Manage user profiles, platform roles, and support access requests.</p>
+  <div class="card-title">The decision this screen has to make first</div>
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0;">
+    <strong>An administrator cannot currently read a learner's sessions, by
+    policy.</strong> <code>sessions</code> has row-level security on and
+    <code>own_sessions</code> carries no <code>TO</code> clause, so it binds
+    <code>nidan_admin</code> like everyone else; migration 034 opened exactly
+    two keyholes, both keyed on a leakage flag — an admin may read a session
+    <em>because it carries a flag</em>, and only the one event the flag points
+    at. Not the learner's questions.
+  </p>
+  <p style="color: #94a3b8; font-size: 13px; margin: 10px 0 0;">
+    So "show me this user's sessions" is a product and privacy decision before
+    it is a screen, and this is where it should be argued — not widened
+    quietly in a migration to make some other page work.
+  </p>
 </div>
 {% endblock %}

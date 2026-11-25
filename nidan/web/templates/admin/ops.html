@@ -3,12 +3,37 @@
 {% block title %}AI Ops — Nidan Admin{% endblock %}
 
 {% block content %}
-<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">AI Operations & Telemetry</h1>
+<div style="margin-bottom: 24px;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">AI Operations &amp; Telemetry</h1>
 </div>
 
+{% with task  = "T-043 · AI usage and cost dashboard",
+        spec  = "UX_SPEC A-08 AI operations · TECH_SPEC §10.1",
+        owner = "Yogesh",
+        estimate = "2 d",
+        items = [
+          "Spend today and this month against budget; cost per completed session",
+          "Tokens, latency p50/p95, and error rates by model",
+          "A budget alert at 80%, and automatic degradation to the cheapest model at 100%",
+        ] %}
+  {% include "admin/_planned.html" %}
+{% endwith %}
+
 <div class="card">
-  <div class="card-title">LLM Gateway Metrics & Persona Leakage Queue</div>
-  <p style="color: #94a3b8; font-size: 14px;">Monitor LLM token usage, cost per session, and unreviewed persona leakage flags.</p>
+  <div class="card-title">Two figures this screen will not be able to show</div>
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0 0 10px;">
+    <strong>The feedback fallback rate has no denominator.</strong> When the
+    rule-based fallback runs, nothing was billed, so no <code>llm_calls</code>
+    row is written. The rate cannot be computed from the data that exists —
+    recording the fallback is a prerequisite, not a query.
+  </p>
+  <p style="color: #cbd5e1; font-size: 14px; margin: 0;">
+    <strong>Per-session cost needs a decision first.</strong>
+    <code>llm_calls</code> has no RLS, but <code>sessions</code> does, and an
+    admin scope cannot read a learner's sessions — <code>own_sessions</code>
+    has no <code>TO</code> clause, so it binds <code>nidan_admin</code> too.
+    Joining the two from this console returns <em>empty</em> rather than
+    erroring. Widening that is A-09's question to ask, not this screen's.
+  </p>
 </div>
 {% endblock %}

@@ -234,11 +234,28 @@ audience. The dip in that chart is the bad run, and it is worth pointing at.
    review. That is **migration 007's database trigger**, not a convention — it
    cannot be bypassed from the application at all.
 
-### Four screens to skip
+### Four screens you can now click
 
-**Content**, **AI Ops**, **Users** and **System** are shells. They are
-`UX_SPEC` A-06, A-07, A-08 — Phase 4, Yogesh's next two tasks (T-043, T-044).
-If asked, that is the answer; do not click them for effect.
+**Content**, **AI Ops**, **Users** and **System** are not built, but each one
+now says so and says what it will show, so a stray click lands on a roadmap
+rather than on what looks like a broken page.
+
+| screen | spec | task |
+|---|---|---|
+| Content | A-06 clinical content · A-07 topic lexicon | T-044, 3 d, Yogesh |
+| AI Ops | A-08 AI operations | T-043, 2 d, Yogesh |
+| Users | A-09 users and support | **none — specified, unowned** |
+| System | not in `UX_SPEC` §12 at all | **none** |
+
+The last two are worth a sentence if sir asks what is left: A-09 is written
+up and nobody is building it, and the System tab was never specified. Saying
+that is better than implying a plan that does not exist, which is why the
+screens say it themselves rather than relying on you to remember.
+
+Each also carries one true constraint worth reading aloud if the moment
+comes — why the feedback fallback rate has no denominator, why an admin
+cannot read a learner's sessions, why the lexicon being full makes every
+remaining case two migrations.
 
 ---
 
