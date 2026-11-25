@@ -1,0 +1,69 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ meta.title }} — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0;">{{ meta.title }} <span class="muted" style="font-weight: 400;">({{ total }})</span></h1>
+  <a class="btn-admin" href="/admin/content/{{ table }}/new">+ Add {{ meta.singular }}</a>
+</div>
+
+{% if flash %}
+  {% set verb, key = flash.split(':', 1) if ':' in flash else (flash, '') %}
+  <div class="notice notice-green" role="status"><code>{{ key }}</code> {{ verb }}.</div>
+{% endif %}
+
+<p class="muted" style="font-size: 14px; margin: 0 0 16px;">
+  Every learner sees this menu on every case. Which items matter is set by the
+  case and never by this list, so the list cannot give the answer away.
+  Items are retired, never deleted, because stored consultations refer to their keys.
+</p>
+
+<form method="get" style="display: flex; gap: 10px; margin-bottom: 16px; align-items: center;">
+  <label class="muted" style="font-size: 13px;">Group
+    <select name="group" class="admin-select" onchange="this.form.submit()">
+      <option value="">All</option>
+      {% for g in groups %}<option value="{{ g }}" {% if g == group %}selected{% endif %}>{{ g }}</option>{% endfor %}
+    </select>
+  </label>
+  <label class="muted" style="font-size: 13px;">Active
+    <select name="active" class="admin-select" onchange="this.form.submit()">
+      <option value="">All</option>
+      <option value="yes" {% if active == 'yes' %}selected{% endif %}>Active</option>
+      <option value="no" {% if active == 'no' %}selected{% endif %}>Retired</option>
+    </select>
+  </label>
+  <input type="search" name="q" value="{{ q }}" placeholder="Search key or label" class="admin-input" aria-label="Search key or label" style="width: 240px;">
+  <button class="btn-quiet" type="submit">Filter</button>
+</form>
+
+<div class="card" style="padding: 0;">
+  <table class="data-table">
+    <thead>
+      <tr><th>Key</th><th>Label</th><th>Group</th><th>Active</th><th>Used by</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr {% if not r.is_active %}style="opacity: .55;"{% endif %}>
+        <td><code>{{ r.key }}</code></td>
+        <td>{{ r.label }}</td>
+        <td class="muted">{{ r.group_name }}</td>
+        <td>{{ '✓' if r.is_active else 'Retired' }}</td>
+        <td>{{ r.used_by }} case{{ '' if r.used_by == 1 else 's' }}</td>
+        <td style="text-align: right; white-space: nowrap;">
+          <a class="btn-quiet" href="/admin/content/{{ table }}/{{ r.key }}/edit">Edit</a>
+          <form method="post" action="/admin/content/{{ table }}/{{ r.key }}/active" style="display: inline;"
+                {% if r.is_active and r.used_by %}onsubmit="return confirm('Removes it from the menu. {{ r.used_by }} case{{ '' if r.used_by == 1 else 's' }} reference it; their stored results are unaffected.')"{% endif %}>
+            <input type="hidden" name="active" value="{{ '0' if r.is_active else '1' }}">
+            <input type="hidden" name="confirm" value="1">
+            <button class="btn-quiet" type="submit">{{ 'Retire' if r.is_active else 'Restore' }}</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Nothing matches these filters.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

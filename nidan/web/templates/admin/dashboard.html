@@ -61,7 +61,7 @@
       {% if spend.not_ok %}
       <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
         <span>· {{ spend.not_ok }} of {{ spend.calls }} model call{{ '' if spend.calls == 1 else 's' }} did not return <code>ok</code></span>
-        <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
+        <a href="/admin/ai" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
       </li>
       {% endif %}
       {% if not awaiting_review and not unreviewed_leakage and not spend.not_ok %}

@@ -234,28 +234,33 @@ audience. The dip in that chart is the bad run, and it is worth pointing at.
    review. That is **migration 007's database trigger**, not a convention — it
    cannot be bypassed from the application at all.
 
-### Four screens you can now click
+### The rest of the console
 
-**Content**, **AI Ops**, **Users** and **System** are not built, but each one
-now says so and says what it will show, so a stray click lands on a roadmap
-rather than on what looks like a broken page.
+**Content** and **AI Ops** are real screens now — Yogesh merged T-044 and
+T-043 on 25 Nov, the same day this sheet first called them shells. Both are
+worth showing:
+
+- **AI Ops** (`/admin/ai`; `/admin/ops` redirects there) — spend by window,
+  cost per completed session, p95 patient latency, error and fallback rates,
+  a per-model table and the monthly budget. Every figure is read from
+  `llm_calls` and `leakage_flags`. A figure with no denominator shows **—**,
+  never 0, which is the same rule that emptied two cards on A-01.
+- **Content** (`/admin/content`) — add, edit and retire examinations and
+  investigations, plus the lexicon editor with a live match tester. Note it
+  **exports a migration rather than saving the lexicon**, because scoring
+  reads `topics.py`; the master lists *do* write the database, because `/v1`
+  reads those tables live.
+
+Two screens are still unbuilt, and each now says so rather than looking
+broken:
 
 | screen | spec | task |
 |---|---|---|
-| Content | A-06 clinical content · A-07 topic lexicon | T-044, 3 d, Yogesh |
-| AI Ops | A-08 AI operations | T-043, 2 d, Yogesh |
 | Users | A-09 users and support | **none — specified, unowned** |
 | System | not in `UX_SPEC` §12 at all | **none** |
 
-The last two are worth a sentence if sir asks what is left: A-09 is written
-up and nobody is building it, and the System tab was never specified. Saying
-that is better than implying a plan that does not exist, which is why the
-screens say it themselves rather than relying on you to remember.
-
-Each also carries one true constraint worth reading aloud if the moment
-comes — why the feedback fallback rate has no denominator, why an admin
-cannot read a learner's sessions, why the lexicon being full makes every
-remaining case two migrations.
+Worth a sentence if sir asks what is left: A-09 is written up and nobody is
+building it, and the System tab was never specified.
 
 ---
 

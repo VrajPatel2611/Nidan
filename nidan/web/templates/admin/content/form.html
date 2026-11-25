@@ -1,0 +1,74 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{{ 'Edit' if item else 'Add' }} {{ meta.singular }} — Nidan Admin{% endblock %}
+
+{% block content %}
+<div style="margin-bottom: 20px;">
+  <a href="/admin/content/{{ table }}" class="muted" style="font-size: 13px; text-decoration: none;">← {{ meta.title }}</a>
+  <h1 style="font-size: 24px; font-weight: 700; margin: 6px 0 0;">
+    {% if item %}Edit <code>{{ item.key }}</code>{% else %}Add {{ meta.singular }}{% endif %}
+  </h1>
+</div>
+
+{% if errors %}
+<div class="notice notice-red" role="alert">
+  {% for e in errors %}<div>{{ e }}</div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" action="/admin/content/{{ table }}{% if item %}/{{ item.key }}{% endif %}" class="card" style="max-width: 720px;">
+  <div style="display: grid; grid-template-columns: 140px 1fr; gap: 14px 16px; align-items: start;">
+    <label for="key" style="padding-top: 8px;">Key</label>
+    <div>
+      {% if item %}
+        <code id="key" style="display: inline-block; padding-top: 8px;">{{ item.key }}</code>
+        <div class="muted" style="font-size: 12px; margin-top: 4px;">Keys cannot change: stored consultations refer to them.</div>
+      {% else %}
+        <input id="key" name="key" class="admin-input" style="width: 100%;" required
+               pattern="[a-z][a-z0-9_]{2,47}" value="{{ values.key or '' }}" placeholder="troponin_hs">
+        <div class="muted" style="font-size: 12px; margin-top: 4px;">Lowercase letters, digits and underscores. Cannot be changed once added.</div>
+      {% endif %}
+    </div>
+
+    <label for="label" style="padding-top: 8px;">Label</label>
+    <input id="label" name="label" class="admin-input" required value="{{ values.label or '' }}" placeholder="High-sensitivity troponin">
+
+    <label for="group_name" style="padding-top: 8px;">Group</label>
+    <div>
+      <input id="group_name" name="group_name" class="admin-input" style="width: 100%;" required list="groups" value="{{ values.group_name or '' }}">
+      <datalist id="groups">{% for g in groups %}<option value="{{ g }}">{% endfor %}</datalist>
+    </div>
+
+    <label for="normal_result" style="padding-top: 8px;">Normal result</label>
+    <div>
+      <textarea id="normal_result" name="normal_result" class="admin-textarea" rows="4" style="width: 100%;" required>{{ values.normal_result or '' }}</textarea>
+      <div class="muted" style="font-size: 12px; margin-top: 4px;">
+        What a learner sees when they order this on a case that does not set its own result.
+        {% if item %}Changing it affects future consultations only. Past ones keep the result they were shown.{% endif %}
+      </div>
+    </div>
+
+    {% if table == 'investigations' %}
+    <label for="reference_range" style="padding-top: 8px;">Reference range</label>
+    <input id="reference_range" name="reference_range" class="admin-input" value="{{ values.reference_range or '' }}" placeholder="0–14 ng/L">
+    {% endif %}
+  </div>
+
+  {% if not item %}
+  {# UX_SPEC A-06 / BUILD_PLAN T-044 criterion 2. The menu is identical on
+     every case (PRD FR-6.1); an item obviously relevant to one case leaks
+     that case's diagnosis, so the warning says it plainly. #}
+  <div class="notice notice-amber" role="note" style="margin: 20px 0 0;">
+    <strong>⚠ This appears on every case immediately.</strong><br>
+    No existing case returns an abnormal result for it: all {{ case_count }}
+    current case{{ '' if case_count == 1 else 's' }} will return the normal result above.
+    If it is obviously relevant to one case, it may hint at that diagnosis.
+  </div>
+  {% endif %}
+
+  <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+    <a class="btn-quiet" href="/admin/content/{{ table }}">Cancel</a>
+    <button class="btn-admin" type="submit">{{ 'Save changes' if item else 'Add ' ~ meta.singular }}</button>
+  </div>
+</form>
+{% endblock %}

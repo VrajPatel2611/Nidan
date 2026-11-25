@@ -15,7 +15,7 @@ from nidan.domain.feedback import (
     build_fallback_feedback,
     build_feedback_prompt,
 )
-from nidan.infra.llm.gateway import LLMCall, call_llm
+from nidan.infra.llm.gateway import LLMCall, call_llm, failed_call, fallback_call
 from nidan.infra.telemetry.logging import get_logger
 
 logger = get_logger(__name__)
@@ -39,7 +39,9 @@ class FeedbackResult(NamedTuple):
     # Passed through rather than recorded here: this module is on the same
     # import-linter restriction as the gateway — `nidan.infra.feedback` may
     # not reach `nidan.infra.db.engine` — so it cannot write the row either.
-    # None on the fallback path, where no call completed.
+    # On the fallback path it is a `status='fallback'` row (T-043), so the
+    # fallback rate has a denominator. None only from callers that build a
+    # result by hand.
     call: LLMCall | None = None
 
 
@@ -90,13 +92,18 @@ def generate_feedback_with_source(bias_results, clinical_eval, session,
                  if len(line.strip()) > 10]
         if lines:
             return FeedbackResult(lines[:5], "llm", result.call)
-        # empty response → fall through to rule-based
+        # empty response → fall through to rule-based, keeping what it cost
+        attempted = result.call
     except Exception as e:
         # Structured, not `print`. The fallback fires silently by design, so
         # without a collected log the only record of how often the model was
         # unavailable was a line in a stream nothing reads (T-007).
         logger.warning("feedback.llm_failed", extra={"error": str(e)[:120]})
+        attempted = failed_call(e)
 
+    # A `fallback` row, never None (T-043). The rule-based prose used to leave
+    # no trace in `llm_calls`, so the feedback fallback rate had no
+    # denominator and could not be shown, and `TECH_SPEC` §10.1 alerts on it.
     return FeedbackResult(
         build_fallback_feedback(detected_biases, clinical_eval, case_config),
-        "rule_fallback")
+        "rule_fallback", fallback_call("feedback", attempted))

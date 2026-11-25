@@ -30,7 +30,8 @@ from __future__ import annotations
 import os
 import random
 import time
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 from decimal import Decimal
 from typing import Final
 
@@ -113,6 +114,71 @@ def _backoff_seconds(attempt: int) -> float:
     return base * (1 + random.uniform(-_JITTER_FRACTION, _JITTER_FRACTION))
 
 
+# ── the monthly budget (T-043, `TECH_SPEC` §5.1) ────────────────────────
+#
+# The gateway cannot read `llm_calls` to know what the month has cost: the
+# import-linter contract keeps `nidan.infra.llm` away from the database. So
+# the knowledge is injected. `create_app` registers `infra/budget.py`'s
+# check here, and the gateway only asks a yes/no question of it. Unset (unit
+# tests, scripts, `test_api.py`), nothing ever degrades.
+_budget_exhausted: Callable[[], bool] | None = None
+
+
+def set_budget_guard(check: Callable[[], bool] | None) -> None:
+    """Register the "is this month's budget spent?" check, or clear it."""
+    global _budget_exhausted
+    _budget_exhausted = check
+
+
+def _over_budget() -> bool:
+    """
+    Whether to degrade. **Fails open**: if the check itself raises (the
+    database is down, say) the call goes ahead on the configured model.
+    Refusing to answer a learner because cost accounting is unavailable
+    would turn a reporting outage into a teaching outage.
+    """
+    if _budget_exhausted is None:
+        return False
+    try:
+        return bool(_budget_exhausted())
+    except Exception as e:                       # pragma: no cover — logged
+        logger.warning("llm.budget_check_failed", extra={"error": str(e)[:120]})
+        return False
+
+
+def failed_call(exc: BaseException) -> LLMCall | None:
+    """
+    The `LLMCall` describing a call that failed, if the gateway made one.
+
+    Attached to the raised exception by `call_llm` after its retries are
+    exhausted, so a caller that already catches `Exception` to degrade can
+    still record the failure (T-043 criterion 2's error rate). None for
+    `CircuitOpen`, because no call was made and there is nothing to count.
+    """
+    return getattr(exc, "llm_call", None)
+
+
+def fallback_call(purpose: str, failed: LLMCall | None = None) -> LLMCall:
+    """
+    The row for "the model gave nothing usable, so a rule-based fallback
+    answered" (`status='fallback'`, which migration 015 always allowed and
+    nothing wrote until T-043).
+
+    Built from the failed call when there was one, so its model, latency and
+    any tokens it was billed for are kept. Built from configuration when the
+    breaker refused before calling: then no tokens were spent, but a fallback
+    was still served, and leaving it out would understate the fallback rate
+    on exactly the days the provider was down.
+    """
+    if failed is not None:
+        return replace(failed, status="fallback")
+    from nidan.config import settings
+    return LLMCall(purpose=purpose, provider=settings.LLM_PROVIDER,
+                   model=_model_for(purpose), prompt_tokens=0, output_tokens=0,
+                   cost_usd=Decimal("0"), latency_ms=0, status="fallback",
+                   attempt=0)
+
+
 def call_llm(messages, system_instruction, *, purpose="patient",
              max_tokens=200, temperature=0.7, max_retries=3) -> LLMResult:
     """
@@ -138,6 +204,14 @@ def call_llm(messages, system_instruction, *, purpose="patient",
     """
     payload = [{"role": "system", "content": system_instruction}] + list(messages)
     model = _model_for(purpose)
+    if _over_budget():
+        cheapest = pricing.cheapest_model()
+        if cheapest != model:
+            # Logged on every call, not once: a degraded month should be loud
+            # in the logs as well as on the AI Ops page (`UX_SPEC` A-08).
+            logger.warning("llm.budget_degraded", extra={
+                "purpose": purpose, "configured": model, "using": cheapest})
+            model = cheapest
     client = provider.for_name()
 
     # Before the loop, deliberately. Raised inside it, `CircuitOpen` would be
@@ -215,6 +289,18 @@ def call_llm(messages, system_instruction, *, purpose="patient",
                 # too — an invalid key will fail every call, and stopping is
                 # exactly right.
                 breaker.record_failure(key)
+                # So the caller can record it (`failed_call`). Zero tokens and
+                # zero cost: the provider returned no usage, and an invented
+                # figure would be worse than an admitted zero beside
+                # status='failed'.
+                try:
+                    e.llm_call = LLMCall(  # type: ignore[attr-defined]
+                        purpose=purpose, provider=client.name, model=model,
+                        prompt_tokens=0, output_tokens=0, cost_usd=Decimal("0"),
+                        latency_ms=int((time.monotonic() - started) * 1000),
+                        status="failed", attempt=attempt + 1)
+                except AttributeError:            # pragma: no cover — slotted
+                    pass
                 logger.error("llm.call_failed", extra={
                     "purpose": purpose, "model": model,
                     "attempt": attempt + 1, "transient": transient,

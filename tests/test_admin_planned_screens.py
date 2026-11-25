@@ -27,15 +27,23 @@ import pytest
 TEMPLATES = pathlib.Path("nidan/web/templates/admin")
 BUILD_PLAN = pathlib.Path("docs/spec/BUILD_PLAN.md")
 
-# The four screens in the nav that nothing builds yet, and whether each is
+# The screens in the nav that nothing builds yet, and whether each is
 # allowed to name a task. Users (A-09) is specified with no task; System is
 # not in UX_SPEC at all. Both must say so rather than imply a plan.
-PLANNED = {
-    "content.html": "T-044",
-    "ops.html": "T-043",
+#
+# Content and AI Ops were in this map for about an hour on 2026-11-25 and
+# came straight back out: T-044 and T-043 were merged the same day, so those
+# two screens are real now. That is the churn this map is meant to absorb —
+# a screen leaves it by being built, and `test_a_built_screen_is_not_still
+# _advertised_as_planned` is what stops one being left behind.
+PLANNED: dict[str, str | None] = {
     "users.html": None,
     "system.html": None,
 }
+
+# Screens that WERE planned and are now built. Each must no longer carry the
+# note, or the console tells an examiner a working page does not exist.
+BUILT = ("ops.html",)
 
 
 def _source(name: str) -> str:
@@ -76,18 +84,43 @@ def test_every_task_a_planned_screen_names_exists_in_the_build_plan() -> None:
     """
     A task number on one of these screens must be a real task.
 
-    This is the one that bites: BUILD_PLAN's own screen references for
-    T-043 and T-044 were off by one until 24 Nov 2026 and nothing caught it,
-    because no test compared a claim about the plan with the plan.
+    No screen names one today — both remaining ones are unowned — so this
+    passes vacuously and is here for the next screen that does. It is worth
+    keeping: BUILD_PLAN's own screen references for T-043 and T-044 were off
+    by one until 24 Nov 2026 and nothing caught it, because nothing compared
+    a claim about the plan with the plan.
     """
     plan = BUILD_PLAN.read_text(encoding="utf-8")
-    named = {t for t in PLANNED.values() if t}
-    assert named, "nothing to check — did PLANNED lose its tasks?"
-    for task in sorted(named):
+    for task in sorted({t for t in PLANNED.values() if t}):
         assert re.search(rf"\*\*{re.escape(task)} ·", plan), (
             f"the admin console names {task}, which BUILD_PLAN does not "
             f"define. Either the task was renumbered or the screen is stale."
         )
+
+
+@pytest.mark.parametrize("name", BUILT)
+def test_a_built_screen_is_not_still_advertised_as_planned(name: str) -> None:
+    """
+    The failure this prevents is the one that nearly shipped.
+
+    Content and AI Ops carried a "not built yet" note for an hour on
+    2026-11-25 while T-043 and T-044 were being merged on the other laptop.
+    A console that tells an examiner a working page does not exist is worse
+    than one that says nothing, because it is confidently wrong.
+    """
+    path = TEMPLATES / name
+    if not path.exists():      # a screen may become a directory, as content did
+        return
+    assert 'include "admin/_planned.html"' not in path.read_text(encoding="utf-8"), (
+        f"{name} is built but still carries the 'not built yet' note."
+    )
+
+
+def test_a_built_screen_is_not_still_listed_as_planned() -> None:
+    """PLANNED and BUILT must not disagree with each other."""
+    assert not set(PLANNED) & set(BUILT), (
+        f"{sorted(set(PLANNED) & set(BUILT))} is in both maps."
+    )
 
 
 def test_the_shared_note_renders_both_ways() -> None:
