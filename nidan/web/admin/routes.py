@@ -22,15 +22,46 @@ bp = Blueprint("admin", __name__, url_prefix="/admin")
 @bp.get("/")
 @require_admin
 def dashboard():
-    """Admin dashboard (A-01)."""
-    with repo_scope(current_actor()) as db:
+    """
+    Admin dashboard (A-01).
+
+    **Every figure on this screen is read from the database.** It did not
+    start that way: "142 sessions today", "118 completed", "$1.84 LLM cost",
+    "3 cases awaiting clinical review", "6.2% feedback fallback rate" and
+    "10 published · 2 drafts · 0 retired" were literals in the template, and
+    the first four of them were wrong by an order of magnitude against the
+    data underneath. T-040 had already replaced an invented leakage rate here
+    for the reason that applies to all of them: a hardcoded figure reads as a
+    real backlog nobody can find, and as silence on the day there is one.
+
+    Two of the old cards could not be replaced, and are gone rather than
+    approximated:
+
+    * **sessions today / completed.** `sessions` has RLS on, and the only
+      policies are `own_sessions` and migration 034's
+      `flagged_sessions_are_visible_to_admins` — so an admin scope sees its
+      own sessions plus the ones a leakage flag points at, and nothing else.
+      Counting them would report a number that is correct SQL and a false
+      statement about usage. Admin visibility of learners' sessions is
+      `UX_SPEC` A-09's to ask for, with the policy that goes with it; it is
+      not something this screen should acquire by widening 034.
+    * **feedback fallback rate.** The rule-based fallback writes no
+      `llm_calls` row at all — `FeedbackResult.call` is `None` because
+      nothing was billed — so the denominator for that rate does not exist in
+      the database. `spend()["not_ok"]` counts the calls that were made and
+      did not succeed, which is a different and true thing.
+
+    Runs as `current_admin()`, not `current_actor()`: the draft count needs
+    `admin_manages_case_versions`, and under `nidan_app` only published
+    versions are visible, so the panel would report every draft as absent.
+    """
+    with repo_scope(current_admin()) as db:
         recent_audits = db.audit.recent(limit=10)
         profile = db.profiles.get()
-        # T-040. This was the literal `2` until the queue existed, and a
-        # hardcoded "needs attention" figure is worse than an empty panel:
-        # it reads as a real backlog nobody can find, and as silence on the
-        # day there IS one.
         leakage = db.leakage.unreviewed_count()
+        content = db.cases.bank_counts()
+        spend = db.llm_calls.spend()
+        awaiting_review = len(db.reviews.pending())
 
     user_email = (profile.get("display_name") if profile else None) or "admin@nidan.internal"
 
@@ -42,6 +73,9 @@ def dashboard():
         recent_audits=recent_audits,
         unreviewed_leakage=leakage["low"] + leakage["high"],
         unreviewed_leakage_high=leakage["high"],
+        content=content,
+        spend=spend,
+        awaiting_review=awaiting_review,
     )
 
 

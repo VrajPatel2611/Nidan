@@ -7,19 +7,22 @@
   <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">Admin Dashboard</h1>
 </div>
 
-<!-- Today Stats -->
+{# Every figure below is read from the database. The route's docstring says
+   what used to stand here, which two cards could not be replaced with a true
+   number, and why approximating them would have been worse than removing
+   them. Do not reintroduce a literal into this grid. #}
 <div class="stats-grid">
   <div class="stat-card">
-    <div class="stat-value">142</div>
-    <div class="stat-label">sessions today</div>
+    <div class="stat-value">{{ content.published }}</div>
+    <div class="stat-label">published cases</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">118</div>
-    <div class="stat-label">completed</div>
+    <div class="stat-value">{{ content.draft + content.in_review }}</div>
+    <div class="stat-label">drafts not yet approved</div>
   </div>
   <div class="stat-card">
-    <div class="stat-value">$1.84</div>
-    <div class="stat-label">LLM cost</div>
+    <div class="stat-value">${{ '%.4f'|format(spend.cost) }}</div>
+    <div class="stat-label">LLM spend · {{ spend.calls }} call{{ '' if spend.calls == 1 else 's' }}</div>
   </div>
   {# The 0.9% that stood here was invented. A leakage RATE needs flags per
      reply over a window, which T-043's metrics page computes; until then
@@ -35,30 +38,50 @@
   <div class="card">
     <div class="card-title">Needs Attention</div>
     <ul style="list-style: none; padding: 0; margin: 0; color: #cbd5e1; font-size: 14px;">
+      {# Each line is conditional for the reason T-040 gave for the leakage
+         one: a "nothing to do" row in a Needs Attention panel trains an
+         administrator to skim past the rows that matter. #}
+      {% if awaiting_review %}
       <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
-        <span>· 3 cases awaiting clinical review</span>
+        <span>· {{ awaiting_review }} case{{ '' if awaiting_review == 1 else 's' }} assigned for clinical review, not yet approved</span>
         <a href="/admin/reviews" style="color: #38bdf8; text-decoration: none;">Review queue →</a>
       </li>
-      {# T-040: a real count. Absent rather than "0 unreviewed" when the
-         queue is empty — a nothing-to-do line in a "Needs Attention" panel
-         trains an administrator to skim past the ones that matter. #}
+      {% endif %}
       {% if unreviewed_leakage %}
       <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
         <span>· {{ unreviewed_leakage }} leakage flag{{ '' if unreviewed_leakage == 1 else 's' }} unreviewed{% if unreviewed_leakage_high %} ({{ unreviewed_leakage_high }} high){% endif %}</span>
         <a href="/admin/leakage" style="color: #38bdf8; text-decoration: none;">Leakage queue →</a>
       </li>
       {% endif %}
-      <li style="padding: 10px 0; display: flex; justify-content: space-between;">
-        <span>· Feedback fallback rate 6.2% (alert &gt; 5%)</span>
+      {# "Feedback fallback rate 6.2% (alert > 5%)" stood here and was a
+         literal. The rule-based fallback writes no `llm_calls` row — nothing
+         was billed — so that rate has no denominator in the database. The
+         calls that were made and did not succeed are a different, true
+         thing, and that is what this reports. #}
+      {% if spend.not_ok %}
+      <li style="padding: 10px 0; border-bottom: 1px solid #334155; display: flex; justify-content: space-between;">
+        <span>· {{ spend.not_ok }} of {{ spend.calls }} model call{{ '' if spend.calls == 1 else 's' }} did not return <code>ok</code></span>
         <a href="/admin/ops" style="color: #38bdf8; text-decoration: none;">AI Ops →</a>
       </li>
+      {% endif %}
+      {% if not awaiting_review and not unreviewed_leakage and not spend.not_ok %}
+      <li style="padding: 10px 0; color: #94a3b8;">Nothing is waiting.</li>
+      {% endif %}
     </ul>
   </div>
 
   <div class="card">
     <div class="card-title">Content Summary</div>
     <p style="color: #cbd5e1; font-size: 15px; margin-bottom: 16px;">
-      <strong>10</strong> published cases &nbsp;·&nbsp; <strong>2</strong> drafts &nbsp;·&nbsp; <strong>0</strong> retired
+      <strong>{{ content.published }}</strong> published
+      &nbsp;·&nbsp; <strong>{{ content.draft }}</strong> draft{{ '' if content.draft == 1 else 's' }}
+      &nbsp;·&nbsp; <strong>{{ content.in_review }}</strong> in review
+      &nbsp;·&nbsp; <strong>{{ content.retired }}</strong> retired
+    </p>
+    <p style="color: #94a3b8; font-size: 13px; margin-bottom: 16px;">
+      Counted by the latest version of each case, as the case bank lists them.
+      No case reaches <em>published</em> without an approving clinical review —
+      migration 007's trigger, not a convention.
     </p>
     <a href="/admin/cases" class="btn-admin">Go to Case bank</a>
   </div>
@@ -93,15 +116,12 @@
   {% else %}
     <p style="color: #94a3b8; font-size: 14px; margin: 0;">No audit log records recorded yet.</p>
   {% endif %}
-
-  <!-- Quick Test Form to write audit log via HTMX/POST -->
-  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid #334155;">
-    <form hx-post="/admin/audit-action" hx-target="#audit-status" style="display: flex; gap: 12px; align-items: center;">
-      <input type="text" name="action" value="case_version.published" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
-      <input type="text" name="reason" value="clinician approved" style="background: #0f172a; border: 1px solid #334155; color: #fff; padding: 6px 12px; border-radius: 4px; font-size: 13px;">
-      <button type="submit" class="btn-admin" style="padding: 6px 12px; font-size: 13px;">Test Audit Record</button>
-    </form>
-    <div id="audit-status" style="margin-top: 8px; font-size: 13px; color: #38bdf8;"></div>
-  </div>
+  {# A "Test Audit Record" form stood here, prefilled with
+     `case_version.published` / "clinician approved". It wrote a real,
+     undeletable row into the table that is the evidence for the launch gate —
+     `audit_log` refuses DELETE and UPDATE to the owner — and it claimed a
+     clinician had approved something. A developer probe does not belong on
+     the screen an administrator reads; `POST /admin/audit-action` still
+     exists for the tests that drive it. #}
 </div>
 {% endblock %}

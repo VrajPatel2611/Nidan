@@ -260,3 +260,163 @@ def test_stale_updated_at_refused_concurrent_edit(client, authority):
 
     assert res.status_code == 409
     assert res.get_json()["error"] == "concurrent_edit"
+
+
+# ── 6. The scaffold a new case starts from ───────────────────────────
+
+class TestTheNewCaseScaffold:
+    """
+    `POST /admin/cases/new` seeds a template and redirects into the editor.
+    Whatever is in that template is the first thing an author ever sees, so
+    it has to be valid -- and it was not.
+    """
+
+    @staticmethod
+    def _scaffold() -> dict:
+        """
+        The literal `initial_content` from the route, without calling it.
+
+        Read out of the module's AST rather than copied, because a copy would
+        go stale the moment someone edits the route and the test would then
+        be checking a case that no longer exists.
+        """
+        import ast
+        import pathlib
+
+        import nidan.web.admin.cases.routes as mod
+
+        tree = ast.parse(pathlib.Path(mod.__file__).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Assign)
+                    and getattr(node.targets[0], "id", None) == "initial_content"):
+                # `request.form.get(...)` is not a literal, so substitute the
+                # default each one falls back to.
+                class Defaults(ast.NodeTransformer):
+                    def visit_Call(self, call):
+                        if (isinstance(call.func, ast.Attribute)
+                                and call.func.attr == "strip"):
+                            inner = call.func.value
+                            if (isinstance(inner, ast.Call)
+                                    and len(inner.args) == 2):
+                                return inner.args[1]
+                        return self.generic_visit(call)
+                return ast.literal_eval(
+                    ast.fix_missing_locations(Defaults().visit(node.value)))
+        raise AssertionError("initial_content not found in the route")
+
+    def test_a_brand_new_case_opens_with_no_validation_warnings(self):
+        """
+        `aggravating_factors` stood in `required_topics` and is not in the
+        lexicon, so the editor opened every new case with a C-3 warning
+        already on it -- the one screen whose job is to teach an author what
+        valid looks like, teaching the opposite on the first screen.
+        """
+        from nidan.web.admin.cases.routes import (
+            _get_master_lists,
+            _validate_invariants,
+        )
+        result = _validate_invariants(self._scaffold(), _get_master_lists())
+        assert result["warnings"] == []
+
+    def test_a_brand_new_case_is_saveable_and_publishable_as_seeded(self):
+        """
+        Not the same claim as the one above: `can_save` is C-4 alone, and
+        `can_publish` adds C-5, C-6 and C-7. A scaffold that cannot reach
+        either is a scaffold an author has to repair before they can learn
+        anything from it.
+        """
+        from nidan.web.admin.cases.routes import (
+            _get_master_lists,
+            _validate_invariants,
+        )
+        result = _validate_invariants(self._scaffold(), _get_master_lists())
+        assert result["can_save"], result
+        assert result["can_publish"], result["publish_blocked_reasons"]
+
+    def test_every_seeded_topic_examination_and_test_key_is_real(self):
+        """
+        The general form, stated against the master lists directly, so a new
+        key added to the scaffold later is checked even if `_validate_invariants`
+        is refactored out from under the tests above.
+        """
+        from nidan.domain.assessment.topics import TOPIC_KEYWORDS
+        from nidan.domain.content.cases import (
+            MASTER_EXAMINATIONS,
+            MASTER_INVESTIGATIONS,
+        )
+        content = self._scaffold()
+        assert set(content["required_topics"]) <= set(TOPIC_KEYWORDS)
+        assert set(content.get("examination", {})) <= set(MASTER_EXAMINATIONS)
+        assert set(content.get("investigations", {})) <= set(MASTER_INVESTIGATIONS)
+
+
+# ── 7. The Save button and the validation panel agree ────────────────
+
+class TestTheSaveButtonTracksValidation:
+    """
+    The panel is swapped by HTMX on every keystroke; `#save-btn` lives in the
+    page header, outside the swap, so it kept whatever state the server
+    rendered at page load. The panel would say "Save Blocked" beside a button
+    that still worked -- and clicking it POSTed the form, got a correct 400,
+    and replaced the whole editor with the raw JSON refusal. The guard was
+    right and the author lost every unsaved edit.
+
+    `_validation.html` now carries `data-can-save`, and a listener in
+    `editor.html` toggles the button on `htmx:afterSwap`. These tests pin the
+    attribute, because it is the contract between the two files and nothing
+    else would fail if it were dropped.
+    """
+
+    @staticmethod
+    def _render(content: dict) -> str:
+        from nidan.app import create_app
+        from nidan.web.admin.cases.routes import (
+            _get_master_lists,
+            _validate_invariants,
+        )
+        app = create_app({"TESTING": True})
+        with app.test_request_context():
+            from flask import render_template
+            return render_template(
+                "admin/cases/_validation.html",
+                validation=_validate_invariants(content, _get_master_lists()),
+                case={"id": uuid4(), "case_id": uuid4(), "status": "draft"},
+            )
+
+    BASE = {
+        "anchor_keywords": ["mi", "cardiac"],
+        "contradictory_clues": [["burning"], ["antacids"], ["pleuritic"], ["normal ecg"]],
+        "accepted_diagnoses": ["A", "B"],
+        "required_topics": [],
+        "examination": {},
+        "investigations": {"ecg": {"category": "key"}},
+    }
+
+    def test_a_clean_case_marks_the_panel_saveable(self):
+        html = self._render(dict(self.BASE))
+        assert 'data-can-save="true"' in html
+        assert "Save Valid" in html
+
+    def test_a_c4_collision_marks_the_panel_blocked(self):
+        content = dict(self.BASE, anchor_keywords=["mi", "burning"])
+        html = self._render(content)
+        assert 'data-can-save="false"' in html
+        assert "Save Blocked" in html
+
+    def test_the_editor_has_a_listener_that_reads_the_attribute(self):
+        """
+        Asserted against the template source, because the attribute is only
+        useful if something consumes it and a renderer test cannot see the
+        browser. Names both halves of the contract so that deleting either
+        one fails here.
+        """
+        import pathlib
+
+        import nidan.web.admin.cases.routes as mod
+
+        editor = (pathlib.Path(mod.__file__).parent.parent.parent
+                  / "templates" / "admin" / "cases" / "editor.html")
+        source = editor.read_text(encoding="utf-8")
+        assert "htmx:afterSwap" in source
+        assert "dataset.canSave" in source
+        assert 'id="save-btn"' in source

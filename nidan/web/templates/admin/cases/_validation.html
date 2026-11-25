@@ -1,5 +1,14 @@
 <!-- Validation Sidebar Component (A-03, C-1...C-7) -->
-<div id="validation-panel" class="card" style="position: sticky; top: 20px;">
+{# `data-can-save` is what keeps the Save Draft button in step with this
+   panel. The button sits outside the swapped fragment -- it is in the page
+   header -- so the HTMX swap that turns this panel red could not reach it,
+   and for a while the panel said "Save Blocked" beside a button that still
+   worked. Clicking it POSTed the form, the server refused with a correct 400,
+   and the browser replaced the whole editor with raw JSON: the refusal was
+   right and the author lost everything they had typed. See the listener at
+   the foot of `editor.html`. #}
+<div id="validation-panel" class="card" style="position: sticky; top: 20px;"
+     data-can-save="{{ 'true' if validation.is_c4_valid else 'false' }}">
   <div class="card-title" style="display: flex; justify-content: space-between; align-items: center;">
     <span>Validation Status</span>
     {% if validation.is_c4_valid %}

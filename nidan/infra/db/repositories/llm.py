@@ -72,6 +72,42 @@ class LlmCallRepository(Repository):
                "output_tokens": output_tokens, "cost": cost_usd,
                "latency": latency_ms, "status": status, "attempt": attempt})
 
+    def spend(self) -> dict[str, object]:
+        """
+        What the models have cost — today and in total.
+
+        `llm_calls` carries no RLS policy and `nidan_admin` holds SELECT, so
+        unlike `sessions` this really is readable from an admin scope. That
+        asymmetry is deliberate and is why the dashboard can show a true cost
+        and cannot show a true session count: a cost is an aggregate over
+        something the platform spent, and a session belongs to a learner.
+
+        `status` is counted separately because a `failed` or `fallback` call
+        still cost tokens on some providers but tells a different story from
+        an `ok` one, and a single "LLM cost" figure that hid a run of
+        failures would be the kind of number that looks healthy while
+        something is wrong.
+        """
+        row = self._conn.execute(sa.text("""
+            SELECT count(*)                                   AS calls,
+                   COALESCE(sum(cost_usd), 0)                 AS cost,
+                   count(*) FILTER (
+                     WHERE created_at >= date_trunc('day', now()))
+                                                              AS calls_today,
+                   COALESCE(sum(cost_usd) FILTER (
+                     WHERE created_at >= date_trunc('day', now())), 0)
+                                                              AS cost_today,
+                   count(*) FILTER (WHERE status <> 'ok')     AS not_ok
+            FROM llm_calls
+        """)).mappings().one()
+        return {
+            "calls": row["calls"],
+            "cost": Decimal(row["cost"]),
+            "calls_today": row["calls_today"],
+            "cost_today": Decimal(row["cost_today"]),
+            "not_ok": row["not_ok"],
+        }
+
     def record_call(self, call, *, session_id: UUID | None = None) -> None:
         """
         Convenience for a gateway `LLMCall`, read field by field.

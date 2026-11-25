@@ -75,12 +75,59 @@ def test_a_second_users_session_is_invisible(app_db, make_account, published_cas
 
 
 def test_a_second_users_profile_is_invisible(app_db, make_account):
+    """
+    Asserted against `profiles` directly, not through `db.profiles.get()`.
+
+    `get()` names `WHERE id = :me` since migration 024 made privileged
+    profiles mutually visible, so going through it would pass whether or not
+    `own_profile` does anything at all. The policy is a property of the
+    database and this is the test that says it still bites.
+    """
+    import sqlalchemy as sa
     alice, bob = _user(app_db, make_account), _user(app_db, make_account)
 
-    with repo_scope(AuthenticatedUser(alice)) as db:
-        assert db.profiles.get()["id"] == alice
-    with repo_scope(AuthenticatedUser(bob)) as db:
-        assert db.profiles.get()["id"] == bob
+    for who in (alice, bob):
+        with repo_scope(AuthenticatedUser(who)) as db:
+            visible = [r[0] for r in db.conn.execute(
+                sa.text("SELECT id FROM profiles"))]
+            assert visible == [who]
+            assert db.profiles.get()["id"] == who
+
+
+def test_an_admin_reading_its_own_profile_does_not_get_another_admins(
+        app_db, make_account):
+    """
+    The bug this guards was visible on every screen of the console: the
+    header greeted whoever signed in by the name of a different
+    administrator, because migration 024's
+    `privileged_profiles_are_mutually_visible` is OR'd with `own_profile`
+    and `.first()` took an arbitrary row.
+
+    Two admins and a reviewer, because the policy covers both roles and a
+    test with one of each would pass on an implementation that filtered by
+    `platform_role` instead of by id.
+    """
+    import sqlalchemy as sa
+
+    from nidan.infra.db.actor import AdminUser, ReviewerUser
+
+    one, two = _user(app_db, make_account), _user(app_db, make_account)
+    three = _user(app_db, make_account)
+    with app_db.begin() as conn:
+        for uid, role in ((one, "admin"), (two, "admin"), (three, "reviewer")):
+            conn.execute(sa.text(
+                "UPDATE profiles SET platform_role = :r, display_name = :n "
+                "WHERE id = :id"),
+                {"r": role, "n": f"{role}-{uid}", "id": uid})
+
+    for uid, actor in ((one, AdminUser(one)), (two, AdminUser(two)),
+                       (three, ReviewerUser(three))):
+        with repo_scope(actor) as db:
+            # The policy really is wide -- this is what `get()` had to be
+            # protected from, not a hypothetical.
+            assert len(db.conn.execute(
+                sa.text("SELECT id FROM profiles")).all()) == 3
+            assert db.profiles.get()["id"] == uid
 
 
 def test_a_second_user_cannot_touch_someone_elses_session(

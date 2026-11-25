@@ -1,11 +1,24 @@
 """
 Profiles (BUILD_PLAN T-012).
 
-Thin on purpose. The interesting property is not in any method here -- it is
-that none of them says `WHERE id = :user_id`. The `own_profile` policy from
-migration 016 does that, and leaving it out of the SQL is what makes these
-tests meaningful: if the policy were inert, `get()` would return the first
-profile in the table and the test would say so immediately.
+Thin on purpose. Every method here leans on migration 016's `own_profile`
+policy to mean "mine" -- except `get()`, which no longer can, and the reason
+is worth knowing before adding a method that does.
+
+`own_profile` is `USING (id = auth.uid())` with no `TO` clause, so for
+`nidan_app` it really does scope a bare `SELECT ... FROM profiles` to one
+row. **Migration 024 then added `privileged_profiles_are_mutually_visible`,
+`TO nidan_admin, nidan_reviewer`**, because a reviewer has to see who else is
+reviewing. Policies are OR'd. So under an admin or reviewer scope the same
+bare SELECT returns every admin and every reviewer, and `.first()` picks an
+arbitrary one -- which is how the console came to greet whoever signs in by
+the name of a different administrator.
+
+The authorization path was never affected: `require_role` reads the profile
+inside `repo_scope(current_actor())`, and `current_actor()` returns a plain
+`AuthenticatedUser` even for an administrator, so the role it checks is the
+signed-in person's own. Only the screens that then re-read the profile under
+a privileged scope saw the wrong row.
 """
 
 from __future__ import annotations
@@ -42,9 +55,17 @@ class ProfileRepository(Repository):
         """
         The actor's own profile, unless it has been erased.
 
-        Deliberately unfiltered by id -- see the module docstring. The one
-        `WHERE` is `deleted_at IS NULL`, and it is the exception that proves
-        the rule: RLS can say "yours", but it cannot say "still exists".
+        Filtered by id **and** by `deleted_at IS NULL`, and both filters earn
+        their place for different reasons.
+
+        The id is there because `own_profile` stopped being the whole story
+        at migration 024 -- see the module docstring. It is belt and braces
+        for `nidan_app`, where RLS already says "yours", and it is the only
+        thing that says "yours" for `nidan_admin` and `nidan_reviewer`. The
+        test that `own_profile` still bites therefore queries `profiles`
+        directly rather than through this method, which is where that
+        assertion belongs anyway: a policy is a property of the database, not
+        of one repository method.
 
         **An erased account keeps a valid token until Supabase deletes the
         credential** (`ADR-0002`: we do not own `auth.users`, so that is an
@@ -62,8 +83,8 @@ class ProfileRepository(Repository):
                    subscription_ends, onboarded_at, consent_research,
                    platform_role
             FROM profiles
-            WHERE deleted_at IS NULL
-        """)).mappings().first()
+            WHERE id = :me AND deleted_at IS NULL
+        """), {"me": self._user_id()}).mappings().first()
         return row
 
     def ensure(self, **fields: Any) -> Mapping[str, Any]:
