@@ -130,10 +130,11 @@ through `LOCAL_ADMIN_ACCESS.md`'s table in order.
 4. **Dashboard** — shows the free-tier allowance. Say the line here: *the
    allowance is shown before you start and never during a consultation.*
 5. **Start a consultation** → case preview → begin.
-6. **Ask two or three questions.** Suggested, for the DKA case:
-   - "Have you been unusually thirsty or passing more urine than normal?"
-   - "Have you lost any weight recently?"
-   - "Have you been unwell with anything in the last few weeks?"
+6. **Ask the questions.** The case you get is random among the seven
+   published, so read the patient's name and opening line, then use that
+   patient's set from **The questions to ask** below. They are verified to
+   score 100 % coverage, and the wording is load-bearing — matching is by
+   keyword, not meaning.
 7. **Point at what is missing.** No question counter, no coverage meter, no
    topic hints. *A visible metric teaches the metric, not the skill* (`PRD` P2).
 8. **Order an examination and a test** — these do not consume questions.
@@ -265,6 +266,145 @@ Then put the bank back the way the learner act needs it:
 ```bash
 python scripts/publish_for_demo.py --all
 ```
+
+---
+
+## The questions to ask · verified
+
+Case selection is random among the seven published cases, so **you find out which
+one you have from the patient's name and opening line**. Each set below is eight
+questions that scores **100 % coverage** with the correct diagnosis and **no
+flags** — checked through `assess()` on 25 November 2026, against the published
+version in the database.
+
+Ask them roughly in order. You do not need all eight for the demo — four or five
+is plenty of airtime — but if you want the feedback screen to come out clean,
+ask all eight.
+
+### Aisha Khan, 21 — vomiting and thirst → **Diabetic ketoacidosis**
+
+1. How long has this been going on, and is it getting worse?
+2. Have you been unusually thirsty, and are you passing a lot more urine than normal?
+3. Have you lost any weight recently?
+4. Any tummy pain — and if so, what does it feel like?
+5. Any other symptoms — breathlessness, drowsiness, blurred vision?
+6. Have you been unwell with any infection or illness in the last few weeks?
+7. Are you taking any medication, prescribed or otherwise?
+8. Does anyone in your family have diabetes or a thyroid problem?
+
+### Priya Sharma, 28 — daily headaches for 2 weeks → **Hypertension**
+
+1. How long have the headaches been going on, and is there a pattern to when they come?
+2. Where exactly is the pain, and what does it feel like?
+3. Does the pain spread anywhere — your neck, or behind your eyes?
+4. Any visual symptoms — blurring or flashing lights?
+5. Does anything make it better or worse — stress, caffeine, alcohol, sleep, screen time?
+6. Are you on any medication at all, including the contraceptive pill?
+7. Has your blood pressure ever been checked?
+8. Does anyone in your family have high blood pressure or strokes?
+
+### Meera Patel, 35 — tiredness → **Hypothyroidism**
+
+1. How long have you been feeling this tired, and is your energy worse at a particular time of day?
+2. Has your weight changed at all recently?
+3. Do you feel the cold more than other people?
+4. Any changes to your skin, hair or nails?
+5. How are your bowels — any constipation?
+6. Are your periods regular, and have they changed?
+7. How is your mood — is this low mood, or is it physical tiredness?
+8. Does anyone in your family have a thyroid problem or an autoimmune condition?
+
+### Kavya Menon, 29 — breathless for 2 days → **Pulmonary embolism**
+
+1. When did the breathlessness start, and did it come on suddenly or gradually?
+2. Any chest pain — what does it feel like, sharp or dull — and is it worse when you breathe in?
+3. Any cough, fever, or anything you are bringing up?
+4. Does anything make it better or worse — resting, sitting up?
+5. Any pain, swelling or tenderness in either calf?
+6. Have you travelled recently, or been immobile or in bed for a while?
+7. Are you on the contraceptive pill, or any other medication?
+8. Has anyone in your family had a clot in the leg or the lung?
+
+### Gopal Mehta, 74 — confusion → **UTI causing delirium**
+
+The history comes from a relative, so the questions are in the third person.
+
+1. When did the confusion start, and did it come on over hours or over weeks?
+2. Is it the same all the time, or worse at certain times of day?
+3. Has he had any fever, shivering or sweats?
+4. Any burning when passing urine, or going more often than usual?
+5. Any weakness down one side, slurred speech, or facial drooping?
+6. What medication is he on, and has anything changed recently?
+7. How much has he been drinking — any chance he is dehydrated?
+8. Was his memory and thinking normal before this started?
+
+### Tanvir Ahmed, 26 — low back pain for 10 months → **Axial spondyloarthritis**
+
+1. How long has the back pain been going on, and how did it start?
+2. Is there stiffness in the morning, and how long does it take to loosen up?
+3. Does exercise make it better or worse? What about rest?
+4. Have you tried ibuprofen or an anti-inflammatory — does it help?
+5. Does it wake you in the second half of the night?
+6. Any pain or swelling in other joints, or any eye or bowel symptoms?
+7. Any skin rashes, or patches of psoriasis?
+8. Does anyone in your family have arthritis, psoriasis or a bowel condition?
+
+### Arjun Shah, 10 — cough and wheeze → **Asthma**
+
+A paediatric case, so again the parent is answering.
+
+1. How long has the cough and wheeze been going on?
+2. Is it worse at any particular time — at night, or early morning?
+3. Does running about or exercise bring it on?
+4. What about cold air, or a cat or dust?
+5. Has he had a fever, or seemed unwell in himself?
+6. Has this happened before, or is this the first time?
+7. Is it stopping him doing sport or missing school?
+8. Does anyone in the family have asthma, eczema or hay fever?
+
+### Wording matters more than you would like
+
+Topic matching is **keyword** matching (`topic_matching_mode: "keyword"`, and
+`similarity_threshold` is null — semantic matching is not switched on). So the
+exact words carry the credit, and two of these sets were reworded after they
+measured short:
+
+- "how long are you stiff for when you wake" matched **nothing**. `stiffness`
+  is the keyword, so it had to become "is there **stiffness** in the morning".
+- "what have you tried" / `ibuprofen` / `anti-inflammatory` is a required topic
+  of its own in the back-pain case (`nsaid_response`). Asking "does anything
+  help?" does not earn it.
+
+If you improvise on the day, expect coverage to come out at 75–88 % rather than
+100 %. **That is not a problem** — it is the product working, and a realistic
+screen is a better demo than a perfect one. But do not improvise and then claim
+100 %.
+
+### The deliberately bad run, if you want to show the detectors
+
+This is the stronger demo of the actual IP, and it takes **three** inputs.
+On Aisha Khan (DKA), ask only:
+
+1. Do you think this is food poisoning? Did you eat something bad?
+2. Has anyone else at home had the same stomach bug or vomiting illness?
+
+then submit **"Gastroenteritis"**. Measured output:
+
+| | |
+|---|---|
+| questions | 2 of a minimum 8 |
+| coverage | 25 % — six of eight required topics never asked |
+| diagnosis | `anchored` — it matched the case's own trap, not just "wrong" |
+| flags | premature closure **0.75**, confirmation bias **0.90** |
+
+Both numbers are deterministic Python. Say that out loud, because it is the
+whole argument: the model voiced the patient and wrote the prose, and **the
+model did not decide either of those scores** (`ADR-0005`). And the feedback
+screen will name the learner's own two questions back to them without ever
+using the words "bias", "anchoring" or "premature closure" (`PRD` P1).
+
+Run the good consultation first and the bad one second — the contrast is the
+point, and a 25 % screen on its own just looks broken.
 
 ## If something breaks
 
