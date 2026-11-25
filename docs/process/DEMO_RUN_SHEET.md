@@ -61,6 +61,10 @@ export DATABASE_URL="postgresql://nidan:nidan_local_dev_only@localhost:5433/nida
 alembic upgrade head
 ```
 
+There are **36** migrations now — 036 arrived with T-044 on 25 Nov and grants
+`nidan_admin` the writes the content editor needs. If `/admin/content` throws
+a permission error, this step was skipped.
+
 **4. Publish the cases.** Every case is a draft, and `POST /v1/sessions` answers
 `no_cases_available` until one is published.
 
@@ -81,7 +85,21 @@ in `.env` — see *The allowance* below. Putting it in `.env` turns three tests
 in `tests/db/test_allowance.py` red, because they assert the limit is 3.
 
 ```bash
-FREE_TIER_SESSIONS_PER_MONTH=10 python -m nidan
+FREE_TIER_SESSIONS_PER_MONTH=10 LLM_MONTHLY_BUDGET_USD=5 python -m nidan
+```
+
+`LLM_MONTHLY_BUDGET_USD` gives the AI Ops page a budget bar to draw. At $5
+against about half a cent of real spend there is no chance of hitting the
+100 % degradation line during the demo.
+
+**If you need to restart it, kill it by PID.** `pkill -f "python -m nidan"`
+**silently matches nothing** on this Mac — the executable is capital-`Python`,
+so the pattern never hits, the old process keeps port 8000, and the new one
+dies unable to bind. That cost twenty minutes today: the console was serving
+pre-merge code while every file on disk was current.
+
+```bash
+lsof -nP -iTCP:8000 -sTCP:LISTEN
 ```
 
 **6. The web app — `next start`, never `next dev`.** A dev server on this
@@ -492,6 +510,56 @@ using the words "bias", "anchoring" or "premature closure" (`PRD` P1).
 Run the good consultation first and the bad one second — the contrast is the
 point, and a 25 % screen on its own just looks broken.
 
+## What a full dry run found — 25 Nov, second pass
+
+Everything below was driven in a browser as all three personas, after
+T-043/T-044 merged. **Nothing is broken.** These are the things worth knowing
+because they look wrong for a second.
+
+**Back, after you submit a diagnosis, shows the consultation again.** Next's
+client router serves the cached page, with a stale transcript and a live
+input box, on a session that is finished. Typing into it and pressing Return
+**bounces you straight to the feedback screen** — no error, nothing written,
+no console error, and the event log still shows exactly 8 questions. So it is
+safe; it just looks for a moment as though you can carry on. Press Forward,
+or go to the dashboard.
+
+**Refresh mid-consultation is a feature, not a risk.** A reload restores the
+whole transcript, the examined list and the ticks, with a "Resumed from
+today" banner. That is `ADR-0003` — the event log is the source of truth —
+and it is worth doing on purpose in front of an examiner rather than
+avoiding.
+
+**Double-pressing Return does not double-ask.** Three Returns in a row on one
+question produced one question event and one reply.
+
+**Clicking a finished examination again re-shows its result** and switches to
+the Ordered tab. It does not re-run or duplicate it.
+
+**The persona-leakage card on AI Ops reads about 38 %, in amber.** It is
+alerting above 2 %. That is honest and expected: `domain/leakage.py` is
+deliberately over-sensitive, **nothing is excluded until a human confirms a
+flag**, and none of these are confirmed. If it comes up: *a miss costs the
+validity of every measurement taken through that persona; a false flag costs
+an administrator one click — the asymmetry is the design.* Several of the
+current flags are plainly false, which is the point.
+
+**The real-patient-data guard works and is worth triggering on purpose.** Type
+something like a name plus a hospital number. You get a modal, the question is
+**not sent and not stored** — the event records `{"reason":
+"named_individual"}` and nothing else, and the text appears nowhere in the
+database. Discarding the typed question is the specified behaviour here
+(`UX_SPEC` S-10, `PRD` FR-4), not a bug; preserving the text is the rule for a
+*failed LLM call*, which is a different row of the same table.
+
+**The reviewer boundary holds on the new screens.** As Dr Anita Verma, every
+admin route — including T-043's `/admin/ai` and all of T-044's content and
+lexicon routes, GET **and** POST — returns the same blank 404. Only
+`/admin/reviews` answers. Write probes against the content editor created
+nothing.
+
+---
+
 ## If something breaks
 
 | symptom | cause |
@@ -505,7 +573,10 @@ point, and a 25 % screen on its own just looks broken.
 | `docker compose` says "failed to connect to the docker API" | Docker Desktop is not running. `open -a Docker` |
 | Sign-in sits on "Logging in…" | normal, 5-10 s to Supabase and back. Not stuck |
 | Progress says "Not enough data yet" | that account has fewer than 3 *completed* cases |
-| `monthly_limit_reached` on starting a case | the allowance. Check `FREE_TIER_SESSIONS_PER_MONTH` is still in `.env` |
+| `monthly_limit_reached` on starting a case | the allowance. Relaunch the API with `FREE_TIER_SESSIONS_PER_MONTH=10` |
+| Console shows old behaviour after a code change | `pkill` didn't match. Find the PID with `lsof -nP -iTCP:8000 -sTCP:LISTEN` and `kill` it |
+| `/admin/content` throws a permission error | `alembic upgrade head` — migration 036 was not applied |
+| Back button shows a finished consultation again | cached page; typing bounces you to feedback. Harmless |
 
 ---
 
