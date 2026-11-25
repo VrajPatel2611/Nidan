@@ -101,26 +101,25 @@ credentials. A browser cannot send an `Authorization` header, so the token goes
 in a cookie. **It lasts about an hour**, so do this shortly before, not the
 night before.
 
-Get a token for `demo.admin@example.com` — the password is in
-`logs/demo-accounts.txt`, and `LOCAL_ADMIN_ACCESS.md` §4 has the full command
-that keeps it off the screen and out of shell history:
-
 ```bash
-printf 'email: '; read -r EMAIL; printf 'password: '; read -rs PW; echo; PAYLOAD=$(EMAIL="$EMAIL" PW="$PW" python3 -c 'import os,json;print(json.dumps({"email":os.environ["EMAIL"],"password":os.environ["PW"]}))'); curl -s "$(grep NEXT_PUBLIC_SUPABASE_URL web/.env.local | cut -d= -f2-)/auth/v1/token?grant_type=password" -H "apikey: $(grep NEXT_PUBLIC_SUPABASE_ANON_KEY web/.env.local | cut -d= -f2-)" -H "Content-Type: application/json" -d "$PAYLOAD" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])'
+python scripts/admin_token.py
 ```
 
-Then in the browser, open `http://localhost:8000/admin`, open DevTools →
-Console, and paste `document.cookie = "sb-access-token=<token>; path=/"`,
-then reload.
+It copies a `document.cookie = "..."` line to your clipboard. Open
+`http://localhost:8000/admin`, open DevTools (⌥⌘I) → Console, paste, Return,
+reload.
 
-(`python scripts/seed_demo_accounts.py --show` lists the accounts and their
-uids, but issues no token.)
+For Act 3, the same thing for the clinician:
 
-**If `/admin` shows a blank `{"error":{"code":"not_found"}}`, the token has
-expired.** Every refusal is an identical 404 by design (`UX_SPEC` §12.1), so it
-tells you nothing — work through `LOCAL_ADMIN_ACCESS.md`'s table in order.
+```bash
+python scripts/admin_token.py --reviewer
+```
 
----
+**If `/admin` shows a blank `{"error":{"code":"not_found"}}`, run it again —
+the token has expired.** Every refusal is an identical 404 by design
+(`UX_SPEC` §12.1), so the page cannot tell you which of four things went
+wrong; expiry is the likeliest. If a fresh token does not fix it, work
+through `LOCAL_ADMIN_ACCESS.md`'s table in order.
 
 ## Act 1 · the learner (`localhost:3000`)
 

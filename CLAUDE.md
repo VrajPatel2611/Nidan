@@ -849,6 +849,7 @@ python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
 python scripts/seed_demo_accounts.py       # the four demo accounts, Supabase AND the local stub
+python scripts/admin_token.py              # a token for /admin, copied to the clipboard
 ./scripts/demo_up.sh               # db + migrations + cases + warm LLM + API + web app
 python -m nidan.jobs status        # the account jobs queue — what is outstanding
 python -m nidan.jobs run           # ...and do it (T-038; idempotent)
