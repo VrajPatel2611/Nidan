@@ -59,6 +59,14 @@ alembic upgrade head
 python scripts/publish_for_demo.py --all
 ```
 
+**4b. Stage the clinician's queue.** The step above publishes all ten, which
+leaves Act 3 with nothing to review. This returns three to draft and assigns
+them to Dr Anita Verma — seven stay published for the learner.
+
+```bash
+python scripts/seed_demo_accounts.py --stage-review-queue
+```
+
 **5. The API.**
 
 ```bash
@@ -187,14 +195,77 @@ If asked, that is the answer; do not click them for effect.
 
 ---
 
-## Act 3 · the reviewer (optional)
+## Act 3 · the clinician (`localhost:8000/admin/reviews`)
 
-Sign in as `demo.reviewer@example.com` and repeat the cookie step. The reviewer
-sees **only** `/admin/reviews`; every other admin URL is the same blank 404 an
-anonymous visitor gets. Worth showing — it is a one-line demonstration of
-`current_reviewer()` and the five-actor model.
+This is the act that shows the launch gate working, and it is worth the
+cookie swap. Sign in as **`demo.reviewer@example.com`** — the console will say
+**Dr Anita Verma** — and repeat the cookie step with her token.
 
----
+**Three cases are already assigned to her**, deliberately left as drafts:
+
+- The Chest Pain Trap — *GERD, specifically NSAID-induced · trap: cardiac*
+- The Faint That Was Not a Faint — *severe calcific aortic stenosis · trap: vasovagal faint*
+- The Bleeding That Was Already Explained — *colorectal carcinoma · trap: haemorrhoids*
+
+1. **The queue.** "Assigned to me (3)". Each row carries the real diagnosis
+   and the real trap, so the clinician knows what they are being asked about
+   before they open anything.
+2. **Notice what is missing.** The sidebar has Dashboard and Case bank, but
+   `/admin` and `/admin/cases` return the **same blank 404 an anonymous
+   visitor gets**. A reviewer reads drafts and writes reviews, and nothing
+   else. That is `current_reviewer()` and the five-actor model in one click —
+   worth showing, because it is a security property you can demonstrate
+   rather than assert.
+3. **Open one in Playtest.** The clinician plays the case as a learner would,
+   on the left, with the rubric on the right.
+4. **Scroll to "Case facts · what you are scoring".** The ground truth: the
+   correct diagnosis and every accepted and partial synonym, the trap and its
+   keywords, all six contradictory clues, the required topics, every
+   examination finding and investigation result with the **key** ones marked,
+   and the persona brief behind a disclosure.
+
+   Say the line here: *the rubric asks whether the case is internally
+   consistent and whether it is solvable from the information given, and
+   neither question can be answered from the student view — so the reviewer
+   is shown the case, and the learner never is.* Point at the chest-pain
+   case's serial troponins and normal ECG sitting beside an OGD showing LA
+   Grade B oesophagitis. That is what "internally consistent" means, and a
+   clinician can check it in ten seconds from this panel.
+5. **Score it.** Four dimensions, 1–5. **Approve stays disabled until all
+   four are scored** — and Request changes and Reject both require a comment.
+6. **Approve.** The row leaves "Assigned to me" and appears under Completed
+   with the scores and the comment, attributed and timestamped.
+7. **Switch back to the admin cookie and publish it.** The Publish button is
+   on the same page but **only an admin sees it** — approving and publishing
+   are different acts by different people. It is disabled until an approving
+   review exists.
+8. **The gate itself.** Migration 007's `require_clinical_approval` trigger
+   refuses any flip to `published` without an approving `clinical_reviews`
+   row. It is a database trigger, not application code, so it cannot be
+   bypassed from the app at all — `publish_for_demo.py` goes *through* it by
+   inserting a review, never around it.
+
+### Afterwards, and say this if asked
+
+**Nothing Dr Anita Verma approves counts towards the launch gate.** She is a
+demo account with a plausible name so the console looks like itself on a
+projector, and that is precisely why it has to be said out loud: a
+`clinical_reviews` row signed by a plausible clinician is indistinguishable a
+month later from one a real clinician wrote. The seven already-published
+cases are signed "Demo Fixture (not a clinician)" for the same reason.
+
+One command removes every review any demo account recorded, returning
+published versions to draft first so migration 007 is never violated:
+
+```bash
+python scripts/seed_demo_accounts.py --reset-reviews
+```
+
+Then put the bank back the way the learner act needs it:
+
+```bash
+python scripts/publish_for_demo.py --all
+```
 
 ## If something breaks
 

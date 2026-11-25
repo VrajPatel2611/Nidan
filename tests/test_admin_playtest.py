@@ -307,3 +307,100 @@ def test_a_case_missing_engine_fields_is_named_not_crashed():
             "contradictory_clues": [], "minimum_questions": 7}
     panel = instrumentation.build([], case)
     assert panel["missing"] == ["alternative_topics"]
+
+
+# ── The case-facts panel a reviewer scores against ───────────────────
+
+class TestTheCaseFactsPanel:
+    """
+    `_case_facts.html` shows a reviewer the ground truth: the diagnosis, the
+    trap, the clues, the findings, the results and the persona brief.
+
+    It exists because the rubric asks four questions and two of them —
+    *internal consistency* and *solvability from the information given* —
+    cannot be answered from the student view. A reviewer without it scores
+    whatever they happened to elicit, and two reviewers score different
+    things.
+    """
+
+    @staticmethod
+    def _render(case: dict, *, reviewing: bool) -> str:
+        from flask import render_template
+
+        from nidan.app import create_app
+        app = create_app({"TESTING": True})
+        with app.test_request_context():
+            return render_template("admin/playtest/_case_facts.html",
+                                   case=case, review={"x": 1} if reviewing else None)
+
+    def test_it_shows_the_answer_the_learner_must_never_see(self):
+        from nidan.domain.content.cases import get_case
+        case = get_case("case_1")
+        html = self._render(case, reviewing=True)
+        assert case["correct_diagnosis"] in html
+        assert case["anchor_topic"] in html
+
+    def test_an_examination_renders_its_finding_and_a_test_its_result(self):
+        """
+        The two shapes are different — an examination is
+        `{label, finding, key}` and an investigation is
+        `{label, result, category}` — and reading `result` off an
+        examination is why the panel first drew six findings as six blank
+        rows. Both are asserted, because fixing one and not the other looks
+        identical on a page nobody reads carefully.
+        """
+        from nidan.domain.content.cases import get_case
+        case = get_case("case_1")
+        html = self._render(case, reviewing=True)
+
+        exam = next(iter(case["examination"].values()))
+        assert exam["finding"][:40] in html, "examination finding missing"
+        assert exam["label"] in html
+
+        test = next(iter(case["investigations"].values()))
+        assert test["result"][:40] in html, "investigation result missing"
+        assert test["label"] in html
+
+    def test_every_contradictory_clue_is_listed(self):
+        """
+        A reviewer judging *trap validity* needs all of them. Showing the
+        first few would make a thin case look well-built.
+        """
+        from nidan.domain.content.cases import get_case
+        case = get_case("case_1")
+        html = self._render(case, reviewing=True)
+        for clue_set in case["contradictory_clues"]:
+            assert clue_set[0] in html, clue_set
+
+    def test_the_panel_is_only_included_when_a_reviewer_opened_the_case(self):
+        """
+        Asserted against `index.html`, which is what decides. Playtest
+        without `?review=1` stays a case played blind, which is the right
+        way to feel whether a trap works.
+        """
+        import pathlib
+
+        import nidan.web.admin.playtest.routes as mod
+        index = (pathlib.Path(mod.__file__).parent.parent.parent
+                 / "templates" / "admin" / "playtest" / "index.html")
+        import re
+        source = index.read_text(encoding="utf-8")
+
+        # Walk the if/endif nesting rather than slicing to the first
+        # `{% if review %}` — there are two in this file, and the first
+        # guards a breadcrumb. A slice found that one and failed on a
+        # template that was correct.
+        depth, guarded, found = [], False, False
+        for token in re.finditer(
+                r"{%-?\s*(if|elif|else|endif)\b([^%]*)%}|_case_facts\.html", source):
+            if token.group(0).endswith("_case_facts.html"):
+                found = True
+                guarded = any(depth)
+                break
+            kind, expr = token.group(1), (token.group(2) or "").strip()
+            if kind == "if":
+                depth.append(expr == "review")
+            elif kind == "endif" and depth:
+                depth.pop()
+        assert found, "index.html does not include the case-facts panel at all"
+        assert guarded, "the panel is included outside `{% if review %}`"

@@ -56,6 +56,17 @@ length and this script reuses its guard rather than restating it.
 service_role key, so the script cannot and does not; it prints the dashboard
 path instead. A left-behind cloud user with no local profile is inert.
 
+**`--reset-reviews` exists because the reviewer account has a plausible name.**
+It is called "Dr Anita Verma" so that the console looks like itself in front
+of an audience, and that is exactly the problem: a `clinical_reviews` row
+signed by a plausible clinician is indistinguishable, a month later, from one
+a real clinician wrote. `publish_for_demo.py` solves this by signing its rows
+"Demo Fixture (not a clinician)"; a demo account cannot, because the name is
+on screen. So the honesty lives here instead — one command removes every
+review any demo account recorded, and the run sheet says to use it.
+**Nothing a demo account approves counts towards the ten-reviewed-cases
+launch gate.**
+
 ## The accounts, and why each one
 
 | account    | role     | onboarded | what it is for                          |
@@ -132,7 +143,7 @@ ACCOUNTS = (
             "lands on the dashboard; the spare"),
     Account("admin", "Demo Admin", "admin", True, "physician", None,
             "/admin -- case bank, editor, Playtest, leakage queue"),
-    Account("reviewer", "Dr Demo Reviewer", "reviewer", True, "physician", None,
+    Account("reviewer", "Dr Anita Verma", "reviewer", True, "physician", None,
             "the console as a clinician sees it"),
 )
 
@@ -177,6 +188,17 @@ def looks_like_a_secret_key(key: str) -> bool:
             return False
         return claims.get("role") == "service_role"
     return False
+
+
+def existing_password() -> str | None:
+    """The password from a previous run, if `logs/demo-accounts.txt` has one."""
+    if not CREDENTIALS_FILE.exists():
+        return None
+    for line in CREDENTIALS_FILE.read_text(encoding="utf-8").splitlines():
+        if line.startswith("password"):
+            _, _, value = line.partition(":")
+            return value.strip() or None
+    return None
 
 
 def supabase_credentials() -> tuple[str, str]:
@@ -332,6 +354,123 @@ def write_local(conn: sa.Connection, acc: Account, uid: uuid.UUID) -> str:
     return "updated"
 
 
+# The three the clinician act uses. Chosen to be clinically distinct and to
+# have traps a non-specialist can judge on sight: a cardiac worry that is
+# reflux, a faint that is aortic stenosis, and bleeding already blamed on
+# piles.
+REVIEW_QUEUE = (
+    "chest-pain-gerd",
+    "syncope-aortic-stenosis",
+    "rectal-bleeding-colorectal-cancer",
+)
+
+
+def stage_review_queue(conn: sa.Connection) -> int:
+    """
+    Put `REVIEW_QUEUE` back to draft and assign it to the demo clinician.
+
+    `publish_for_demo.py --all` publishes all ten, which leaves the review
+    queue empty and Act 3 with nothing to show. This is the other half of
+    that: run it after, and seven cases stay published for the learner while
+    three wait for a clinician.
+
+    Draft before deleting the approving review, like `publish_for_demo.py
+    --undo` — the state in between, published with nothing approving it, is
+    the one migration 007 exists to prevent.
+    """
+    reviewer = conn.execute(sa.text(
+        "SELECT p.id FROM profiles p JOIN auth.users u ON u.id = p.id "
+        "WHERE u.email = :email"),
+        {"email": f"demo.reviewer@{DOMAIN}"}).scalar()
+    admin = conn.execute(sa.text(
+        "SELECT p.id FROM profiles p JOIN auth.users u ON u.id = p.id "
+        "WHERE u.email = :email"),
+        {"email": f"demo.admin@{DOMAIN}"}).scalar()
+    if reviewer is None or admin is None:
+        print("The demo accounts do not exist yet. Run this script with no "
+              "flags first.", file=sys.stderr)
+        return 1
+
+    for slug in REVIEW_QUEUE:
+        row = conn.execute(sa.text("""
+            SELECT cv.id, cv.version, cv.status, cv.title
+            FROM case_versions cv JOIN cases c ON c.id = cv.case_id
+            WHERE c.slug = :slug AND cv.retired_at IS NULL
+            ORDER BY cv.version DESC LIMIT 1
+        """), {"slug": slug}).one_or_none()
+        if row is None:
+            print(f"skipped {slug} -- no such case", file=sys.stderr)
+            continue
+
+        if row.status == "published":
+            conn.execute(sa.text(
+                "UPDATE case_versions SET status = 'draft', published_at = NULL "
+                "WHERE id = :id"), {"id": row.id})
+            conn.execute(sa.text(
+                "DELETE FROM clinical_reviews WHERE case_version_id = :id"),
+                {"id": row.id})
+
+        assigned = conn.execute(sa.text("""
+            INSERT INTO review_assignments (case_version_id, reviewer_id,
+                                            assigned_by)
+            VALUES (:v, :r, :a) ON CONFLICT DO NOTHING RETURNING 1
+        """), {"v": row.id, "r": reviewer, "a": admin}).scalar()
+        if assigned:
+            conn.execute(sa.text("""
+                INSERT INTO audit_log (actor_id, action, entity_type, entity_id,
+                                       reason, metadata)
+                VALUES (:a, 'case_version.review_assigned', 'case_version', :v,
+                        :why, CAST(:meta AS jsonb))
+            """), {"a": admin, "v": row.id,
+                   "why": f"Assigned v{row.version} to the demo clinician "
+                          f"for review",
+                   "meta": json.dumps({
+                       "reviewer_id": str(reviewer),
+                       "tool": "scripts/seed_demo_accounts.py",
+                   })})
+        print(f"queued  {slug} v{row.version} -- {row.title}"
+              + ("" if assigned else "  (already assigned)"))
+
+    print(f"\n{len(REVIEW_QUEUE)} case(s) waiting for the demo clinician. "
+          f"The rest stay published for the learner.")
+    return 0
+
+
+def reset_reviews(conn: sa.Connection) -> int:
+    """
+    Every clinical review a demo account recorded, removed.
+
+    A version is returned to `draft` before its last approving review goes,
+    because migration 007's trigger exists to prevent exactly the state in
+    between: published, with nothing approving it. `publish_for_demo.py
+    --undo` orders it the same way and for the same reason.
+    """
+    rows = conn.execute(sa.text("""
+        SELECT r.id, r.case_version_id, cv.status, c.slug, cv.version
+        FROM clinical_reviews r
+        JOIN case_versions cv ON cv.id = r.case_version_id
+        JOIN cases c ON c.id = cv.case_id
+        JOIN auth.users u ON u.id = r.reviewer_id
+        WHERE u.email LIKE :like
+        ORDER BY c.slug
+    """), {"like": f"demo.%@{DOMAIN}"}).all()
+    if not rows:
+        print("No reviews were recorded by a demo account.")
+        return 0
+    for row in rows:
+        if row.status == "published":
+            conn.execute(sa.text(
+                "UPDATE case_versions SET status = 'draft', published_at = NULL "
+                "WHERE id = :id"), {"id": row.case_version_id})
+            print(f"draft   {row.slug} v{row.version} (was published)")
+        conn.execute(sa.text("DELETE FROM clinical_reviews WHERE id = :id"),
+                     {"id": row.id})
+        print(f"removed review of {row.slug} v{row.version}")
+    print(f"\n{len(rows)} review(s) removed. Re-publish what the demo needs "
+          f"with:\n  python scripts/publish_for_demo.py --all")
+    return 0
+
+
 def show(conn: sa.Connection) -> int:
     rows = conn.execute(sa.text("""
         SELECT u.email, p.display_name, p.platform_role::text AS role,
@@ -388,6 +527,11 @@ def main() -> int:
                    help="list the demo accounts the local database has")
     p.add_argument("--undo", action="store_true",
                    help="remove the LOCAL rows (not the Supabase accounts)")
+    p.add_argument("--reset-reviews", action="store_true",
+                   help="remove every clinical review a demo account recorded")
+    p.add_argument("--stage-review-queue", action="store_true",
+                   help="return three cases to draft and assign them to the "
+                        "demo clinician, so Act 3 has something to review")
     p.add_argument("--password", default=None,
                    help="use this password instead of generating one")
     p.add_argument("--i-know-this-is-not-local", action="store_true",
@@ -414,12 +558,22 @@ def main() -> int:
 
         if args.show:
             return show(conn)
+        if args.reset_reviews:
+            return reset_reviews(conn)
+        if args.stage_review_queue:
+            return stage_review_queue(conn)
         if args.undo:
             return undo(conn)
 
     url, key = supabase_credentials()
     print(f"identity {url}")
-    password = args.password or f"Nidan-Demo-{secrets.randbelow(9000) + 1000}"
+    # Reuse the password already on file before generating a new one. A
+    # re-run -- to change a display name, say -- otherwise invents a password
+    # the existing Supabase accounts do not have, and `sign_up` correctly
+    # refuses on the first one. The refusal is right; making the common case
+    # need a flag to avoid it is not.
+    password = args.password or existing_password() or (
+        f"Nidan-Demo-{secrets.randbelow(9000) + 1000}")
     print(f"accounts {len(ACCOUNTS)}, one shared password\n")
 
     print(f"{'email':<34} {'role':<9} {'onboarded':<10} what it is for")

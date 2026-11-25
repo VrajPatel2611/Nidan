@@ -1,0 +1,171 @@
+{# The case's ground truth, for a clinician who has been asked to score it.
+
+   Shown ONLY when `review` is set — that is, when `?review=1` brought a
+   reviewer here from their queue. Playtest without it stays what it was: a
+   case played blind, which is the right way to feel whether a trap works.
+
+   It exists because the rubric asks four questions that cannot be answered
+   from the student view. "Internal consistency" means do the investigation
+   results agree with the diagnosis; "solvability from the information given"
+   means is the answer reachable from what is actually in the case; and
+   neither is visible to someone who can only ask the patient questions. A
+   reviewer without this panel is scoring from whatever they happened to
+   elicit, and two reviewers would be scoring different things.
+
+   **This is not a CT-1 concern.** CT-1 guards `api/v1/case_view.py`, the one
+   place a case becomes a *learner's* response, and nothing here touches it.
+   This is `/admin`, behind `@require_reviewer`, reading
+   `CaseRepository.for_review()` — the method that exists precisely so a
+   reviewer may read a draft in full. The eight fields `PRD` FR-3.4 forbids
+   in a learner payload are exactly the eight a reviewer is here to check.
+#}
+<div class="card" id="pt-case-facts">
+  <div class="pt-panel-title">Case facts · what you are scoring</div>
+
+  <div class="pt-muted" style="font-size: 12px; margin-bottom: 12px;">
+    The learner never sees any of this. It is here so that
+    <em>internal consistency</em> and <em>solvability</em> can be judged
+    against the case rather than against what you happened to ask.
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">Ground truth</div>
+    <table class="pt-table">
+      <tr><td style="width: 38%;">Correct diagnosis</td>
+          <td><strong>{{ case.correct_diagnosis or '—' }}</strong></td></tr>
+      <tr><td>Also accepted</td>
+          <td>{{ (case.accepted_diagnoses or [])|join(' · ') or '—' }}</td></tr>
+      <tr><td>Partial credit</td>
+          <td>{{ (case.partial_diagnoses or [])|join(' · ') or '—' }}</td></tr>
+    </table>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">The trap</div>
+    <table class="pt-table">
+      <tr><td style="width: 38%;">Anchor topic</td>
+          <td>{{ case.anchor_topic or '—' }}</td></tr>
+      <tr><td>Anchor keywords</td>
+          <td>{{ (case.anchor_keywords or [])|join(' · ') or '—' }}</td></tr>
+      <tr><td>Alternative hypotheses</td>
+          <td>{{ (case.alternative_topics or [])|join(' · ') or '—' }}</td></tr>
+    </table>
+    <div class="pt-muted" style="font-size: 12px; margin-top: 6px;">
+      The anchor is the plausible wrong worry the patient voices. It must
+      never share a term with a contradictory clue below — a learner asking
+      about the trap would then be credited with exploring evidence against
+      it. That is invariant C-4, and the editor refuses to save a case that
+      breaks it.
+    </div>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">
+      Contradictory clues ({{ (case.contradictory_clues or [])|length }})
+    </div>
+    <div class="pt-muted" style="font-size: 12px; margin-bottom: 6px;">
+      Each set is one piece of evidence against the trap. The patient must
+      give it when asked. Any one term in a set counts the set as explored.
+    </div>
+    <ol style="margin: 0; padding-left: 20px; font-size: 13px; color: #cbd5e1;">
+      {% for clue in case.contradictory_clues or [] %}
+        <li style="margin-bottom: 3px;">{{ clue|join(' · ') }}</li>
+      {% else %}
+        <li class="pt-muted">None — the case has no evidence against its own trap.</li>
+      {% endfor %}
+    </ol>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">History expected of the learner</div>
+    <table class="pt-table">
+      <tr><td style="width: 38%;">Minimum questions</td>
+          <td>{{ case.minimum_questions or '—' }}</td></tr>
+      <tr><td>Required topics ({{ (case.required_topics or [])|length }})</td>
+          <td>{{ (case.required_topics or [])|join(' · ') or '—' }}</td></tr>
+    </table>
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">
+      Examination findings ({{ (case.examination or {})|length }})
+    </div>
+    {% if case.examination %}
+      {# An examination entry is {label, finding, key}; an investigation is
+         {label, result, category}. Two different shapes for two different
+         things, and reading `result` off an examination is why this panel
+         first rendered six findings as six blank rows. #}
+      <table class="pt-table">
+        {% for key, exam in (case.examination or {}).items() %}
+        <tr>
+          <td style="width: 32%;">
+            {{ exam.label if exam is mapping and exam.label else key }}
+            {% if exam is mapping and exam.key %}
+              <span style="color: #4ade80; font-size: 11px;"> · key</span>
+            {% endif %}
+          </td>
+          <td>{{ (exam.finding if exam is mapping else exam) or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <div class="pt-muted" style="font-size: 13px;">
+        None. Every system returns the master normal result, so examining
+        this patient tells the learner nothing specific.
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">
+      Investigation results ({{ (case.investigations or {})|length }})
+    </div>
+    {% if case.investigations %}
+      <table class="pt-table">
+        {% for key, test in (case.investigations or {}).items() %}
+        <tr>
+          <td style="width: 32%;">
+            {{ test.label if test is mapping and test.label else key }}
+            {% if test is mapping and test.category == 'key' %}
+              <span style="color: #4ade80; font-size: 11px;"> · key</span>
+            {% endif %}
+          </td>
+          <td>{{ (test.result if test is mapping else test) or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+      <div class="pt-muted" style="font-size: 12px; margin-top: 6px;">
+        A <span style="color: #4ade80;">key</span> test is one that settles
+        the diagnosis. Invariant C-7 requires at least one, because a case
+        with none cannot be solved by investigation at all.
+      </div>
+    {% else %}
+      <div class="pt-muted" style="font-size: 13px;">None.</div>
+    {% endif %}
+  </div>
+
+  <div class="pt-section">
+    <div class="pt-section-title">Persona brief</div>
+    {% if case.system_prompt %}
+      <details>
+        <summary class="pt-muted" style="cursor: pointer; font-size: 13px;">
+          Show the instructions the patient is given
+        </summary>
+        <pre style="white-space: pre-wrap; font-size: 12px; color: #cbd5e1;
+                    background: #0f172a; border: 1px solid #334155;
+                    border-radius: 6px; padding: 10px; margin-top: 8px;
+                    max-height: 320px; overflow: auto;">{{ case.system_prompt }}</pre>
+      </details>
+      <div class="pt-muted" style="font-size: 12px; margin-top: 6px;">
+        Shared ground rules come first and are identical across all ten
+        cases; only the part below them is this patient's own. Editing the
+        shared rules changes every persona.
+      </div>
+    {% else %}
+      <div class="pt-alert pt-alert-leak">
+        ⚠ This version has no persona brief, so the patient cannot reply at
+        all. It is not reviewable until the author adds one.
+      </div>
+    {% endif %}
+  </div>
+</div>

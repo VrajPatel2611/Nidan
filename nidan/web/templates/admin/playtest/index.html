@@ -93,6 +93,10 @@
   <div>
   {% if review %}
     {% include "admin/reviews/_form.html" %}
+    {# Below the rubric, not above it: the first thing a reviewer should do
+       is play the case blind and feel whether the trap works. The facts are
+       for the scoring that follows. #}
+    {% include "admin/playtest/_case_facts.html" %}
   {% endif %}
   <div class="card">
     <div class="pt-panel-title">Instrumentation</div>
