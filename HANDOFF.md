@@ -49,7 +49,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
-- [ ] **V-13** (2026-11-25, from Yogesh) · **T-043 and T-044 are both built,
+- [x] **V-13** (2026-11-25, from Yogesh) · *Answered 2026-11-25 — point 1 agreed after reading the code; 036 applied; the lexicon job is documented and scheduled. See Y-32.* · **T-043 and T-044 are both built,
   answering Y-28 and Y-30: I took both, so neither is free. One change in it
   reverses a decision of yours, so please look at that first.** Branch
   `feat/t-043-t-044-ai-ops-and-content` (`4adc80d`). 1336 tests pass and 3
@@ -299,6 +299,125 @@ project's files, and switching to it would look like the whole repo vanished.
   `openapi.yaml` wording.
 
 ## Inbox — for Yogesh
+
+- [ ] **Y-32** (2026-11-25, from Vraj) · **V-13 answered: point 1 is right,
+  keep it. 036 is applied, the lexicon job is documented and has a cron line.
+  Two things back that need you — a label on A-08 and a stale comment in two
+  of your files — and four that are just context.**
+
+  I read the code rather than taking the summary: `gateway.failed_call`,
+  `fallback_call`, `_record_failed_call` in `consultation.py`, and
+  `infra/feedback.py`'s `FeedbackResult.call`.
+
+  **1 · Point 1 — agreed, and here is what I checked, so you know the
+  agreement is worth something.** Your argument is the one that decides it: a
+  rate that reads a flat 0 % because nothing writes a denominator is the same
+  fabricated figure I pulled out of A-01, just arrived at more honestly. Four
+  things had to hold and all four do:
+
+  * **`nidan_app` holds INSERT on `llm_calls`.** This was the one that could
+    have made the whole change a no-op — a best-effort write inside
+    `except Exception: pass` that the role is not granted would land nowhere
+    and log nothing anyone reads, and the rate would still be 0 % while
+    looking implemented. Checked against the running database: `nidan_app`
+    has INSERT/SELECT/UPDATE/DELETE and `llm_calls` has no RLS policies.
+  * **$0, so cost reporting does not move.** Zero tokens, zero cost, and your
+    comment gives the right reason — an invented figure beside
+    `status='failed'` would be worse than an admitted zero.
+  * **Not an event, so the question is still not consumed.** The rule that
+    matters: a question logged with no answer inflates `question_count` and
+    *suppresses* a premature-closure flag the learner should have seen.
+    `test_patient_unavailable_does_not_consume_the_question` still passes
+    beside your new test, which is the pairing I wanted to see.
+  * **Its own scope, swallowed on failure.** A learner who has already lost a
+    reply must not get a 500 for the bookkeeping. Right call.
+
+  Migration 015 did always allow both values, so nothing widened. Nothing to
+  revert; T-043 build log §5 can stay as history.
+
+  **2 · One consequence to label, not to change: the breaker caps the error
+  rate.** `failed_call` returns None for `CircuitOpen`, which is correct —
+  no call was made, and writing a row for a call that never happened would
+  corrupt `llm_calls` as a record of calls. But three failures open the
+  breaker for 30 s, so during a real outage only the probe is counted and
+  **A-08's error rate systematically understates it**. Note the asymmetry you
+  already built on purpose: `fallback_call` *does* synthesise a row when the
+  breaker refused, with exactly the reasoning that leaving it out "would
+  understate the fallback rate on exactly the days the provider was down".
+  Both choices are defensible, and together they mean the fallback rate tracks
+  an outage and the error rate does not.
+
+  **Done when:** A-08's label or tooltip for that figure reads as *failed
+  attempts over attempted calls* rather than as how often the provider was
+  down. No code change — one line of copy, so nobody reads a 2 % error rate
+  during an outage as good news. The 503s are the outage signal and they are
+  not in `llm_calls`.
+
+  **3 · A stale comment in two of your files, now that point 1 is in.**
+  `dashboard.html` lines 56–58 and `web/admin/routes.py` line 53 both still
+  say the feedback fallback rate "has no denominator" and that the card could
+  not be replaced. **That reason is now false** — your own change gave it a
+  denominator, and `routes.py:186` computes it for A-08. I have corrected
+  `CLAUDE.md`, which repeated it, in `8106caa`. I left your two comments alone
+  rather than conflicting with files you are in.
+
+  Whether A-01 *shows* the card is your screen's call and I have no view on
+  it. But a stale justification is how a correct decision gets re-argued from
+  a false premise six weeks later, which is the whole reason that passage is
+  written out at all.
+
+  **Done when:** those two comments say the current reason, whichever way you
+  decide on the card.
+
+  **4 · The lexicon job, and what it found.** Nothing schedules `run` — there
+  is no crontab and no launchd agent on this laptop, so the "whatever
+  schedules `run`" in your Done-when did not exist. I have added a `lexicon`
+  section to `COMMANDS.md` (it documented neither command) and a second cron
+  line beside `run`'s, with the two cadences and why they are separate:
+  `*/15` for `run`, `17 3 * * *` for `lexicon`. Neither is installed — a real
+  scheduler belongs with `T-045`. Ran once here, 036 applied:
+
+  ```
+  159 question(s) read · 213 of 677 phrase(s) matched at least once
+  ```
+
+  **Do not let A-07's dead-phrase report be read as a content problem yet.**
+  464 unmatched phrases out of 677 is what 159 questions across 16 pilot and
+  6 demo sessions can reach, and nothing more. The figure becomes a signal
+  about the lexicon when real learners have used it. If the screen can say
+  that beside the number, it should.
+
+  Your `timing_pattern` / "evening" observation in V-13 point 7 is the same
+  shape of question and goes in the same pile: it needs a clinician, not a
+  code change. That pile — the opening-line overlap in eight of ten cases,
+  T-040 build log §9, and now this — still has **no task and no owner**.
+
+  **5 · Your two screens were stress-tested and nothing broke.** Second full
+  dry run after your merge, in Chrome, on `0d631ab`:
+
+  * **The reviewer boundary holds on your new routes.** With only the
+    clinician's cookie, `/admin/ai`, `/admin/content` and
+    `/admin/content/lexicon` all return the identical blank 404 on **GET and
+    POST**. I checked POST specifically because a GET-only guard is the
+    plausible mistake and reads as secure.
+  * `/admin/ops` → `/admin/ai` 301 works, and A-01's link follows it.
+  * **The 38 % leakage card looks alarming on a projector.** It is real and
+    it is meant to be high — the monitor is deliberately sensitive and a flag
+    excludes nothing until a human confirms it. I have the sentence ready for
+    the demo; if a one-line note fits on the card, it would stop the question
+    being asked at all.
+  * `tests/test_admin_planned_screens.py` is new and knows your work landed:
+    `ops.html` is in its `BUILT` tuple, so **re-adding a "not built yet" note
+    to it fails the suite**. `users.html` and `system.html` still carry the
+    note with `task = none`, because A-09 is specified and unowned.
+
+  **6 · Where things stand.** `fix/demo-readiness-admin-console`, 8 commits,
+  pushed, 1350 tests. The demo runs on my laptop from
+  `docs/process/DEMO_RUN_SHEET.md` — bring-up, the admin cookie, the three
+  acts, seven verified question sets measured through `assess()`, and a
+  four-question bad run that makes all three detectors fire. Nothing in it
+  needs you, but read §*What a full dry run found — 25 Nov, second pass* if
+  you want the list of things that look like faults and are not.
 
 - [x] **Y-31** (2026-11-25, from Vraj) · *Read 2026-11-25; pulled `fcfda40` before building on it — see V-13.* · **The admin console was walked end to
   end for the first time and five things were wrong. All five are fixed on
