@@ -57,6 +57,16 @@ class Settings(BaseSettings):
                     "GROQ_MODEL_<PURPOSE>; see infra/llm/gateway.py (ADR-0011).",
     )
 
+    LLM_MONTHLY_BUDGET_USD: float | None = Field(
+        default=None, gt=0,
+        description="Monthly model spend budget in US dollars (T-043, "
+                    "TECH_SPEC §10.1). At 80% the AI Ops page shows an alert; "
+                    "at 100% the gateway switches every purpose to the "
+                    "cheapest priced model until the month ends, and the page "
+                    "shows an amber banner so the degradation is never silent. "
+                    "Unset means no budget: nothing is alerted or degraded.",
+    )
+
     # ── the web application ──────────────────────────────────────────
     FLASK_SECRET_KEY: str = Field(
         default="",

@@ -1,14 +1,136 @@
 {% extends "admin/base.html" %}
 
-{% block title %}AI Ops — Nidan Admin{% endblock %}
+{% block title %}AI operations — Nidan Admin{% endblock %}
+
+{# Thresholds are TECH_SPEC §10.1's alert lines. Every figure is read from
+   llm_calls or leakage_flags; the route's docstring says what this page
+   cannot see. A figure with no denominator shows "—", never 0. #}
+{% macro pct(v) %}{{ '—' if v is none else ('%.1f%%'|format(v)) }}{% endmacro %}
+{% macro money(v, places=4) %}{{ '—' if v is none else ('$%.*f'|format(places, v)) }}{% endmacro %}
+{% macro over(v, limit) %}{% if v is not none and v > limit %}style="color: #fbbf24;"{% endif %}{% endmacro %}
 
 {% block content %}
-<div style="margin-bottom: 24px; display: flex; justify-content: space-between; align-items: center;">
-  <h1 style="font-size: 24px; font-weight: 700; margin: 0; color: #f8fafc;">AI Operations & Telemetry</h1>
+<div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0;">AI operations</h1>
+  <form method="get">
+    <label class="muted" style="font-size: 13px;">Window
+      <select name="window" class="admin-select" onchange="this.form.submit()">
+        {% for k, label in windows.items() %}<option value="{{ k }}" {% if k == window %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+    </label>
+    <noscript><button class="btn-quiet" type="submit">Show</button></noscript>
+  </form>
+</div>
+
+{% if budget.exhausted %}
+<div class="notice notice-amber" role="alert">
+  <strong>Monthly budget spent: the gateway is degraded.</strong>
+  {% if cheapest != configured_model %}
+    Every purpose is using <code>{{ cheapest }}</code> instead of <code>{{ configured_model }}</code> until the month ends
+    or the budget is raised. The smaller model is the likelier persona leaker, so watch the leakage rate below.
+  {% else %}
+    The configured model is already the cheapest priced one, so there is nothing cheaper to switch to and spend will keep rising.
+  {% endif %}
+</div>
+{% elif budget.alert %}
+<div class="notice notice-amber" role="alert">
+  <strong>{{ '%.0f'|format(budget.pct) }}% of this month's budget is spent.</strong>
+  At 100% every purpose switches to <code>{{ cheapest }}</code> until the month ends.
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+  <div class="stat-card" style="border-color: #0369a1;">
+    <div class="stat-value" {{ over(o.cost_per_completed, 0.05) }}>{{ money(o.cost_per_completed) }}</div>
+    <div class="stat-label"><strong>per completed session</strong> · {{ o.completed }} completed · alert &gt; $0.05</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ money(o.cost) }}</div>
+    <div class="stat-label">spend · {{ windows[window]|lower }} · {{ o.calls }} call{{ '' if o.calls == 1 else 's' }}</div>
+  </div>
+  <div class="stat-card">
+    {% set p95 = o.patient_p95_ms / 1000 if o.patient_p95_ms is not none else none %}
+    <div class="stat-value" {{ over(p95, 6) }}>{{ '—' if p95 is none else '%.1fs'|format(p95) }}</div>
+    <div class="stat-label">p95 patient reply · alert &gt; 6 s</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">{{ pct(error_rate) }}</div>
+    <div class="stat-label">calls failed · {{ o.failed }} of {{ o.calls }}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" {{ over(fallback_rate, 5) }}>{{ pct(fallback_rate) }}</div>
+    <div class="stat-label">feedback fallback · {{ o.fallback }} of {{ o.feedback }} · alert &gt; 5%</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" {{ over(leak_rate, 2) }}>{{ pct(leak_rate) }}</div>
+    <div class="stat-label">
+      persona leakage · {{ leaks.flagged }} flag{{ '' if leaks.flagged == 1 else 's' }} in {{ o.replies }} repl{{ 'y' if o.replies == 1 else 'ies' }}
+      ({{ leaks.confirmed }} confirmed) · alert &gt; 2%
+    </div>
+  </div>
 </div>
 
 <div class="card">
-  <div class="card-title">LLM Gateway Metrics & Persona Leakage Queue</div>
-  <p style="color: #94a3b8; font-size: 14px;">Monitor LLM token usage, cost per session, and unreviewed persona leakage flags.</p>
+  <div class="card-title">Monthly budget</div>
+  {% if budget.budget %}
+    {% set w = [budget.pct, 100]|min %}
+    <div role="img" aria-label="{{ '%.0f'|format(budget.pct) }} percent of the ${{ '%.2f'|format(budget.budget) }} monthly budget spent"
+         style="height: 14px; background: #0f172a; border: 1px solid #334155; border-radius: 999px; overflow: hidden; position: relative;">
+      <div style="width: {{ w }}%; height: 100%; background: {{ '#d97706' if budget.alert else '#0284c7' }};"></div>
+      <div style="position: absolute; top: 0; bottom: 0; left: {{ alert_at }}%; border-left: 1px dashed #94a3b8;"></div>
+    </div>
+    <p style="font-size: 14px; margin: 10px 0 0;">
+      <strong>{{ '%.0f'|format(budget.pct) }}%</strong> of ${{ '%.2f'|format(budget.budget) }}: ${{ '%.4f'|format(budget.spent) }} spent this calendar month (UTC).
+      <span class="muted">Alert at {{ alert_at }}%, degrade at 100%.</span>
+    </p>
+  {% else %}
+    <p class="muted" style="font-size: 14px; margin: 0;">
+      No budget is set, so nothing is alerted or degraded. ${{ '%.4f'|format(budget.spent) }} spent this calendar month.
+      Set <code>LLM_MONTHLY_BUDGET_USD</code> to turn it on.
+    </p>
+  {% endif %}
+</div>
+
+<div class="card" style="padding: 0;">
+  <div class="card-title" style="padding: 20px 20px 0;">By purpose and model</div>
+  <table class="data-table">
+    <thead>
+      <tr><th>Purpose</th><th>Model</th><th>Calls</th><th>Tokens in / out</th><th>Cost</th><th>p50</th><th>p95</th><th>Retried</th><th>Failed</th><th>Fallback</th></tr>
+    </thead>
+    <tbody>
+      {% for r in usage %}
+      <tr>
+        <td>{{ r.purpose }}</td>
+        <td><code>{{ r.model }}</code></td>
+        <td>{{ '{:,}'.format(r.calls) }}</td>
+        <td>{{ '{:,}'.format(r.prompt_tokens) }} / {{ '{:,}'.format(r.output_tokens) }}</td>
+        <td>${{ '%.4f'|format(r.cost) }}</td>
+        <td>{{ '—' if r.p50_ms is none else '%.1fs'|format(r.p50_ms / 1000) }}</td>
+        <td>{{ '—' if r.p95_ms is none else '%.1fs'|format(r.p95_ms / 1000) }}</td>
+        <td>{{ r.retried }}</td>
+        <td {% if r.failed %}style="color: #fbbf24;"{% endif %}>{{ r.failed }}</td>
+        <td {% if r.fallback %}style="color: #fbbf24;"{% endif %}>{{ r.fallback }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="10" class="muted">No model calls in this window.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="card">
+  <div class="card-title">Persona leakage</div>
+  <p style="font-size: 14px; margin: 0;">
+    {{ unreviewed }} flag{{ '' if unreviewed == 1 else 's' }} waiting for review.
+    <a href="/admin/leakage" style="color: #38bdf8; text-decoration: none;">Leakage queue →</a>
+  </p>
+</div>
+
+<div class="muted" style="font-size: 13px; line-height: 1.6;">
+  <strong>What these figures leave out.</strong>
+  Playtest turns are not recorded, so this is learner spend, not total spend.
+  The anonymous-trial prototype records no feedback calls, so its sessions are not in “per completed session”.
+  Failed and fallback calls are recorded from T-043 onwards, so a window reaching back before that under-counts both.
+  Costs use prices checked {{ prices_checked }} (<code>infra/llm/pricing.py</code>).
 </div>
 {% endblock %}

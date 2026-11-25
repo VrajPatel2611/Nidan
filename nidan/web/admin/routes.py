@@ -6,14 +6,19 @@ Jinja + HTMX administrative shell, protected by @require_admin and @require_revi
 
 from __future__ import annotations
 
-from flask import Blueprint, render_template, request
+from datetime import UTC, datetime, timedelta
+
+from flask import Blueprint, redirect, render_template, request
 
 from nidan.api.auth import (
     current_actor,
     current_admin,
     require_admin,
 )
+from nidan.config import settings
+from nidan.infra import budget
 from nidan.infra.db.repositories import repo_scope
+from nidan.infra.llm import pricing
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -100,35 +105,88 @@ def case_bank():
 # The review queue (A-05) lives in nidan/web/admin/reviews/ (T-023).
 
 
-@bp.get("/content")
-@require_admin
-def clinical_content():
-    """Clinical content view (A-06)."""
-    with repo_scope(current_actor()) as db:
-        profile = db.profiles.get()
-    user_email = (profile.get("display_name") if profile else None) or "admin@nidan.internal"
+# Clinical content (A-06, A-07) lives in nidan/web/admin/content/ (T-044).
 
-    return render_template(
-        "admin/content.html",
-        active_nav="content",
-        active_section="content",
-        user_email=user_email,
-    )
+
+# The windows A-08's range selector offers. "Today" and "this month" are UTC
+# calendar boundaries, the same as the budget's month, so the two figures on
+# the page can be compared without a footnote.
+WINDOWS: dict[str, str] = {
+    "today": "Today", "7d": "Last 7 days", "30d": "Last 30 days",
+    "month": "This month",
+}
+
+
+def _window_start(window: str) -> datetime:
+    now = datetime.now(UTC)
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return {"today": midnight, "7d": now - timedelta(days=7),
+            "30d": now - timedelta(days=30),
+            "month": midnight.replace(day=1)}[window]
 
 
 @bp.get("/ops")
 @require_admin
+def ai_ops_moved():
+    """The page moved to `UX_SPEC` A-08's own route; old links still land."""
+    return redirect("/admin/ai", 301)
+
+
+@bp.get("/ai")
+@require_admin
 def ai_ops():
-    """AI Operations view (A-08)."""
-    with repo_scope(current_actor()) as db:
+    """
+    AI operations (T-043, `UX_SPEC` A-08).
+
+    **Every figure is from `llm_calls` or `leakage_flags`, and neither has
+    RLS**, so an admin scope reads all of both with no new policy. That is
+    the choice Vraj's Y-31 asked to be made deliberately. Usage over time
+    comes from what the platform *spent*, never from `sessions`, which an
+    admin scope cannot count truthfully, and nothing here needs
+    `ServiceActor`.
+
+    Three things this page cannot say, and says so rather than estimating:
+
+    * **Playtest is absent from the cost.** It records nothing, by design
+      (`purpose` has no `playtest`), so the figures are learner spend, not
+      total spend.
+    * **The anonymous-trial prototype records no feedback calls**, so its
+      sessions are not in "per completed session".
+    * **Failed and fallback rows begin with T-043.** Before it, a failure
+      wrote nothing, so a window reaching back before this deploy
+      under-counts both.
+    """
+    window = request.args.get("window", "today")
+    if window not in WINDOWS:
+        window = "today"
+    since = _window_start(window)
+    with repo_scope(current_admin()) as db:
         profile = db.profiles.get()
+        overview = db.llm_calls.overview(since)
+        usage = db.llm_calls.usage(since)
+        leaks = db.leakage.flagged_since(since)
+        unreviewed = db.leakage.unreviewed_count()
+    state = budget.current(fresh=True)
     user_email = (profile.get("display_name") if profile else None) or "admin@nidan.internal"
+
+    def rate(n: int, d: int) -> float | None:
+        return n / d * 100 if d else None
 
     return render_template(
         "admin/ops.html",
         active_nav="ops",
         active_section="ops",
         user_email=user_email,
+        window=window, windows=WINDOWS, since=since,
+        o=overview, usage=usage, budget=state,
+        alert_at=budget.ALERT_AT,
+        cheapest=pricing.cheapest_model(),
+        configured_model=settings.GROQ_MODEL,
+        error_rate=rate(overview["failed"], overview["calls"]),
+        fallback_rate=rate(overview["fallback"], overview["feedback"]),
+        leak_rate=rate(leaks["flagged"], overview["replies"]),
+        leaks=leaks, unreviewed=unreviewed["low"] + unreviewed["high"],
+        prices_checked=pricing.PRICES_CHECKED,
     )
 
 

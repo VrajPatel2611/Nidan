@@ -134,8 +134,9 @@ def submit_diagnosis(session_id: UUID):
             db.results.save(session_id, result)
         db.feedback.save(session_id, feedback.lines,
                          generator=feedback.generator)
-        # None when the model was unavailable and the rule-based fallback
-        # produced the prose — there was no call to cost.
+        # A `fallback` row when the rule-based prose was served (T-043): it
+        # costs nothing, and it is the only record of how often the model
+        # could not write feedback.
         if feedback.call is not None:
             db.llm_calls.record_call(feedback.call, session_id=session_id)
         if content is not None:

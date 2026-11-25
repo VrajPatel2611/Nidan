@@ -65,3 +65,21 @@ def cost_usd(model: str, prompt_tokens: int, output_tokens: int) -> Decimal:
 def is_priced(model: str) -> bool:
     """Whether a cost for this model is real rather than a zero placeholder."""
     return model in _PER_MILLION
+
+
+def cheapest_model() -> str:
+    """
+    The priced model with the lowest combined per-token price (T-043).
+
+    What the gateway degrades to when the monthly budget is spent
+    (`TECH_SPEC` §5.1). Chosen from this table rather than configured, so it
+    can only ever be a model the table can cost: degrading to an unpriced
+    model would record every call at $0 and make the budget look unspent,
+    which would switch the degradation off again.
+
+    Input plus output, unweighted. Today one model is cheaper on both meters,
+    so weighting by the prompt-to-output ratio could not change the answer.
+    Revisit this if a model is ever added that is cheaper on one meter and
+    dearer on the other.
+    """
+    return min(_PER_MILLION, key=lambda m: sum(Decimal(p) for p in _PER_MILLION[m]))

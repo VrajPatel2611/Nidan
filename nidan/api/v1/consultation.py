@@ -34,7 +34,10 @@ from nidan.domain.leakage import topics_asked
 from nidan.domain.session import conversation_from, mentions_early_diagnosis
 from nidan.infra.clock import utc_now
 from nidan.infra.db.repositories import repo_scope
-from nidan.infra.llm.gateway import call_llm
+from nidan.infra.llm.gateway import call_llm, failed_call
+from nidan.infra.telemetry.logging import get_logger
+
+logger = get_logger(__name__)
 
 # `API_CONTRACT` §2.9. The per-session cap is pedagogical — a consultation
 # that runs past forty questions is not a consultation any more. The hourly
@@ -178,7 +181,11 @@ def ask_question(session_id: UUID):
             purpose="patient",
         )
         reply = result.text
-    except Exception:
+    except Exception as e:
+        # T-043: the failed call is accounted, and nothing else is written.
+        # An `llm_calls` row is not an event, so the question is still not
+        # consumed. Best-effort, as every `llm_calls` write is.
+        _record_failed_call(e, session_id)
         # 503, not 500: the request was fine and a dependency was not. The
         # reason is deliberately not echoed — a provider's error string can
         # carry prompt fragments, and the prompt is the patient's chart.
@@ -342,3 +349,21 @@ def order_investigation(session_id: UUID):
     """`POST /v1/sessions/{id}/investigations` — order a test (§6)."""
     return _order(session_id, kind="investigation", event_type="investigation",
                   content_key="investigations", finding_key="result")
+
+
+def _record_failed_call(exc: BaseException, session_id) -> None:
+    """
+    Write the `status='failed'` row the gateway attached to `exc`, if any.
+
+    Its own scope, because the request has no other: nothing else is written
+    when the patient cannot answer. Swallowed on failure, because a learner
+    who has already lost a reply must not get a 500 for the bookkeeping.
+    """
+    call = failed_call(exc)
+    if call is None:
+        return
+    try:
+        with repo_scope(current_actor()) as db:
+            db.llm_calls.record_call(call, session_id=session_id)
+    except Exception:                                # pragma: no cover
+        logger.warning("llm_calls.failed_call_not_recorded")

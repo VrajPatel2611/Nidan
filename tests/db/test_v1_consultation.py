@@ -209,27 +209,42 @@ def test_a_question_records_what_the_call_cost(
     assert row["status"] == "ok"
 
 
-def test_a_failed_call_records_nothing(
+def test_a_failed_call_records_a_free_failed_row_and_no_event(
         client, account, session_id, live_db, monkeypatch):
     """
-    The same reasoning as the question event beside it: nothing happened that
-    a provider would bill for, so there is nothing to account. A row here
-    would put failed calls into cost-per-session reporting.
-    """
-    def boom(*args, **kwargs):
-        raise RuntimeError("provider down")
+    T-043 criterion 2 needs an error rate, and until T-043 a failed call
+    wrote nothing, so the rate was always 0 %. Now the gateway attaches a
+    `status='failed'` call to the exception and the handler records it.
 
-    monkeypatch.setattr("nidan.api.v1.consultation.call_llm", boom)
+    Two things are unchanged and are what this test was originally about.
+    **Nothing is billed**: the row costs $0, so cost-per-session reporting
+    does not move. **Nothing is an event**: the question is not consumed
+    (the test below).
+    """
+    from nidan.infra.llm import provider
+
+    class _Down:
+        name = "groq"
+
+        def complete(self, **kwargs):
+            raise RuntimeError("401 invalid api key")      # not transient
+
+    monkeypatch.setattr(provider, "for_name", lambda name=None: _Down())
 
     _, headers = account
-    client.post(f"/v1/sessions/{session_id}/questions",
-                json={"text": "Where is the pain?"}, headers=headers)
+    r = client.post(f"/v1/sessions/{session_id}/questions",
+                    json={"text": "Where is the pain?"}, headers=headers)
+    assert r.status_code == 503
 
     with live_db.connect() as c:
-        n = c.execute(sa.text(
-            "SELECT count(*) FROM llm_calls WHERE session_id = :sid"),
-            {"sid": session_id}).scalar_one()
-    assert n == 0
+        rows = c.execute(sa.text(
+            "SELECT status, cost_usd, prompt_tokens FROM llm_calls "
+            "WHERE session_id = :sid"), {"sid": session_id}).all()
+        events = c.execute(sa.text(
+            "SELECT count(*) FROM session_events WHERE session_id = :sid "
+            "AND type = 'question'"), {"sid": session_id}).scalar_one()
+    assert [(s, float(c), t) for s, c, t in rows] == [("failed", 0.0, 0)]
+    assert events == 0
 
 
 def test_patient_unavailable_does_not_consume_the_question(

@@ -1,5 +1,6 @@
 """
-`python -m nidan.jobs run` (BUILD_PLAN T-038).
+`python -m nidan.jobs run` (BUILD_PLAN T-038), and
+`python -m nidan.jobs lexicon` (T-044).
 
 Processes everything pending and exits. Idempotent, so running it twice is
 harmless; see `runner.py` on why that is a property of the queue rather than
@@ -34,10 +35,12 @@ from nidan.infra.db.repositories.audit import MAX_ATTEMPTS, STEPS
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m nidan.jobs",
-        description="Run the account jobs worker (exports and erasures).")
-    parser.add_argument("command", choices=("run", "status"),
+        description="Run the account jobs worker (exports and erasures), "
+                    "or the lexicon match-count job.")
+    parser.add_argument("command", choices=("run", "status", "lexicon"),
                         help="'run' processes pending steps; 'status' lists "
-                             "them without doing anything")
+                             "them without doing anything; 'lexicon' "
+                             "recomputes phrase match counts (T-044)")
     parser.add_argument("--limit", type=int, default=100,
                         help="maximum requests to consider (default 100)")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -49,6 +52,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "status":
         return _status(args.limit)
+
+    if args.command == "lexicon":
+        # Its own command, not a step of `run`: see `jobs/lexicon.py` on why
+        # the two must not share an exit code.
+        from nidan.jobs.lexicon import count_matches
+        print(count_matches().summary())
+        return 0
 
     # Imported here, not at module scope: `status` must work on a machine
     # where the email adapter is misconfigured, because finding that out is

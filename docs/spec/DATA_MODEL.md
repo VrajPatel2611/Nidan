@@ -585,7 +585,7 @@ CREATE TABLE topic_phrases (
     phrase          TEXT NOT NULL,
     embedding       vector(384),            -- null until ADR-0013 phase 2
 
-    -- Populated by a nightly job. Drives the dead-phrase report (UX A-06).
+    -- Populated by `python -m nidan.jobs lexicon` (T-044). Drives the dead-phrase report (UX A-07).
     match_count     INTEGER NOT NULL DEFAULT 0,
     last_matched_at TIMESTAMPTZ,
 
@@ -600,6 +600,8 @@ CREATE INDEX ON topic_phrases (topic_id);
 **v1 seed:** 40 topics, 523 phrases, `embedding` null throughout. Populating embeddings is Phase 5 work (`ADR-0013`); the column exists now so adding them is a backfill rather than a migration.
 
 **`match_count` supports a real operational need:** a phrase that has never matched in 90 days is noise in the lexicon, and the admin console surfaces those for removal.
+
+**The "nightly job" is `python -m nidan.jobs lexicon` (T-044), and it did not exist until then.** It recomputes both counters from scratch on every run, matching every readable `question` event with the engine's own rule (lowercase substring, as `extract_topics` does), so a question redacted by an erasure stops counting on the next run. Backfilled pilot events count towards `match_count` but not towards `last_matched_at`, because their timestamps are synthetic (§9.3). It runs as `nidan_service`, which migration 036 grants UPDATE on **these two columns only**. The phrases themselves stay migration-only: the engine scores from `topics.py`, and this table is a copy of it that `tests/db/test_seed.py` holds in step. That is why the lexicon editor (A-07) exports a migration rather than saving.
 
 ---
 
@@ -817,6 +819,8 @@ CREATE INDEX ON llm_calls (session_id) WHERE session_id IS NOT NULL;
 ```
 
 Drives the cost dashboard and the unit-economics metric in `PRD` §10.3. **`ON DELETE SET NULL`** rather than cascade: cost history must survive session deletion, since it is financial data.
+
+**`failed` and `fallback` are written from T-043 on.** Until then, a call that failed after its retries left no row, and neither did the rule-based feedback fallback, so the AI Ops page's error and fallback rates had no denominator. Now the gateway attaches a `failed` call to the exception it raises (zero tokens, zero cost, the latency it spent failing), and the patient-turn handler records it. Rule-based feedback writes one `fallback` row: it keeps the failed call's model and latency, or carries configuration and zeros when the circuit breaker refused before calling. Neither row costs anything, and neither is an event, so a failed patient turn still does not consume the question. One consequence for anyone querying: **every completed `/v1` session now has exactly one `feedback` row**, which is how A-08 computes cost per completed session without reading `sessions`, a table an admin scope cannot count.
 
 ## 7.2 `leakage_flags`
 
@@ -1144,6 +1148,10 @@ Alembic, hand-written, reviewed (`PLATFORM_SPEC` §3.5). Order is dependency-dri
 | 030 | `seed_cases` | Case 8 as v1, status `draft` |
 | 031 | `seed_spondyloarthritis_content` | 4 topics, 42 phrases and 3 investigations for case 9 |
 | 032 | `seed_cases` | Case 9 as v1, status `draft` — the tenth and last |
+| 033 | `erasure` | The one permitted UPDATE on `session_events` (`ADR-0018`) |
+| 034 | `leakage_review` | `nidan_admin` UPDATE on `leakage_flags`; two flag-keyed read policies |
+| 035 | `persona_rule_6` | Rewrites every stored brief with rule 6 and recomputes `content_hash` |
+| 036 | `content_editors` | `nidan_admin` INSERT/UPDATE on the master lists (no DELETE); `nidan_service` UPDATE on two `topic_phrases` counters |
 
 **Migration 007 must follow 006**, since the trigger references `clinical_reviews`.
 

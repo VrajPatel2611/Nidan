@@ -1,0 +1,147 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Topic lexicon — Nidan Admin{% endblock %}
+
+{# The proposal travels in every form as hidden fields. Nothing is stored
+   between requests (see lexicon_tools.py for why the editor exports rather
+   than saves). #}
+{% macro carry(include_topic=True) -%}
+  {% for name, value in proposal.encode() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  {% if include_topic %}<input type="hidden" name="topic" value="{{ topic }}">{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: baseline;">
+  <h1 style="font-size: 24px; font-weight: 700; margin: 0;">Topic lexicon
+    <span class="muted" style="font-size: 15px; font-weight: 400;">{{ topics|length }} topics · {{ phrase_total }} phrases</span>
+  </h1>
+  <form method="post" action="/admin/content/lexicon/export">
+    {{ carry() }}
+    <button class="btn-admin" type="submit" {% if proposal.empty or blocking %}disabled style="opacity: .45; cursor: not-allowed;"{% endif %}>
+      Export migration →
+    </button>
+  </form>
+</div>
+
+<p class="muted" style="font-size: 14px; margin: 0 0 16px; max-width: 860px;">
+  A question covers a topic when it contains one of the topic's phrases. Changes made
+  here are a <strong>proposal</strong>: nothing is saved and scoring does not change until a developer commits the exported
+  migration and the matching <code>topics.py</code> change.
+</p>
+
+{% for m in messages %}<div class="notice notice-green" role="status">{{ m }}</div>{% endfor %}
+{% for w in warnings %}<div class="notice notice-amber" role="alert">{{ w }}</div>{% endfor %}
+{% for b in blocking %}<div class="notice notice-red" role="alert">{{ b }}</div>{% endfor %}
+
+{% if not proposal.empty %}
+<div class="notice notice-blue" style="display: flex; justify-content: space-between; align-items: center;">
+  <span>
+    Proposal: {{ proposal.added|length }} phrase{{ '' if proposal.added|length == 1 else 's' }} added,
+    {{ proposal.removed|length }} removed, {{ proposal.new_topics|length }} new topic{{ '' if proposal.new_topics|length == 1 else 's' }}.
+    <strong>Leaving this page discards it.</strong>
+  </span>
+  <form method="post" action="/admin/content/lexicon" onsubmit="return confirm('Discard the whole proposal?')">
+    {{ carry() }}<input type="hidden" name="action" value="discard">
+    <button class="btn-quiet" type="submit">Discard</button>
+  </form>
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 260px 1fr; gap: 20px; align-items: start;">
+
+  {# ── topics ─────────────────────────────────────────────────────── #}
+  <div class="card" style="padding: 8px 0; max-height: 72vh; overflow-y: auto;">
+    <form method="post" action="/admin/content/lexicon">
+      {{ carry(include_topic=False) }}<input type="hidden" name="action" value="select">
+      {% for t in topics %}
+      <button type="submit" name="topic" value="{{ t.key }}"
+              {% if t.key == topic %}aria-current="true"{% endif %}
+              style="display: flex; justify-content: space-between; width: 100%; border: 0; text-align: left; cursor: pointer;
+                     padding: 7px 16px; font-size: 13px; font-family: ui-monospace, monospace;
+                     background: {{ '#0c4a6e' if t.key == topic else 'transparent' }}; color: {{ '#f8fafc' if t.key == topic else '#cbd5e1' }};">
+        <span>{{ t.key }}{% if t.new %} <span class="tag tag-new">new</span>{% elif t.changed %} <span class="tag tag-new">edited</span>{% endif %}</span>
+        <span class="muted">{{ t.phrases }}</span>
+      </button>
+      {% endfor %}
+    </form>
+    <details style="padding: 12px 16px 6px; border-top: 1px solid #334155; margin-top: 8px;">
+      <summary style="cursor: pointer; font-size: 13px; color: #38bdf8;">+ New topic</summary>
+      <form method="post" action="/admin/content/lexicon" style="display: grid; gap: 8px; margin-top: 10px;">
+        {{ carry() }}<input type="hidden" name="action" value="new_topic">
+        <input name="new_key" class="admin-input" placeholder="night_sweats" aria-label="New topic key" required>
+        <input name="new_name" class="admin-input" placeholder="Night sweats" aria-label="New topic display name" required>
+        <button class="btn-quiet" type="submit">Propose topic</button>
+      </form>
+    </details>
+  </div>
+
+  <div>
+    {# ── the selected topic ──────────────────────────────────────── #}
+    <div class="card">
+      <div class="card-title" style="display: flex; justify-content: space-between;">
+        <code>{{ topic }}</code>
+        <span class="muted" style="font-weight: 400; font-size: 14px;">{{ rows|rejectattr('removed')|list|length }} phrases</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;">
+        {% for r in rows %}
+        <form method="post" action="/admin/content/lexicon" style="display: inline-flex;">
+          {{ carry() }}
+          <input type="hidden" name="phrase" value="{{ r.phrase }}">
+          <input type="hidden" name="action" value="{{ 'restore_phrase' if r.removed else 'remove_phrase' }}">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 10px; border-radius: 999px; font-size: 13px;
+                       background: {{ '#052e16' if r.added else '#0f172a' }}; border: 1px solid {{ '#166534' if r.added else ('#7f1d1d' if r.removed else '#334155') }};
+                       {% if r.removed %}text-decoration: line-through; opacity: .7;{% endif %}"
+                {% if r.stat %}title="{{ r.stat.match_count }} match{{ '' if r.stat.match_count == 1 else 'es' }}{% if r.stat.last_matched_at %}, last {{ r.stat.last_matched_at.strftime('%d %b %Y') }}{% endif %}"{% endif %}>
+            {{ r.phrase }}
+            {% if r.added %}<span class="tag tag-new">new</span>{% endif %}
+            {% if last_counted and r.stat and r.stat.dead and not r.removed %}<span class="tag tag-dead">no match {{ dead_days }} d</span>{% endif %}
+            <button type="submit" aria-label="{{ 'Restore' if r.removed else 'Remove' }} {{ r.phrase }}"
+                    style="border: 0; background: transparent; color: #94a3b8; cursor: pointer; font-size: 13px; padding: 0 6px;">{{ '↺' if r.removed else '✕' }}</button>
+          </span>
+        </form>
+        {% endfor %}
+      </div>
+      <form method="post" action="/admin/content/lexicon" style="display: flex; gap: 8px;">
+        {{ carry() }}<input type="hidden" name="action" value="add_phrase">
+        <input type="hidden" name="question" value="{{ question }}">
+        <input name="phrase" class="admin-input" style="flex: 1;" placeholder="Add a phrase, e.g. evening meal" aria-label="New phrase for {{ topic }}" required minlength="3">
+        <button class="btn-quiet" type="submit">+ Add phrase</button>
+      </form>
+    </div>
+
+    {# ── dead phrases (T-044 criterion 4) ────────────────────────── #}
+    <div class="card">
+      <div class="card-title">Phrases with no match in {{ dead_days }} days</div>
+      {% if last_counted %}
+        <p style="font-size: 14px; margin: 0;">
+          {{ dead_total }} of {{ phrase_total }} phrases have not matched a learner's question in the last {{ dead_days }} days.
+          They are marked on each topic above. <span class="muted">Counts from {{ last_counted.strftime('%d %b %Y %H:%M') }} UTC.</span>
+        </p>
+        <p class="muted" style="font-size: 13px; margin: 8px 0 0;">
+          They are listed for review, not removed automatically: a phrase can be rare and still correct.
+        </p>
+      {% else %}
+        <p class="muted" style="font-size: 14px; margin: 0;">
+          Match counts have not been computed yet, so there is nothing to report. They come from
+          <code>python -m nidan.jobs lexicon</code>, which reads learners' questions and stores only the counts.
+        </p>
+      {% endif %}
+    </div>
+
+    {# ── the live tester (T-044 criterion 3) ─────────────────────── #}
+    <div class="card">
+      <div class="card-title">Test a question</div>
+      <form id="tester" method="post" action="/admin/content/lexicon"
+            hx-post="/admin/content/lexicon/test" hx-target="#tester-result" hx-trigger="input changed delay:300ms from:#question, submit">
+        {{ carry() }}<input type="hidden" name="action" value="test">
+        <textarea id="question" name="question" class="admin-textarea" rows="2" style="width: 100%;"
+                  placeholder="does a rich evening dinner set it off?" aria-label="A question to test against {{ topic }}">{{ question }}</textarea>
+        <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+          <button class="btn-quiet" type="submit">Test</button>
+        </div>
+      </form>
+      <div id="tester-result" aria-live="polite">{% include "admin/content/_tester.html" %}</div>
+    </div>
+  </div>
+</div>
+{% endblock %}

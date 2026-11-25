@@ -135,6 +135,7 @@ class Repositories:
             IdempotencyRepository,
         )
         from nidan.infra.db.repositories.leakage import LeakageRepository
+        from nidan.infra.db.repositories.lexicon import LexiconRepository
         from nidan.infra.db.repositories.llm import LlmCallRepository
         from nidan.infra.db.repositories.profiles import ProfileRepository
         from nidan.infra.db.repositories.progress import ProgressRepository
@@ -166,6 +167,7 @@ class Repositories:
         self.erasure = ErasureRepository(conn, actor)
         self.export = ExportRepository(conn, actor)
         self.leakage = LeakageRepository(conn, actor)
+        self.lexicon = LexiconRepository(conn, actor)
         self.research = ResearchRepository(conn, actor)
 
 

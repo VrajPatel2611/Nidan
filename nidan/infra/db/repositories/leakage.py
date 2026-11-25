@@ -125,6 +125,25 @@ class LeakageRepository(Repository):
             counts[row["severity"]] = row["n"]
         return counts
 
+    def flagged_since(self, since) -> dict[str, int]:
+        """
+        Flags raised since `since`: the leakage RATE's numerator (T-043,
+        `TECH_SPEC` §10.1 alerts above 2 %).
+
+        Every flag, reviewed or not, since the rate is about what the
+        detector saw. `confirmed` is counted separately because once a human
+        has looked, "confirmed leaks per reply" is the truer figure, and the
+        page shows both rather than choosing for the reader.
+        """
+        row = self._conn.execute(sa.text("""
+            SELECT count(*)                                AS flagged,
+                   count(*) FILTER (WHERE severity = 'high') AS high,
+                   count(*) FILTER (WHERE confirmed)       AS confirmed
+              FROM leakage_flags
+             WHERE created_at >= :since
+        """), {"since": since}).mappings().one()
+        return dict(row)
+
     def queue(self, *, limit: int = 50,
               include_reviewed: bool = False) -> list[Mapping[str, Any]]:
         """
@@ -142,7 +161,10 @@ class LeakageRepository(Repository):
               JOIN case_versions cv ON cv.id = s.case_version_id
               JOIN cases c          ON c.id = cv.case_id
               {where}
-          ORDER BY (f.severity = 'high') DESC, f.created_at
+          -- `event_seq` breaks the tie: flags written in one transaction
+          -- share `created_at` (it is now(), fixed per transaction), and
+          -- without it the order of a session's flags was arbitrary.
+          ORDER BY (f.severity = 'high') DESC, f.created_at, f.event_seq
              LIMIT :limit
         """), {"limit": limit}).mappings().all())
 
