@@ -238,6 +238,115 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
+- [ ] **Y-31** (2026-11-25, from Vraj) · **The admin console was walked end to
+  end for the first time and five things were wrong. All five are fixed on
+  `main` — pull before you touch A-06/A-07 or A-08, because two of them are in
+  code you are about to build on.**
+
+  Commit `fcfda40`, "fix(admin): what the demo rehearsal found in the console".
+  1268 tests pass, 3 import-linter contracts kept.
+
+  **Read `docs/process/DEMO_RUN_SHEET.md` first.** It is the whole bring-up,
+  the admin-cookie step, and the three acts of the demo in order. Everything
+  below is the short version of why it exists.
+
+  **1 · `ProfileRepository.get()` was returning the wrong person.** This is the
+  one most likely to bite you. Migration 016's `own_profile` scopes a bare
+  `SELECT ... FROM profiles` to one row — *for `nidan_app`*. Migration 024 then
+  added `privileged_profiles_are_mutually_visible` `TO nidan_admin,
+  nidan_reviewer`, policies are OR'd, and `.first()` started taking an
+  arbitrary privileged row. **Every console screen greeted whoever signed in by
+  another administrator's name.** `get()` now names `WHERE id = :me`.
+  Authorization was never affected — `require_role` reads the profile under
+  `current_actor()`, which stays a plain `AuthenticatedUser` even for an admin
+  — but any screen of yours that asks "who am I" under `current_admin()` or
+  `current_reviewer()` would have had the wrong answer. Same family as the
+  `own_sessions` trap in `CLAUDE.md`: **an RLS policy with no `TO` clause is
+  not the only policy on the table.** Check `pg_policies` before assuming a
+  bare SELECT means "mine".
+
+  **2 · The dashboard was six hardcoded numbers, and two of them could not be
+  replaced.** "142 sessions today", "118 completed", "$1.84", "3 cases awaiting
+  review", "6.2 % feedback fallback", "10 published · 2 drafts" were all
+  literals. They now read from the database — except *sessions today* and
+  *completed*, which are **gone**, because `sessions` has RLS on and an admin
+  scope sees only its own plus migration 034's flagged ones. Counting them
+  would be correct SQL and a false statement about usage.
+
+  **This one is directly yours.** T-043 is A-08, the AI Ops page, and the first
+  thing that page will want is usage over time. You cannot get it from an admin
+  scope as the policies stand. Options, and **pick deliberately rather than
+  reaching for the service actor**: add a policy in a new migration that says
+  admins may read sessions (which is what A-09 would ask for, and worth raising
+  with Vraj first because it widens what the console can see of a learner's
+  consultation), or compute what you can from `llm_calls`, which has **no RLS
+  at all** and which `nidan_admin` can already read in full —
+  `LlmCallRepository.spend()` is the pattern and it is new in this commit.
+  Do **not** reach for `ServiceActor` from a route: it bypasses RLS entirely
+  and would make a web route the widest thing in the system.
+
+  **The feedback fallback rate is not computable, full stop.** The rule-based
+  fallback writes no `llm_calls` row — `FeedbackResult.call` is `None` because
+  nothing was billed — so the denominator does not exist in the database. If
+  A-08 is supposed to show it, that needs a new counter somewhere and it is a
+  decision, not an implementation. `spend()["not_ok"]` counts calls that were
+  made and did not return `ok`, which is a different and true thing.
+
+  **3 · The "+ New case" scaffold opened invalid.** `initial_content` seeded
+  `aggravating_factors` in `required_topics`, which is not in `TOPIC_KEYWORDS`
+  — so **every case ever created through that button started with a C-3 warning
+  on it**, on the one screen whose job is to teach an author what valid looks
+  like. Fixed, and `TestTheNewCaseScaffold` reads `initial_content` out of the
+  route's AST and runs it through `_validate_invariants`, so a key added later
+  is checked too. **This matters for T-044**: the lexicon editor is the screen
+  that will let someone add a topic, and the scaffold is one of the places a
+  topic name is written down in code. If you make the lexicon editable, that
+  test is what tells you the scaffold went stale.
+
+  **4 · Save Draft did not track the validation panel.** The panel is swapped
+  by HTMX on every keystroke; `#save-btn` is in the page header, **outside the
+  swap**, so it kept whatever state the server rendered at page load. The panel
+  said "Save Blocked" beside a working button — and clicking it POSTed the
+  form, got a correct 400 from the server-side C-4 check, and **replaced the
+  whole editor with the raw JSON refusal**. The guard was right and the author
+  lost every unsaved edit. `_validation.html` now carries `data-can-save` and
+  `editor.html` toggles the button on `htmx:afterSwap`.
+
+  **Worth generalising when you build A-06/A-07**: anything outside an
+  `hx-target` keeps its page-load state for ever. If a screen of yours has a
+  control whose enabled-ness depends on a swapped fragment, it needs the same
+  treatment or an out-of-band swap.
+
+  **5 · Live signup cannot work on a laptop, and that is the architecture.**
+  `profiles.id` references `auth.users(id)`, which locally is migration 001's
+  three-column stub that nothing populates — Supabase issues the credential in
+  the cloud and the stub never hears about it. `POST /v1/me` raises
+  `ForeignKeyViolation` and the learner reads *"We couldn't finish setting up
+  your account."* **It is not a bug in `web/`** — do not go looking for one. It
+  resolves itself when `DATABASE_URL` points at the Supabase project, which is
+  `T-045` criterion 1.
+
+  Until then: `python scripts/seed_demo_accounts.py` makes four accounts in
+  both places at once. It goes through the **publishable** key and the public
+  signup endpoint, refuses a service_role key, and refuses any non-local
+  database. Credentials land in `logs/demo-accounts.txt` (gitignored, and
+  **not** repeated here — `HANDOFF.md` is on GitHub).
+
+  **Two environment traps that each cost an hour**, both in the run sheet:
+
+  * **`docker compose stop app` every session.** The compose `app` service has
+    `restart: unless-stopped` and binds port 8000 on the **IPv6 wildcard**,
+    while `python -m nidan` binds IPv4. `localhost` prefers IPv6, so the web
+    app silently talks to an image baked weeks ago with no source mount. It
+    comes back every time Docker Desktop restarts.
+  * **`next start`, not `next dev`.** On Vraj's machine a dev server stalls
+    ~21 s on the first request to each route; a production build serves in 2 s.
+    `scripts/demo_up.sh` still runs `next dev` — if you have a spare half hour,
+    that and its `NIDAN_API_URL` check (it only verifies non-empty, not the
+    `/v1` suffix) are both worth fixing, but neither is blocking.
+
+  **Nothing here changes `openapi.yaml`**, so no `npm run gen:api` is needed.
+
 - [ ] **Y-30** (2026-11-24, from Vraj) · **Stripe is DEFERRED. The end-of-November
   demo is the only target now, and that changes what is worth your time.**
 
