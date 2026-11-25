@@ -26,6 +26,15 @@ one database and one Supabase project.
 
 Run each from `/Users/vrajpatel/Desktop/Nidan`.
 
+**0. Docker Desktop itself.** `docker compose` fails with "failed to connect
+to the docker API" when the desktop app is not running, and that is a
+different error from the database being down. It was not running at the start
+of the 25 Nov rehearsal.
+
+```bash
+open -a Docker
+```
+
 **1. Database.**
 
 ```bash
@@ -67,10 +76,12 @@ them to Dr Anita Verma — seven stay published for the learner.
 python scripts/seed_demo_accounts.py --stage-review-queue
 ```
 
-**5. The API.**
+**5. The API.** The allowance override goes **here, on the command line**, not
+in `.env` — see *The allowance* below. Putting it in `.env` turns three tests
+in `tests/db/test_allowance.py` red, because they assert the limit is 3.
 
 ```bash
-python -m nidan
+FREE_TIER_SESSIONS_PER_MONTH=10 python -m nidan
 ```
 
 **6. The web app — `next start`, never `next dev`.** A dev server on this
@@ -126,7 +137,14 @@ through `LOCAL_ADMIN_ACCESS.md`'s table in order.
 1. **Landing page** → *Sign in*.
 2. Sign in as **`demo.learner@example.com`**. This account is deliberately
    *not* onboarded, so you get the first-run flow.
-3. **Onboarding** — pick "Medical student", year 4.
+3. **Onboarding** — pick "Medical student", then **Next**.
+
+   Two things to expect, both seen on 25 Nov. **Signing in takes 5-10
+   seconds** — the button sits on "Logging in…" while the request goes to
+   Supabase in Frankfurt and back; it is not stuck. And **step 2 (the year)
+   can submit itself** the moment you click Next, so the year screen flashes
+   past. Nothing is lost: the demo accounts are seeded with year 4 already.
+   Do not click Next twice trying to make it appear.
 4. **Dashboard** — shows the free-tier allowance. Say the line here: *the
    allowance is shown before you start and never during a consultation.*
 5. **Start a consultation** → case preview → begin.
@@ -157,6 +175,35 @@ itself the day `DATABASE_URL` points at Supabase (`T-045` criterion 1).
 
 If asked, that is the honest answer, and it is a good one. Use
 `demo.student@example.com` as the spare if the first account gets into a state.
+
+---
+
+### The allowance, and why it says more than 3
+
+`FREE_TIER_SESSIONS_PER_MONTH=10` is passed **on the command line that starts
+the API**, for the demo only. The product figure is 3 (`PRD` FR-10.1) and
+nothing else changed — the setting is configured, not schema, which is exactly
+the point `T-017` made.
+
+**Do not put it in `.env`.** It was tried there first and
+`tests/db/test_allowance.py` went red in three places: those tests read the
+real setting and assert the limit is 3. An environment variable on the launch
+line reaches the running app and nothing else.
+
+The reason is that **every started session counts against the allowance,
+whatever its status** — an abandoned one included, which the Abandon dialog
+says out loud. At a limit of 3, one stale session plus a good run plus a bad
+run is already over, and a single 503 and retry would lock the account out
+mid-demo. If asked, "3 on the real free tier" is the honest answer. Delete
+the line from `.env` afterwards.
+
+### What is already in the account
+
+`demo.learner` has **four completed consultations** as of 25 Nov, put there
+deliberately so Progress has something to draw: three at 100 % and one at
+25 %. Without three completed cases the Progress tab is an empty state that
+says "1 of 3 completed", which is a poor screen to land on in front of an
+audience. The dip in that chart is the bad run, and it is worth pointing at.
 
 ---
 
@@ -382,20 +429,37 @@ screen is a better demo than a perfect one. But do not improvise and then claim
 
 ### The deliberately bad run, if you want to show the detectors
 
-This is the stronger demo of the actual IP, and it takes **three** inputs.
-On Aisha Khan (DKA), ask only:
+This is the stronger demo of the actual IP. On Aisha Khan (DKA), ask these
+**four** questions — not two — then submit **"Gastroenteritis"**:
 
 1. Do you think this is food poisoning? Did you eat something bad?
 2. Has anyone else at home had the same stomach bug or vomiting illness?
-
-then submit **"Gastroenteritis"**. Measured output:
+3. Was it a takeaway, or something that had been left out? Any dodgy food?
+4. How many times have you vomited, and is there any diarrhoea with the stomach bug?
 
 | | |
 |---|---|
-| questions | 2 of a minimum 8 |
+| questions | 4 of a minimum 8 |
 | coverage | 25 % — six of eight required topics never asked |
 | diagnosis | `anchored` — it matched the case's own trap, not just "wrong" |
-| flags | premature closure **0.75**, confirmation bias **0.90** |
+| flags | anchoring **0.85** · premature closure **0.75** · confirmation bias **0.90** |
+
+### Why four and not two
+
+**Two questions is the version to avoid, and it was run live to find this
+out.** `anchoring_min_questions` is 4, so on a two-question consultation the
+anchoring detector *abstains* — correctly, because two questions are not
+evidence of a pattern. But the feedback screen then renders that abstention
+as a green tick:
+
+> ✓ **Diagnostic focus** — 2 of your 2 questions followed a single line of
+> enquiry, and 0 explored other possibilities.
+
+A tick beside a sentence saying every question followed one line of enquiry
+is the one thing on that screen a sharp examiner could pick at, and the
+honest answer — "the detector needs four questions before it will call a
+pattern" — is a worse moment than simply asking four. At four, all three
+panels flag and the screen reads the way the product intends.
 
 Both numbers are deterministic Python. Say that out loud, because it is the
 whole argument: the model voiced the patient and wrote the prose, and **the
@@ -416,6 +480,10 @@ point, and a 25 % screen on its own just looks broken.
 | `alembic` says "No database URL" | `export DATABASE_URL=...` — it does not read `.env` |
 | Patient replies 503 `patient_unavailable` | Groq model retired or the circuit breaker is open. `python test_api.py` |
 | First click on a page takes 20 s | you are on `next dev`. Use `npx next start` |
+| `docker compose` says "failed to connect to the docker API" | Docker Desktop is not running. `open -a Docker` |
+| Sign-in sits on "Logging in…" | normal, 5-10 s to Supabase and back. Not stuck |
+| Progress says "Not enough data yet" | that account has fewer than 3 *completed* cases |
+| `monthly_limit_reached` on starting a case | the allowance. Check `FREE_TIER_SESSIONS_PER_MONTH` is still in `.env` |
 
 ---
 
