@@ -49,6 +49,68 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Vraj
 
+- [ ] **V-13** (2026-11-25, from Yogesh) · **T-043 and T-044 are both built,
+  answering Y-28 and Y-30: I took both, so neither is free. One change in it
+  reverses a decision of yours, so please look at that first.** Branch
+  `feat/t-043-t-044-ai-ops-and-content` (`4adc80d`). 1336 tests pass and 3
+  import-linter contracts are kept. Build logs: `T-043-ai-operations.md`,
+  `T-044-content-and-lexicon-editors.md`.
+
+  **1 · Failed and fallback calls now write `llm_calls` rows, at $0.** Y-31
+  said the fallback rate was "a decision, not an implementation". Without
+  this change A-08's error and fallback rates would always read 0 %, which is
+  the same fabricated figure you removed from A-01. So:
+  * the gateway attaches a `status='failed'` `LLMCall` to the exception after
+    its retries (`gateway.failed_call(e)`), and `consultation.py` records it
+    in its own best-effort scope. **It is not an event, so the question is
+    still not consumed**;
+  * rule-based feedback returns a `status='fallback'` call
+    (`gateway.fallback_call`), and `conclusion.py` records it unchanged.
+  Migration 015's CHECK always allowed both values. Three tests that pinned
+  "no row" now pin "a $0 row and no event" (`test_v1_consultation`,
+  `test_v1_conclusion`, `test_circuit_breaker`). If you disagree, reverting
+  is three call sites; T-043 build log §5 lists them.
+
+  **2 · A monthly budget, injected into the gateway.** `LLM_MONTHLY_BUDGET_USD`
+  (new Settings field, in `.env.example`). At 100 % every purpose uses
+  `pricing.cheapest_model()`. `infra.llm` still cannot reach the database:
+  `create_app` calls `gateway.set_budget_guard(budget.exhausted)`. Spend is
+  cached for 60 s per process, and a failing check fails open. Unset, nothing
+  changes and no query runs. Worth setting on the demo machine.
+
+  **3 · Migration 036. Run `alembic upgrade head`.** `nidan_admin` gets
+  INSERT/UPDATE on `examinations`/`investigations` (no DELETE, A-06 retires
+  only), and `nidan_service` gets UPDATE on `topic_phrases.match_count` and
+  `last_matched_at` only.
+
+  **4 · `python -m nidan.jobs lexicon` is new and wants scheduling** beside
+  `run`. It is the nightly job migration 005 promised for the dead-phrase
+  report. It recomputes from scratch, stores counts and never text, has its
+  own exit path so it never colours `run`, and writes a NULL-actor audit row
+  the console reads back.
+
+  **5 · The lexicon editor exports, it does not save.** Scoring reads
+  `topics.py`, so the screen builds a proposal, tests questions against it
+  with the engine's own matcher (pinned against every pilot question), and
+  generates the migration **plus** the `TOPIC_KEYWORDS` entries to commit
+  together. The master-list editor *does* write the database, because `/v1`
+  reads those tables live. So a live database can now hold items
+  `cases.py` does not, and that is expected.
+
+  **6 · A flaky test in your T-040 code, fixed.**
+  `test_high_severity_sorts_first_then_oldest_first` failed once here: the
+  three flags share `created_at` (one transaction), and `queue()` had no
+  tiebreak. Added `f.event_seq` to the ORDER BY.
+
+  **7 · Small things.** `/admin/ops` 301s to `/admin/ai` (A-08's route), and
+  A-01's link points there. On day one the tester shows that "evening" alone
+  matches `timing_pattern`, so it is worth a clinician's look. Y-27: confirmed,
+  I am **not** building the response conformance test.
+
+  **Done when:** you have read point 1 and either agreed or said what to
+  change, 036 is applied on your laptop, and the lexicon job is in whatever
+  schedules `run`.
+
 - [x] **V-12** (2026-11-23, from Yogesh) · *Answered 2026-11-23 — see Y-27.* · **Two more stale *response*
   schemas, one of which broke the T-033 dashboard — fixed. The conformance
   test now needs its other half.** Branch `feat/t-037-history-progress`
@@ -238,7 +300,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
 ## Inbox — for Yogesh
 
-- [ ] **Y-31** (2026-11-25, from Vraj) · **The admin console was walked end to
+- [x] **Y-31** (2026-11-25, from Vraj) · *Read 2026-11-25; pulled `fcfda40` before building on it — see V-13.* · **The admin console was walked end to
   end for the first time and five things were wrong. All five are fixed on
   `main` — pull before you touch A-06/A-07 or A-08, because two of them are in
   code you are about to build on.**
@@ -347,7 +409,7 @@ project's files, and switching to it would look like the whole repo vanished.
 
   **Nothing here changes `openapi.yaml`**, so no `npm run gen:api` is needed.
 
-- [ ] **Y-30** (2026-11-24, from Vraj) · **Stripe is DEFERRED. The end-of-November
+- [x] **Y-30** (2026-11-24, from Vraj) · *Done 2026-11-25 — took both T-044 and T-043; see V-13.* · **Stripe is DEFERRED. The end-of-November
   demo is the only target now, and that changes what is worth your time.**
 
   Vraj's decision, 24 Nov: **T-041 (Stripe) is not being built before the
@@ -429,7 +491,7 @@ project's files, and switching to it would look like the whole repo vanished.
   we are not both in `nidan/web/admin/`, and read `UX_SPEC` A-06/A-07/A-08
   rather than what `BUILD_PLAN` used to point at. Tick this and delete it.
 
-- [ ] **Y-29** (2026-11-24, from Vraj) · **Run `alembic upgrade head` after
+- [x] **Y-29** (2026-11-24, from Vraj) · *Done 2026-11-25 — `alembic current` 036 (head), `test_seed.py` passes.* · **Run `alembic upgrade head` after
   you pull T-040 — there is a migration 035, and skipping it makes the web
   app's patient quietly worse rather than broken.** Branch
   `feat/t-040-leakage-monitor`, now at `9085295` (two commits; Y-28 pointed at
@@ -462,7 +524,7 @@ project's files, and switching to it would look like the whole repo vanished.
   passes, and a consultation in the web app gets a patient that declines to
   say what a test is for. Tick this and delete it.
 
-- [ ] **Y-28** (2026-11-24, from Vraj) · **T-038 is MERGED (PR #52) — Phase 3
+- [x] **Y-28** (2026-11-24, from Vraj) · *Done 2026-11-25 — built against A-06/A-07/A-08; see V-13.* · **T-038 is MERGED (PR #52) — Phase 3
   is complete on `main`. Phase 4 has started: T-040 is done and open as a PR.
   Three things are yours, and the first one will save you a day of building
   the wrong screen.** Branch `feat/t-040-leakage-monitor` (`14f67f7`).
@@ -525,7 +587,7 @@ project's files, and switching to it would look like the whole repo vanished.
   references, and told me which of T-043/T-044 you are taking so I do not
   duplicate it.
 
-- [ ] **Y-27** (2026-11-23, from Vraj) · **T-038 is merged-pending and Phase 3
+- [x] **Y-27** (2026-11-23, from Vraj) · *Read 2026-11-25 — not building the response test; S-20 copy waits for T-042, which is deferred.* · **T-038 is merged-pending and Phase 3
   is complete. Your V-12 is answered: yes to the response conformance test,
   and it is mine. Two things change for you, one of them in copy you have not
   written yet.** Branch `feat/t-038-account-jobs-worker` (`52471ed`).
