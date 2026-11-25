@@ -115,6 +115,7 @@ read only those sections.
 | **Picking up a Phase 3 task** | `BUILD_PLAN` §7 — T-030 … T-037. There are no Phase 3 briefs; `docs/process/phase-2-briefs/` is historical |
 | **Deploying the database to Supabase** | `docs/process/SUPABASE_DEPLOYMENT.md` — there is no file to upload; it is 35 migrations |
 | **Signing in to `/admin` locally** | `docs/process/LOCAL_ADMIN_ACCESS.md` — every refusal is an identical 404, so work through it in order |
+| **Running the demo** | `docs/process/DEMO_RUN_SHEET.md` — bring-up, the admin cookie, and the three acts, in order |
 | **Onboarding a clinical reviewer** | `docs/process/REVIEWER_ONBOARDING.md` — and `REVIEWER_GUIDE.md`, which is the document the clinician actually receives |
 | How it fits together | `docs/spec/TECH_SPEC.md` §2–3 |
 
@@ -563,6 +564,62 @@ false leakage flag costs an administrator one click, while a miss costs the
 validity of every measurement taken through that persona and nothing
 downstream would ever reveal it. The asymmetry is the design.
 
+**Signing up a new account cannot work against the local database, and that
+is the architecture.** `profiles.id` references `auth.users(id)`, which on a
+laptop is migration 001's three-column stub that nothing populates — Supabase
+issues the credential in the cloud, and the local stub never hears about it.
+So `POST /v1/me` raises `ForeignKeyViolation` and the learner reads "We
+couldn't finish setting up your account." It is not a bug in the web app and
+no amount of fixing one helps; it resolves itself the day `DATABASE_URL`
+points at the Supabase project (`T-045` criterion 1). Until then
+`scripts/seed_demo_accounts.py` makes the accounts ahead of time, in both
+places, through the **publishable** key and the public signup endpoint —
+never the service_role key, which `SECURITY_SPEC` §7.9 gives
+`identity_admin.py` alone.
+
+**`ProfileRepository.get()` names `WHERE id = :me`, and removing it is a
+privacy bug that looks cosmetic.** Migration 016's `own_profile` really does
+scope a bare SELECT to one row — for `nidan_app`. Migration 024 then added
+`privileged_profiles_are_mutually_visible` `TO nidan_admin, nidan_reviewer`,
+policies are OR'd, and `.first()` started taking an arbitrary privileged row:
+every console screen greeted whoever signed in by **another administrator's
+name**. Authorization was never affected — `require_role` reads the profile
+under `current_actor()`, which stays a plain `AuthenticatedUser` even for an
+admin — but any future admin screen that asks "who am I" would have got the
+wrong answer. The test that `own_profile` still bites therefore queries
+`profiles` directly rather than through `get()`.
+(`tests/db/test_repository_scope.py`)
+
+**Every figure on the admin dashboard is read from the database, and two that
+an audience expects are deliberately absent.** "142 sessions today", "118
+completed", "$1.84", "3 cases awaiting review", "6.2 % feedback fallback" and
+"10 published · 2 drafts" were literals in `dashboard.html`, wrong by an order
+of magnitude against the data underneath. **Sessions today and completed could
+not be replaced**: `sessions` has RLS on, and an admin scope sees only its own
+sessions plus the ones migration 034's flag-keyed policy points at, so a count
+would be correct SQL and a false statement about usage — admin visibility of
+learners' sessions is A-09's to ask for. **The feedback fallback rate could
+not either**: the rule-based fallback writes no `llm_calls` row, so that rate
+has no denominator. Do not put a literal back in that grid.
+
+**The "+ New case" scaffold must stay valid, because it is the first thing an
+author ever sees.** It seeded `aggravating_factors` in `required_topics`,
+which is not in the lexicon, so every case created through that button opened
+with a C-3 warning already on it — the one screen whose job is to teach what
+valid looks like, teaching the opposite.
+`TestTheNewCaseScaffold` reads `initial_content` out of the route's AST and
+runs it through `_validate_invariants`, so a key added later is checked too.
+
+**The editor's Save button lives outside the HTMX swap, so it needs
+`data-can-save` to stay honest.** The validation panel is re-rendered on every
+keystroke; `#save-btn` is in the page header and kept its page-load state. The
+panel would say "Save Blocked" beside a working button, and clicking it POSTed
+the form, got a correct 400, and **replaced the whole editor with the raw JSON
+refusal** — the guard was right and the author lost every unsaved edit. The
+fragment now carries `data-can-save` and `editor.html` toggles the button on
+`htmx:afterSwap`. The disabled button is a courtesy; `save()` re-checks C-4
+server side and is the actual guard.
+
 **RLS binds `nidan_admin`, so an admin screen that joins `sessions` renders
 EMPTY rather than erroring.** `own_sessions` has no `TO` clause —
 `DATA_MODEL` §10.1 says so and migration 025 exists for the same thing on
@@ -778,7 +835,7 @@ pip install -e .                   # once, after cloning
 
 python -m nidan                    # run the app (needs GROQ_API_KEY in .env)
 docker compose up --build          # app + Postgres 16/pgvector on a clean machine
-pytest                             # 1261 tests (see docs/spec/TEST_STRATEGY.md)
+pytest                             # 1268 tests (see docs/spec/TEST_STRATEGY.md)
 ruff check . --fix                 # style
 mypy nidan/domain --strict         # types (domain only)
 lint-imports                       # check the domain/infra/api layering contract
@@ -791,6 +848,7 @@ python scripts/build_status.py     # regenerate docs/build-log/STATUS.md
 python scripts/build_golden.py     # regenerate the golden assessment record
 python scripts/backfill_pilot.py   # import the 16 pilot sessions (run-once, idempotent)
 python scripts/publish_for_demo.py --all   # publish drafts LOCALLY so /v1 can serve a case
+python scripts/seed_demo_accounts.py       # the four demo accounts, Supabase AND the local stub
 ./scripts/demo_up.sh               # db + migrations + cases + warm LLM + API + web app
 python -m nidan.jobs status        # the account jobs queue — what is outstanding
 python -m nidan.jobs run           # ...and do it (T-038; idempotent)

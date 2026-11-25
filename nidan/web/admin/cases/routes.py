@@ -392,7 +392,14 @@ def create_new_case():
         "anchor_keywords": ["chest pain", "angina"],
         "alternative_topics": ["reflux", "gerd"],
         "minimum_questions": 7,
-        "required_topics": ["pain_character", "aggravating_factors"],
+        # Every key here must be in `TOPIC_KEYWORDS`, or the editor opens a
+        # brand new case with a C-3 warning already on it. `aggravating_factors`
+        # stood here and is not a topic -- the lexicon's names for that idea are
+        # `relieving_factors` and `meal_relationship` -- so every case ever
+        # created through this button started invalid, and the one screen whose
+        # job is to teach an author what valid looks like taught the opposite.
+        "required_topics": ["pain_character", "relieving_factors",
+                            "onset_timing", "radiation"],
         "contradictory_clues": [
             ["burning", "acid"],
             ["relief with antacids"],

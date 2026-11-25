@@ -214,6 +214,39 @@ class CaseRepository(Repository):
             ORDER BY c.id, cv.version DESC
         """)).mappings().all()
 
+    def bank_counts(self) -> dict[str, int]:
+        """
+        How many cases sit at each status — the dashboard's content summary.
+
+        Counts the **latest version of each case**, exactly as `bank()` lists
+        it, so a case with a published v1 and a draft v2 appears once and as a
+        draft. That is what an author needs: the question the panel answers is
+        "what is there to work on", not "how many rows are in
+        `case_versions`".
+
+        Every key is present even at zero, so the template can say "0 retired"
+        without a `default` filter and without the number silently vanishing
+        the day the dictionary shape changes.
+        """
+        self._require_admin("the content summary")
+        rows = self._conn.execute(sa.text("""
+            WITH latest AS (
+                SELECT DISTINCT ON (c.id) cv.status::text AS status,
+                       cv.retired_at
+                FROM cases c JOIN case_versions cv ON cv.case_id = c.id
+                ORDER BY c.id, cv.version DESC
+            )
+            SELECT CASE WHEN retired_at IS NOT NULL THEN 'retired'
+                        ELSE status END AS state, count(*) AS n
+            FROM latest GROUP BY 1
+        """)).mappings().all()
+        counts = {"draft": 0, "in_review": 0, "published": 0, "retired": 0}
+        for row in rows:
+            counts[row["state"]] = counts.get(row["state"], 0) + row["n"]
+        counts["total"] = sum(
+            counts[k] for k in ("draft", "in_review", "published", "retired"))
+        return counts
+
     def versions(self, case_id: UUID) -> Sequence[Mapping[str, Any]]:
         """Every version of one case, newest first."""
         self._require_admin("the version history")

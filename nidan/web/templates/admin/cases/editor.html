@@ -91,5 +91,33 @@ window.onbeforeunload = function() {
 document.getElementById("case-editor-form").addEventListener("submit", function() {
   isDirty = false;
 });
+
+// Keep Save Draft in step with the validation panel.
+//
+// The panel is swapped by HTMX on every keystroke; the button is in the page
+// header, outside the swap, so it kept its server-rendered state from page
+// load. The panel would say "Save Blocked" next to a working button, and
+// clicking it POSTed the form, got a correct 400, and replaced the editor
+// with the raw JSON refusal -- losing every unsaved edit.
+//
+// This is the second line of defence, not the only one: `save()` re-checks
+// C-4 server side and refuses regardless of what the button looks like. A
+// disabled button is a courtesy to the author, never the guard.
+function syncSaveButton() {
+  const panel = document.getElementById("validation-panel");
+  const btn = document.getElementById("save-btn");
+  if (!panel || !btn) return;
+  const blocked = panel.dataset.canSave === "false";
+  btn.disabled = blocked;
+  btn.style.opacity = blocked ? "0.5" : "";
+  btn.style.cursor = blocked ? "not-allowed" : "";
+  btn.title = blocked
+    ? "Blocked by C-4: anchor keywords overlap a contradictory clue."
+    : "";
+}
+document.body.addEventListener("htmx:afterSwap", function (e) {
+  if (e.target && e.target.id === "validation-panel") syncSaveButton();
+});
+syncSaveButton();
 </script>
 {% endblock %}
